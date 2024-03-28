@@ -23,6 +23,9 @@ classifiers = [
 dynamic = [
   "version",
 ]
+dependencies = [
+  "arrow>=1",
+]
 
 [tool.ruff.lint]
 select = ["ALL"]
@@ -31,6 +34,13 @@ select = ["ALL"]
 force-single-line = true
 force-sort-within-sections = true
 order-by-type = false
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = [
+  "D100",
+  "D104",
+  "S101",
+]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
