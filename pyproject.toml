@@ -25,9 +25,16 @@ dynamic = [
 ]
 dependencies = [
   "arrow>=1",
+  "typing_extensions>=4.4",
 ]
 
+[tool.ruff.format]
+skip-magic-trailing-comma = true
+
 [tool.ruff.lint]
+ignore = [
+  "ANN101",
+]
 select = ["ALL"]
 
 [tool.ruff.lint.isort]
@@ -37,13 +44,21 @@ order-by-type = false
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = [
-  "D100",
-  "D104",
-  "S101",
+  "D",
+  "PLR",
+  "S",
+  "SLF",
+]
+"src/btrfs2s3/_internal/*" = [
+  "PLR",
+]
+"src/btrfs2s3/resolver.py" = [
+  "D",
 ]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 
 [tool.mypy]
+mypy_path = "typeshed"
 strict = true

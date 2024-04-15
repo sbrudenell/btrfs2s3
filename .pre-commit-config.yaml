@@ -41,5 +41,5 @@ repos:
   rev: v1.9.0
   hooks:
   - id: mypy
-    additional_dependencies: [types-all, arrow>=1]
+    additional_dependencies: [types-all, arrow>=1, pytest, typing_extensions>=4.4]
     args: []

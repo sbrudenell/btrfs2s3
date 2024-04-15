@@ -19,9 +19,7 @@ if TYPE_CHECKING:
 
 
 def iter_intersecting_time_spans(
-    a: Arrow,
-    *,
-    bounds: _Bounds = "[)",
+    a: Arrow, *, bounds: _Bounds = "[)"
 ) -> Iterable[tuple[Arrow, Arrow]]:
     """Convenience function to generate consistent intersecting time spans.
 
@@ -52,7 +50,7 @@ def iter_intersecting_time_spans(
     )
 
 
-def iter_time_spans(  # noqa: PLR0913
+def iter_time_spans(
     a: Arrow,
     *,
     bounds: _Bounds = "[)",
