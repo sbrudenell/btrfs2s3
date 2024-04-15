@@ -45,7 +45,6 @@ def iter_intersecting_time_spans(
         hours=(0,),
         minutes=(0,),
         seconds=(0,),
-        microseconds=(0,),
         bounds=bounds,
     )
 
@@ -62,7 +61,6 @@ def iter_time_spans(
     hours: Iterable[int] = (),
     minutes: Iterable[int] = (),
     seconds: Iterable[int] = (),
-    microseconds: Iterable[int] = (),
 ) -> Iterable[tuple[Arrow, Arrow]]:
     """Convenience function to generate consistent time spans of multiple timeframes.
 
@@ -89,7 +87,6 @@ def iter_time_spans(
         hours: An Iterable of offsets of hour time spans.
         minutes: An Iterable of offsets of minute time spans.
         seconds: An Iterable of offsets of second time spans.
-        microseconds: An Iterable of offsets of microsecond time spans.
 
     Yields:
         2-tuples of Arrow objects.
@@ -110,5 +107,3 @@ def iter_time_spans(
         yield a.shift(minutes=m).span("minute", bounds=bounds)
     for s in seconds:
         yield a.shift(seconds=s).span("second", bounds=bounds)
-    for m in microseconds:
-        yield a.shift(microseconds=m).span("microsecond", bounds=bounds)

@@ -34,6 +34,9 @@ skip-magic-trailing-comma = true
 [tool.ruff.lint]
 ignore = [
   "ANN101",
+  "ANN102",
+  "ISC001",
+  "COM812",
 ]
 select = ["ALL"]
 

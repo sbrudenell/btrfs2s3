@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import functools
+from math import floor
 from typing import Callable
 from typing import Hashable
 from typing import Iterable
@@ -71,7 +72,7 @@ def backup_of_snapshot(
         parent_uuid=snapshot.parent_uuid,
         send_parent_uuid=None if send_parent is None else send_parent.uuid,
         ctransid=snapshot.ctransid,
-        ctime=snapshot.ctime,
+        ctime=floor(snapshot.ctime),
     )
 
 
@@ -88,7 +89,6 @@ def mkretained(
     hours: Iterable[int] = (),
     minutes: Iterable[int] = (),
     seconds: Iterable[int] = (),
-    microseconds: Iterable[int] = (),
 ) -> tuple[IterTimeSpans[TS], IsTimeSpanRetained[TS]]:
     constrained_iter_time_spans = functools.partial(
         arrowutil.iter_time_spans,
@@ -101,7 +101,6 @@ def mkretained(
         hours=(0,) if hours else (),
         minutes=(0,) if minutes else (),
         seconds=(0,) if seconds else (),
-        microseconds=(0,) if microseconds else (),
     )
 
     def iter_time_spans(timestamp: float) -> Iterable[TS]:
@@ -119,7 +118,6 @@ def mkretained(
             hours=hours,
             minutes=minutes,
             seconds=seconds,
-            microseconds=microseconds,
         )
     )
     return iter_time_spans, retained_time_spans.__contains__
