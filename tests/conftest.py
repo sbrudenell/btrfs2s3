@@ -28,7 +28,7 @@ def _aws(_aws_credentials: None) -> Iterator[None]:
 def btrfs_mountpoint() -> Iterator[Path]:
     with tempfile.NamedTemporaryFile() as loop_file:
         loop_file.truncate(2**30)
-        subprocess.check_call(["mkfs.btrfs", loop_file.name])
+        subprocess.check_call(["mkfs.btrfs", "-q", loop_file.name])
         with tempfile.TemporaryDirectory() as mount_temp_dir:
             subprocess.check_call(["mount", loop_file.name, mount_temp_dir])
             try:
