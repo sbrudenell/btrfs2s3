@@ -3,6 +3,7 @@ from __future__ import annotations
 import collections
 import contextlib
 from contextvars import ContextVar
+import dataclasses
 import enum
 from queue import SimpleQueue
 from typing import Collection
@@ -15,7 +16,6 @@ import uuid
 import warnings
 
 from btrfsutil import SubvolumeInfo
-from typing_extensions import NamedTuple
 from typing_extensions import TypeVar
 
 from btrfs2s3._internal.util import backup_of_snapshot
@@ -83,13 +83,15 @@ class ReasonCode(enum.Flag):
 _EMPTY_REASON_CODE = ReasonCode(0)
 
 
-class Reason(NamedTuple, Generic[_TS]):
+@dataclasses.dataclass(frozen=True)
+class Reason(Generic[_TS]):
     code: ReasonCode = _EMPTY_REASON_CODE
     time_span: _TS | None = None
     other: bytes | None = None
 
 
-class _MarkedItem(NamedTuple, Generic[_I, _TS]):
+@dataclasses.dataclass(frozen=True)
+class _MarkedItem(Generic[_I, _TS]):
     item: _I
     reasons: set[Reason[_TS]]
 
@@ -156,7 +158,8 @@ KeepSnapshot: TypeAlias = _MarkedItem[SubvolumeInfo, _TS]
 KeepBackup: TypeAlias = _MarkedItem[BackupInfo, _TS]
 
 
-class Result(NamedTuple, Generic[_TS]):
+@dataclasses.dataclass(frozen=True)
+class Result(Generic[_TS]):
     keep_snapshots: dict[bytes, KeepSnapshot[_TS]]
     keep_backups: dict[bytes, KeepBackup[_TS]]
 

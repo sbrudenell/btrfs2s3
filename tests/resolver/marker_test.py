@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import functools
 import random
-from typing import TYPE_CHECKING
 
 import arrow
 from btrfs2s3._internal.util import mksubvol
@@ -11,9 +10,7 @@ from btrfs2s3.resolver import _MarkedItem
 from btrfs2s3.resolver import _Marker
 from btrfs2s3.resolver import Reason
 from btrfs2s3.resolver import ReasonCode
-
-if TYPE_CHECKING:
-    from btrfsutil import SubvolumeInfo
+from btrfsutil import SubvolumeInfo
 
 mkuuid = functools.partial(random.randbytes, 16)
 
@@ -88,11 +85,11 @@ def test_keep_with_time_span_context() -> None:
     with marker.with_time_span(time_span):
         marker.mark(snapshot, code=ReasonCode.Retained)
     assert marker.get_result() == {
-        snapshot.uuid: _MarkedItem(
+        snapshot.uuid: _MarkedItem[SubvolumeInfo, TS](
             item=snapshot,
             reasons={
-                Reason(code=ReasonCode.Retained),
-                Reason(code=ReasonCode.Retained, time_span=time_span),
+                Reason[TS](code=ReasonCode.Retained),
+                Reason[TS](code=ReasonCode.Retained, time_span=time_span),
             },
         )
     }
