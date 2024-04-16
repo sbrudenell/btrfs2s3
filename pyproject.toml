@@ -26,7 +26,6 @@ dynamic = [
 dependencies = [
   "arrow>=1",
   "boto3[crt]",
-  "boto3-stubs[boto3,s3]",
   "typing_extensions>=4.4",
 ]
 

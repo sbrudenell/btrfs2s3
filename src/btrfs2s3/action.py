@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import dataclasses
+import functools
+from itertools import chain
 import logging
 from subprocess import PIPE
 from subprocess import Popen
@@ -23,14 +25,6 @@ if TYPE_CHECKING:
 _LOG = logging.getLogger(__name__)
 
 
-@dataclasses.dataclass(frozen=True)
-class CreateSnapshot:
-    """An intent to create a read-only snapshot of a subvolume."""
-
-    source: Path
-    path: Path
-
-
 def create_snapshot(*, source: Path, path: Path) -> None:
     """Create a read-only snapshot of a subvolume.
 
@@ -40,13 +34,6 @@ def create_snapshot(*, source: Path, path: Path) -> None:
     """
     _LOG.info("creating read-only snapshot of %s at %s", source, path)
     btrfsutil.create_snapshot(source, path, read_only=True)
-
-
-@dataclasses.dataclass(frozen=True)
-class DeleteSnapshot:
-    """An intent to delete a read-only snapshot."""
-
-    path: Path
 
 
 def delete_snapshot(path: Path) -> None:
@@ -75,14 +62,6 @@ def delete_snapshot(path: Path) -> None:
     btrfsutil.delete_subvolume(path)
 
 
-@dataclasses.dataclass(frozen=True)
-class RenameSnapshot:
-    """An intent to rename a read-only snapshot."""
-
-    source: Path
-    get_target: Callable[[], Path]
-
-
 def rename_snapshot(*, source: Path, target: Path) -> None:
     """Rename a read-only snapshot of of a subvolume.
 
@@ -92,16 +71,6 @@ def rename_snapshot(*, source: Path, target: Path) -> None:
     """
     _LOG.info("renaming %s -> %s", source, target)
     source.rename(target)
-
-
-@dataclasses.dataclass(frozen=True)
-class CreateBackup:
-    """An intent to create a backup of a read-only snapshot."""
-
-    source: Path
-    get_snapshot: Callable[[], Path]
-    get_send_parent: Callable[[], Path | None]
-    get_key: Callable[[], str]
 
 
 def create_backup(
@@ -140,13 +109,6 @@ def create_backup(
         raise RuntimeError(msg)
 
 
-@dataclasses.dataclass(frozen=True)
-class DeleteBackup:
-    """An intent to delete a backup."""
-
-    key: str
-
-
 def delete_backups(s3: S3Client, bucket: str, *keys: str) -> None:
     """Batch delete backups from S3.
 
@@ -173,3 +135,158 @@ def delete_backups(s3: S3Client, bucket: str, *keys: str) -> None:
             Bucket=bucket,
             Delete={"Quiet": True, "Objects": [{"Key": key} for key in batch]},
         )
+
+
+@dataclasses.dataclass(frozen=True, order=True)
+class CreateSnapshot:
+    """An intent to create a read-only snapshot of a subvolume."""
+
+    source: Path
+    path: Path
+
+
+@dataclasses.dataclass(frozen=True, order=True)
+class DeleteSnapshot:
+    """An intent to delete a read-only snapshot."""
+
+    path: Path
+
+
+@dataclasses.dataclass(frozen=True, order=True)
+class RenameSnapshot:
+    """An intent to rename a read-only snapshot."""
+
+    source: Path
+    get_target: Callable[[], Path]
+
+
+@dataclasses.dataclass(frozen=True, order=True)
+class CreateBackup:
+    """An intent to create a backup of a read-only snapshot."""
+
+    source: Path
+    get_snapshot: Callable[[], Path]
+    get_send_parent: Callable[[], Path | None]
+    get_key: Callable[[], str]
+
+
+@dataclasses.dataclass(frozen=True, order=True)
+class DeleteBackup:
+    """An intent to delete a backup."""
+
+    key: str
+
+
+class Plan:
+    def __init__(self) -> None:
+        self._create_snapshots: list[CreateSnapshot] = []
+        self._delete_snapshots: list[DeleteSnapshot] = []
+        self._rename_snapshots: list[RenameSnapshot] = []
+        self._create_backups: list[CreateBackup] = []
+        self._delete_backups: list[DeleteBackup] = []
+
+        self._future_rename_snapshots: list[RenameSnapshot] = []
+        self._future_create_backups: list[CreateBackup] = []
+
+    def create_rename_backup(  # noqa: PLR0913
+        self,
+        *,
+        source: Path,
+        initial_path: Path,
+        get_target_path: Callable[[], Path],
+        get_send_parent: Callable[[], Path | None],
+        get_key: Callable[[], str],
+    ) -> None:
+        get_target_path = functools.cache(get_target_path)
+        self._create_snapshots.append(CreateSnapshot(source=source, path=initial_path))
+        self._future_rename_snapshots.append(
+            RenameSnapshot(source=initial_path, get_target=get_target_path)
+        )
+        self._future_create_backups.append(
+            CreateBackup(
+                source=source,
+                get_snapshot=get_target_path,
+                get_send_parent=get_send_parent,
+                get_key=get_key,
+            )
+        )
+
+    def rename_snapshot(self, *, source: Path, target: Path) -> None:
+        self._rename_snapshots.append(
+            RenameSnapshot(source=source, get_target=lambda: target)
+        )
+
+    def delete_snapshot(self, snapshot: Path) -> None:
+        self._delete_snapshots.append(DeleteSnapshot(snapshot))
+
+    def create_backup(
+        self, *, source: Path, snapshot: Path, send_parent: Path | None, key: str
+    ) -> None:
+        self._create_backups.append(
+            CreateBackup(
+                source=source,
+                get_snapshot=lambda: snapshot,
+                get_send_parent=lambda: send_parent,
+                get_key=lambda: key,
+            )
+        )
+
+    def delete_backup(self, key: str) -> None:
+        self._delete_backups.append(DeleteBackup(key))
+
+    def iter_create_snapshot_intents(self) -> Iterator[CreateSnapshot]:
+        yield from sorted(self._create_snapshots)
+
+    def iter_delete_snapshot_intents(self) -> Iterator[DeleteSnapshot]:
+        yield from sorted(self._delete_snapshots)
+
+    def iter_rename_snapshot_intents(self) -> Iterator[RenameSnapshot]:
+        yield from sorted(self._rename_snapshots)
+
+    def iter_future_rename_snapshot_intents(self) -> Iterator[RenameSnapshot]:
+        yield from sorted(self._future_rename_snapshots)
+
+    def iter_create_backup_intents(self) -> Iterator[CreateBackup]:
+        yield from sorted(
+            self._create_backups, key=lambda i: (i.source, i.get_snapshot())
+        )
+
+    def iter_future_create_backup_intents(self) -> Iterator[CreateBackup]:
+        yield from sorted(self._future_create_backups)
+
+    def iter_delete_backup_intents(self) -> Iterator[DeleteBackup]:
+        yield from sorted(self._delete_backups)
+
+    def execute(self, s3: S3Client, bucket: str) -> None:
+        for create_snapshot_intent in self.iter_create_snapshot_intents():
+            create_snapshot(
+                source=create_snapshot_intent.source, path=create_snapshot_intent.path
+            )
+
+        rename_snapshot_intents = chain(
+            self.iter_rename_snapshot_intents(),
+            self.iter_future_rename_snapshot_intents(),
+        )
+        for rename_snapshot_intent in rename_snapshot_intents:
+            rename_snapshot(
+                source=rename_snapshot_intent.source,
+                target=rename_snapshot_intent.get_target(),
+            )
+
+        create_backup_intents = chain(
+            self.iter_create_backup_intents(), self.iter_future_create_backup_intents()
+        )
+        for create_backup_intent in create_backup_intents:
+            create_backup(
+                s3=s3,
+                bucket=bucket,
+                snapshot=create_backup_intent.get_snapshot(),
+                send_parent=create_backup_intent.get_send_parent(),
+                key=create_backup_intent.get_key(),
+            )
+
+        for delete_snapshot_intent in self.iter_delete_snapshot_intents():
+            delete_snapshot(delete_snapshot_intent.path)
+
+        keys = tuple(d.key for d in self.iter_delete_backup_intents())
+        delete_backups(s3, bucket, *keys)

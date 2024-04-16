@@ -6,7 +6,6 @@ from subprocess import Popen
 from typing import Sequence
 from typing import TYPE_CHECKING
 
-import boto3
 from btrfs2s3.action import create_backup
 import btrfsutil
 import pytest
@@ -15,17 +14,6 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from mypy_boto3_s3.client import S3Client
-
-
-@pytest.fixture()
-def s3(_aws: None) -> S3Client:
-    return boto3.client("s3")
-
-
-@pytest.fixture()
-def bucket(s3: S3Client) -> str:
-    s3.create_bucket(Bucket="test-bucket")
-    return "test-bucket"
 
 
 def download_and_pipe_to_command(

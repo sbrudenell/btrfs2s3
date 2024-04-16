@@ -1,23 +1,15 @@
+from __future__ import annotations
+
 from random import randrange
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import arrow
-import boto3
 from btrfs2s3.backups import BackupInfo
 from btrfs2s3.s3 import iter_backups
-from mypy_boto3_s3.client import S3Client
-import pytest
 
-
-@pytest.fixture()
-def s3(_aws: None) -> S3Client:
-    return boto3.client("s3")
-
-
-@pytest.fixture()
-def bucket(s3: S3Client) -> str:
-    s3.create_bucket(Bucket="test-bucket")
-    return "test-bucket"
+if TYPE_CHECKING:
+    from mypy_boto3_s3.client import S3Client
 
 
 def test_empty(s3: S3Client, bucket: str) -> None:

@@ -2,23 +2,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import boto3
 from btrfs2s3.action import delete_backups
-import pytest
 
 if TYPE_CHECKING:
     from mypy_boto3_s3.client import S3Client
-
-
-@pytest.fixture()
-def s3(_aws: None) -> S3Client:
-    return boto3.client("s3")
-
-
-@pytest.fixture()
-def bucket(s3: S3Client) -> str:
-    s3.create_bucket(Bucket="test-bucket")
-    return "test-bucket"
 
 
 def test_good_delete_one_key(s3: S3Client, bucket: str) -> None:

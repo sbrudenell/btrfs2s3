@@ -1,11 +1,18 @@
+from __future__ import annotations
+
 import os
 from pathlib import Path
 import subprocess
 import tempfile
 from typing import Iterator
+from typing import TYPE_CHECKING
 
+import boto3
 from moto import mock_aws
 import pytest
+
+if TYPE_CHECKING:
+    from mypy_boto3_s3.client import S3Client
 
 
 @pytest.fixture(autouse=True, scope="session")
@@ -35,3 +42,14 @@ def btrfs_mountpoint() -> Iterator[Path]:
                 yield Path(mount_temp_dir)
             finally:
                 subprocess.check_call(["umount", mount_temp_dir])
+
+
+@pytest.fixture()
+def s3(_aws: None) -> S3Client:
+    return boto3.client("s3")
+
+
+@pytest.fixture()
+def bucket(s3: S3Client) -> str:
+    s3.create_bucket(Bucket="test-bucket")
+    return "test-bucket"
