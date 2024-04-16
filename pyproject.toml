@@ -60,6 +60,9 @@ order-by-type = false
 "src/btrfs2s3/resolver.py" = [
   "D",
 ]
+"typeshed/*" = [
+  "A",
+]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

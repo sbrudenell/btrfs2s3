@@ -71,17 +71,22 @@ class SubvolumeInfo(  # noqa: SLOT001
     def rtime(self) -> float: ...
 
 _IT_co = TypeVar("_IT_co", covariant=True, bound=int | SubvolumeInfo)
-_Path: TypeAlias = str | bytes | int | os.PathLike[str] | os.PathLike[bytes]
+_Path: TypeAlias = str | bytes | os.PathLike[str] | os.PathLike[bytes]
 
 class SubvolumeIterator(Iterator[tuple[str, _IT_co]]):
     @overload
     def __new__(
-        cls, path: _Path, *, info: Literal[True], top: int = 0, post_order: bool = False
+        cls,
+        path: _Path | int,
+        *,
+        info: Literal[True],
+        top: int = 0,
+        post_order: bool = False,
     ) -> SubvolumeIterator[SubvolumeInfo]: ...
     @overload
     def __new__(
         cls,
-        path: _Path,
+        path: _Path | int,
         *,
         info: Literal[False],
         top: int = 0,
@@ -89,7 +94,7 @@ class SubvolumeIterator(Iterator[tuple[str, _IT_co]]):
     ) -> SubvolumeIterator[int]: ...
     @overload
     def __new__(
-        cls, path: _Path, *, top: int = 0, post_order: bool = False
+        cls, path: _Path | int, *, top: int = 0, post_order: bool = False
     ) -> SubvolumeIterator[int]: ...
     def __next__(self) -> tuple[str, _IT_co]: ...
     def __iter__(self) -> Self: ...
@@ -102,3 +107,52 @@ class SubvolumeIterator(Iterator[tuple[str, _IT_co]]):
         __exc_value: BaseException | None,
         __traceback: TracebackType | None,
     ) -> bool | None: ...
+
+class QgroupInherit:
+    @property
+    def groups(self) -> list[int]: ...
+    def add_group(self, qgroupid: int) -> None: ...
+
+@overload
+def create_snapshot(
+    source: _Path | int,
+    path: _Path,
+    *,
+    async_: Literal[True],
+    recursive: bool = False,
+    read_only: bool = False,
+    qgroup_inherit: QgroupInherit | None = None,
+) -> int: ...
+@overload
+def create_snapshot(
+    source: _Path | int,
+    path: _Path,
+    *,
+    async_: Literal[False],
+    recursive: bool = False,
+    read_only: bool = False,
+    qgroup_inherit: QgroupInherit | None = None,
+) -> None: ...
+@overload
+def create_snapshot(
+    source: _Path | int,
+    path: _Path,
+    *,
+    recursive: bool = False,
+    read_only: bool = False,
+    qgroup_inherit: QgroupInherit | None = None,
+) -> None: ...
+@overload
+def create_subvolume(
+    path: _Path, *, async_: Literal[True], qgroup_inherit: QgroupInherit | None = None
+) -> int: ...
+@overload
+def create_subvolume(
+    path: _Path, *, async_: Literal[False], qgroup_inherit: QgroupInherit | None = None
+) -> None: ...
+@overload
+def create_subvolume(
+    path: _Path, *, qgroup_inherit: QgroupInherit | None = None
+) -> None: ...
+def is_subvolume(path: _Path | int) -> bool: ...
+def subvolume_info(path: _Path | int, id: int = 0) -> SubvolumeInfo: ...

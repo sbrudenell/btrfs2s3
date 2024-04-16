@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from enum import IntFlag
 import functools
 from typing import Callable
 from typing import Hashable
@@ -120,3 +121,7 @@ def mkretained(
         )
     )
     return iter_time_spans, retained_time_spans.__contains__
+
+
+class SubvolumeFlags(IntFlag):
+    ReadOnly = 1
