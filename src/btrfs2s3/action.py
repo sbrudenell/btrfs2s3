@@ -7,6 +7,7 @@ import logging
 from subprocess import PIPE
 from subprocess import Popen
 from typing import Callable
+from typing import Iterator
 from typing import TYPE_CHECKING
 
 import btrfsutil
@@ -136,3 +137,38 @@ def create_backup(s3: S3Client, bucket: str, arg: CreateBackup) -> None:
     if send_process.wait() != 0:
         msg = f"'btrfs send' exited with code {send_process.returncode}"
         raise RuntimeError(msg)
+
+
+@dataclasses.dataclass(frozen=True)
+class DeleteBackup:
+    """An intent to delete a backup."""
+
+    key: str
+
+
+def delete_backups(s3: S3Client, bucket: str, *keys: str) -> None:
+    """Batch delete backups from S3.
+
+    This will use the DeleteObjects API call, which can delete multiple keys in
+    batches.
+
+    Args:
+        s3: An S3 client.
+        bucket: The bucket from which to delete keys.
+        *keys: The keys to delete.
+    """
+
+    def batches() -> Iterator[tuple[str, ...]]:
+        for i in range(0, len(keys), 1000):
+            yield keys[i : i + 1000]
+
+    for batch in batches():
+        for key in batch:
+            _LOG.info("deleting backup %s", key)
+        # Do we need to inspect the response for individual errors, or will we
+        # raise an exception in this case? The docs are thousands of words long
+        # but don't explain this
+        s3.delete_objects(
+            Bucket=bucket,
+            Delete={"Quiet": True, "Objects": [{"Key": key} for key in batch]},
+        )
