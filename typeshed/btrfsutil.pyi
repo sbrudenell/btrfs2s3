@@ -1,9 +1,17 @@
+import os
 import sys
+from types import TracebackType
 from typing import Any
 from typing import Final
+from typing import Iterator
+from typing import Literal
+from typing import overload
+from typing import TypeAlias
+from typing import TypeVar
 
 from _typeshed import structseq
 from typing_extensions import final
+from typing_extensions import Self
 
 @final
 class SubvolumeInfo(  # noqa: SLOT001
@@ -61,3 +69,36 @@ class SubvolumeInfo(  # noqa: SLOT001
     def stime(self) -> float: ...
     @property
     def rtime(self) -> float: ...
+
+_IT_co = TypeVar("_IT_co", covariant=True, bound=int | SubvolumeInfo)
+_Path: TypeAlias = str | bytes | int | os.PathLike[str] | os.PathLike[bytes]
+
+class SubvolumeIterator(Iterator[tuple[str, _IT_co]]):
+    @overload
+    def __new__(
+        cls, path: _Path, *, info: Literal[True], top: int = 0, post_order: bool = False
+    ) -> SubvolumeIterator[SubvolumeInfo]: ...
+    @overload
+    def __new__(
+        cls,
+        path: _Path,
+        *,
+        info: Literal[False],
+        top: int = 0,
+        post_order: bool = False,
+    ) -> SubvolumeIterator[int]: ...
+    @overload
+    def __new__(
+        cls, path: _Path, *, top: int = 0, post_order: bool = False
+    ) -> SubvolumeIterator[int]: ...
+    def __next__(self) -> tuple[str, _IT_co]: ...
+    def __iter__(self) -> Self: ...
+    def close(self) -> None: ...
+    def fileno(self) -> int: ...
+    def __enter__(self) -> Self: ...
+    def __exit__(
+        self,
+        __exc_type: type[BaseException] | None,
+        __exc_value: BaseException | None,
+        __traceback: TracebackType | None,
+    ) -> bool | None: ...
