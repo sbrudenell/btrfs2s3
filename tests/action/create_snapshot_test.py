@@ -1,8 +1,7 @@
 from pathlib import Path
 
 from btrfs2s3._internal.util import SubvolumeFlags
-from btrfs2s3.action import create_snapshots
-from btrfs2s3.action import CreateSnapshot
+from btrfs2s3.action import create_snapshot
 import btrfsutil
 
 
@@ -12,8 +11,7 @@ def test_call(btrfs_mountpoint: Path) -> None:
     source_info = btrfsutil.subvolume_info(source)
     path = btrfs_mountpoint / "snapshot"
 
-    action = CreateSnapshot(source, path)
-    create_snapshots(action)
+    create_snapshot(source, path)
 
     assert btrfsutil.is_subvolume(path)
     path_info = btrfsutil.subvolume_info(path)

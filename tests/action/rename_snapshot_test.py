@@ -1,7 +1,6 @@
 from pathlib import Path
 
-from btrfs2s3.action import rename_snapshots
-from btrfs2s3.action import RenameSnapshot
+from btrfs2s3.action import rename_snapshot
 import btrfsutil
 
 
@@ -13,8 +12,7 @@ def test_call(btrfs_mountpoint: Path) -> None:
 
     target = btrfs_mountpoint / "new-snapshot"
 
-    action = RenameSnapshot(source=snapshot, get_target=lambda: target)
-    rename_snapshots(action)
+    rename_snapshot(snapshot, target)
 
     assert not snapshot.exists()
     assert target.exists()
