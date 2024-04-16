@@ -11,7 +11,7 @@ def test_call(btrfs_mountpoint: Path) -> None:
     source_info = btrfsutil.subvolume_info(source)
     path = btrfs_mountpoint / "snapshot"
 
-    create_snapshot(source, path)
+    create_snapshot(source=source, path=path)
 
     assert btrfsutil.is_subvolume(path)
     path_info = btrfsutil.subvolume_info(path)

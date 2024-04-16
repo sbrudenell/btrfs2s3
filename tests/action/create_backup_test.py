@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING
 
 import boto3
 from btrfs2s3.action import create_backup
-from btrfs2s3.action import CreateBackup
 import btrfsutil
 import pytest
 
@@ -52,13 +51,7 @@ def test_creates_a_valid_btrfs_archive(
 
     key = "test-backup"
 
-    action = CreateBackup(
-        source=source,
-        get_snapshot=lambda: snapshot,
-        get_send_parent=lambda: None,
-        get_key=lambda: key,
-    )
-    create_backup(s3, bucket, action)
+    create_backup(s3=s3, bucket=bucket, key=key, snapshot=snapshot, send_parent=None)
 
     # Just check the archive is valid
     download_and_pipe_to_command(s3, bucket, key, ["btrfs", "receive", "--dump"])
@@ -78,13 +71,7 @@ def test_large_archive_multipart_upload(
 
     key = "test-backup"
 
-    action = CreateBackup(
-        source=source,
-        get_snapshot=lambda: snapshot,
-        get_send_parent=lambda: None,
-        get_key=lambda: key,
-    )
-    create_backup(s3, bucket, action)
+    create_backup(s3=s3, bucket=bucket, snapshot=snapshot, send_parent=None, key=key)
 
     # Just check the archive is valid
     download_and_pipe_to_command(s3, bucket, key, ["btrfs", "receive", "--dump"])
@@ -104,13 +91,7 @@ def test_send_full_and_delta_archives_and_restore(
     btrfsutil.create_snapshot(source, snapshot1, read_only=True)
     # Back up the first snapshot
     key1 = "test-backup1"
-    action1 = CreateBackup(
-        source=source,
-        get_snapshot=lambda: snapshot1,
-        get_send_parent=lambda: None,
-        get_key=lambda: key1,
-    )
-    create_backup(s3, bucket, action1)
+    create_backup(s3=s3, bucket=bucket, snapshot=snapshot1, send_parent=None, key=key1)
 
     # Write some more data in the source (appending this time)
     with large_file.open(mode="ab") as fp:
@@ -121,13 +102,9 @@ def test_send_full_and_delta_archives_and_restore(
     btrfsutil.create_snapshot(source, snapshot2, read_only=True)
     # Back up the first snapshot, using the first as a send-parent
     key2 = "test-backup2"
-    action2 = CreateBackup(
-        source=source,
-        get_snapshot=lambda: snapshot2,
-        get_send_parent=lambda: snapshot1,
-        get_key=lambda: key2,
+    create_backup(
+        s3=s3, bucket=bucket, snapshot=snapshot2, send_parent=snapshot1, key=key2
     )
-    create_backup(s3, bucket, action2)
 
     # Delete the snapshots and the source
     btrfsutil.delete_subvolume(source)
@@ -149,18 +126,13 @@ def test_send_full_and_delta_archives_and_restore(
 def test_raise_error_on_send_failure(
     tmp_path: Path, capfd: pytest.CaptureFixture[str], s3: S3Client, bucket: str
 ) -> None:
-    source = tmp_path / "dummy"
     snapshot = tmp_path / "not-a-btrfs-subvolume"
     key = "test-backup"
 
-    action = CreateBackup(
-        source=source,
-        get_snapshot=lambda: snapshot,
-        get_send_parent=lambda: None,
-        get_key=lambda: key,
-    )
     with pytest.raises(RuntimeError, match="'btrfs send' exited with code "):
-        create_backup(s3, bucket, action)
+        create_backup(
+            s3=s3, bucket=bucket, snapshot=snapshot, send_parent=None, key=key
+        )
     out, err = capfd.readouterr()
     assert out == ""
     assert err != ""

@@ -12,7 +12,7 @@ def test_call(btrfs_mountpoint: Path) -> None:
 
     target = btrfs_mountpoint / "new-snapshot"
 
-    rename_snapshot(snapshot, target)
+    rename_snapshot(source=snapshot, target=target)
 
     assert not snapshot.exists()
     assert target.exists()

@@ -31,7 +31,7 @@ class CreateSnapshot:
     path: Path
 
 
-def create_snapshot(source: Path, path: Path) -> None:
+def create_snapshot(*, source: Path, path: Path) -> None:
     """Create a read-only snapshot of a subvolume.
 
     Args:
@@ -83,7 +83,7 @@ class RenameSnapshot:
     get_target: Callable[[], Path]
 
 
-def rename_snapshot(source: Path, target: Path) -> None:
+def rename_snapshot(*, source: Path, target: Path) -> None:
     """Rename a read-only snapshot of of a subvolume.
 
     Args:
@@ -104,7 +104,9 @@ class CreateBackup:
     get_key: Callable[[], str]
 
 
-def create_backup(s3: S3Client, bucket: str, arg: CreateBackup) -> None:
+def create_backup(
+    *, s3: S3Client, bucket: str, snapshot: Path, send_parent: Path | None, key: str
+) -> None:
     """Stores a btrfs archive in S3.
 
     This will spawn "btrfs -q send" as a subprocess, as there is currently no way
@@ -113,12 +115,11 @@ def create_backup(s3: S3Client, bucket: str, arg: CreateBackup) -> None:
     Args:
         s3: An S3 client.
         bucket: The bucket in which to store the archive.
-        arg: The other arguments.
+        snapshot: The snapshot to back up.
+        send_parent: The parent snapshot for delta backups. When not None, this
+            will be supplied to "btrfs send -p".
+        key: The S3 object key.
     """
-    snapshot = arg.get_snapshot()
-    send_parent = arg.get_send_parent()
-    key = arg.get_key()
-
     _LOG.info(
         "creating backup of %s (%s)",
         snapshot,
