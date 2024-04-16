@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from btrfs2s3.action import delete_snapshots
 from btrfs2s3.action import DeleteSnapshot
 import btrfsutil
 import pytest
@@ -12,7 +13,7 @@ def test_call(btrfs_mountpoint: Path) -> None:
     btrfsutil.create_snapshot(source, snapshot, read_only=True)
 
     action = DeleteSnapshot(snapshot)
-    action()
+    delete_snapshots(action)
 
     assert not snapshot.exists()
 
@@ -23,7 +24,7 @@ def test_not_a_subvolume(btrfs_mountpoint: Path) -> None:
 
     action = DeleteSnapshot(source)
     with pytest.raises(RuntimeError, match="target isn't a subvolume"):
-        action()
+        delete_snapshots(action)
 
 
 def test_not_a_snapshot(btrfs_mountpoint: Path) -> None:
@@ -32,7 +33,7 @@ def test_not_a_snapshot(btrfs_mountpoint: Path) -> None:
 
     action = DeleteSnapshot(source)
     with pytest.raises(RuntimeError, match="target isn't a snapshot"):
-        action()
+        delete_snapshots(action)
 
 
 def test_not_a_read_only_snapshot(btrfs_mountpoint: Path) -> None:
@@ -43,4 +44,4 @@ def test_not_a_read_only_snapshot(btrfs_mountpoint: Path) -> None:
 
     action = DeleteSnapshot(snapshot)
     with pytest.raises(RuntimeError, match="target isn't a read-only snapshot"):
-        action()
+        delete_snapshots(action)
