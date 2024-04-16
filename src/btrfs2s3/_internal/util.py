@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import functools
-from math import floor
 from typing import Callable
 from typing import Hashable
 from typing import Iterable
@@ -72,7 +71,7 @@ def backup_of_snapshot(
         parent_uuid=snapshot.parent_uuid,
         send_parent_uuid=None if send_parent is None else send_parent.uuid,
         ctransid=snapshot.ctransid,
-        ctime=floor(snapshot.ctime),
+        ctime=snapshot.ctime,
     )
 
 

@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from contextlib import suppress
+import dataclasses
+from math import floor
 import pathlib
-from typing import NamedTuple
 from typing import Sequence
 from typing import TYPE_CHECKING
 from uuid import UUID
@@ -17,7 +18,8 @@ if TYPE_CHECKING:
     from datetime import tzinfo
 
 
-class BackupInfo(NamedTuple):
+@dataclasses.dataclass(frozen=True)
+class BackupInfo:
     """Information about a backup."""
 
     uuid: bytes
@@ -25,6 +27,12 @@ class BackupInfo(NamedTuple):
     send_parent_uuid: bytes | None
     ctransid: int
     ctime: float
+
+    def __post_init__(self) -> None:
+        """Post-initialization fixups."""
+        # We need to use object.__setattr__ to fix up an attribute for a frozen
+        # instance. Not sure if there's a better way to do this
+        object.__setattr__(self, "ctime", floor(self.ctime))
 
     def get_path_suffixes(self, *, tzinfo: tzinfo | str | None = None) -> Sequence[str]:
         """Get path suffixes suitable for naming a backup as an S3 object.

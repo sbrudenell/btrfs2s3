@@ -1,4 +1,3 @@
-from math import floor
 from random import randrange
 from uuid import uuid4
 
@@ -37,7 +36,7 @@ def mkinfo() -> BackupInfo:
         uuid=uuid4().bytes,
         parent_uuid=uuid4().bytes,
         ctransid=randrange(100000),
-        ctime=floor(arrow.get().timestamp()),
+        ctime=arrow.get().timestamp(),
         send_parent_uuid=uuid4().bytes,
     )
 
