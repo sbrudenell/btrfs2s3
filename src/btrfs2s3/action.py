@@ -3,6 +3,7 @@
 import dataclasses
 import logging
 from pathlib import Path
+from typing import Callable
 
 import btrfsutil
 
@@ -63,3 +64,24 @@ def delete_snapshots(*args: DeleteSnapshot) -> None:
             raise RuntimeError(msg)
         _LOG.info("deleting read-only snapshot %s", arg.path)
         btrfsutil.delete_subvolume(arg.path)
+
+
+@dataclasses.dataclass(frozen=True)
+class RenameSnapshot:
+    """An intent to rename a read-only snapshot."""
+
+    source: Path
+    get_target: Callable[[], Path]
+
+
+def rename_snapshots(*args: RenameSnapshot) -> None:
+    """Renames one or more read-only snapshots of subvolumes.
+
+    Args:
+        *args: The arguments for renamings to be done.
+    """
+    for arg in args:
+        source = arg.source
+        target = arg.get_target()
+        _LOG.info("renaming %s -> %s", source, target)
+        source.rename(target)
