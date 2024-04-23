@@ -136,6 +136,10 @@ def delete_backups(s3: S3Client, bucket: str, *keys: str) -> None:
         )
 
 
+# Future: all the fields of the intent objects should really be
+# descriptor-typed fields that convert things to Thunk.
+
+
 @dataclasses.dataclass(frozen=True, order=True)
 class CreateSnapshot:
     """An intent to create a read-only snapshot of a subvolume."""
@@ -177,7 +181,20 @@ class DeleteBackup:
 
 
 class Actions:
+    """A list of actions to be executed.
+
+    This class just stores a list of intents. Intents of actions can be added
+    with the various functions, and then examined with the iter_*_intents()
+    functions. It doesn't actually perform any actions until execute() is called.
+
+    All of the arguments to the intent functions are converted to Thunks.
+
+    Note that when creating Thunks, it's critical to understand the order that
+    actions are performed. See execute().
+    """
+
     def __init__(self) -> None:
+        """Construct an empty Actions object."""
         self._create_snapshots: list[CreateSnapshot] = []
         self._delete_snapshots: list[DeleteSnapshot] = []
         self._rename_snapshots: list[RenameSnapshot] = []
@@ -185,6 +202,13 @@ class Actions:
         self._delete_backups: list[DeleteBackup] = []
 
     def create_snapshot(self, *, source: ThunkArg[Path], path: ThunkArg[Path]) -> None:
+        """Add an intent to create a read-only snapshot of a subvolume.
+
+        Args:
+            source: The path to the source subvolume, of which a snapshot
+                should be created.
+            path: The path where the new snapshot should be created.
+        """
         self._create_snapshots.append(
             CreateSnapshot(source=Thunk(source), path=Thunk(path))
         )
@@ -192,11 +216,22 @@ class Actions:
     def rename_snapshot(
         self, *, source: ThunkArg[Path], target: ThunkArg[Path]
     ) -> None:
+        """Add an intent to rename a snapshot.
+
+        Args:
+            source: The initial path of the snapshot.
+            target: The new path of the snapshot.
+        """
         self._rename_snapshots.append(
             RenameSnapshot(source=Thunk(source), target=Thunk(target))
         )
 
     def delete_snapshot(self, path: ThunkArg[Path]) -> None:
+        """Add an intent to delete a snapshot.
+
+        Args:
+            path: The path of the snapshot to be deleted.
+        """
         self._delete_snapshots.append(DeleteSnapshot(path=Thunk(path)))
 
     def create_backup(
@@ -207,6 +242,21 @@ class Actions:
         send_parent: ThunkArg[Path | None],
         key: ThunkArg[str],
     ) -> None:
+        """Add an intent to create a new backup of a read-only snapshot.
+
+        The backup will be created using `btrfs send` (if send_parent is not
+        None, then `btrfs send -p` will be used). The backup will be streamed
+        into an S3 object with the given key.
+
+        Args:
+            source: The path to the source subvolume of the snapshot. This
+                has no effect when creating the backup, but it's very useful
+                when examining intents with iter_create_backup_intents().
+            snapshot: The path to the read-only snapshot to be backed up.
+            send_parent: The path to a read-only snapshot to be used as a
+                parent (will be passed to `btrfs send -p`).
+            key: The S3 object key at which to store the backup.
+        """
         self._create_backups.append(
             CreateBackup(
                 source=Thunk(source),
@@ -217,24 +267,60 @@ class Actions:
         )
 
     def delete_backup(self, key: ThunkArg[str]) -> None:
+        """Add an intent to delete an S3 object.
+
+        The target S3 object should ostensibly be a backup previously created,
+        but we don't verify this.
+
+        Args:
+            key: The S3 object key to be deleted.
+        """
         self._delete_backups.append(DeleteBackup(Thunk(key)))
 
     def iter_create_snapshot_intents(self) -> Iterator[CreateSnapshot]:
+        """Iterates all the CreateSnapshot intents."""
         yield from sorted(self._create_snapshots)
 
     def iter_delete_snapshot_intents(self) -> Iterator[DeleteSnapshot]:
+        """Iterates all the DeleteSnapshot intents."""
         yield from sorted(self._delete_snapshots)
 
     def iter_rename_snapshot_intents(self) -> Iterator[RenameSnapshot]:
+        """Iterates all the RenameSnapshot intents."""
         yield from sorted(self._rename_snapshots)
 
     def iter_create_backup_intents(self) -> Iterator[CreateBackup]:
+        """Iterates all the CreateBackup intents."""
         yield from sorted(self._create_backups)
 
     def iter_delete_backup_intents(self) -> Iterator[DeleteBackup]:
+        """Iterates all the DeleteBackup intents."""
         yield from sorted(self._delete_backups)
 
     def execute(self, s3: S3Client, bucket: str) -> None:
+        """Executes the intended actions.
+
+        This performs all the side effects described in the various intent
+        objects. It will create/rename/delete snapshots using btrfsutil, and
+        create/delete backups in the supplied S3 bucket.
+
+        The actions are performed in the following order:
+
+        - Create snapshots
+        - Rename snapshots
+        - Create backups
+        - Delete snapshots
+        - Delete backups
+
+        Within an action type, the actions are performed in the same order
+        returned from the iter_*_intents() functions. That is, snapshots are
+        created in the same order that they are returned from
+        iter_create_snapshot_intents(), etc.
+
+        Args:
+            s3: The S3 client object to use to manipulate S3 objects.
+            bucket: The name of the bucket where backups are stored.
+        """
         for create_snapshot_intent in self.iter_create_snapshot_intents():
             create_snapshot(
                 source=create_snapshot_intent.source(),
