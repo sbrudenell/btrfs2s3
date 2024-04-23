@@ -264,7 +264,9 @@ def test_one_existing_backup_and_older_snapshot(mksnap: MkSnap) -> None:
                 item=expected_backup,
                 reasons={
                     Reason(
-                        code=ReasonCode.Retained | ReasonCode.ReplacingNewer,
+                        code=ReasonCode.Retained
+                        | ReasonCode.New
+                        | ReasonCode.ReplacingNewer,
                         time_span=(arrow.get("2006-01-01"), arrow.get("2007-01-01")),
                     )
                 },

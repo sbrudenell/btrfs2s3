@@ -3,8 +3,13 @@ from __future__ import annotations
 import os
 from pathlib import Path
 import subprocess
+from subprocess import DEVNULL
+from subprocess import PIPE
+from subprocess import Popen
 import tempfile
 from typing import Iterator
+from typing import Protocol
+from typing import Sequence
 from typing import TYPE_CHECKING
 
 import boto3
@@ -45,6 +50,19 @@ def btrfs_mountpoint() -> Iterator[Path]:
 
 
 @pytest.fixture()
+def ext4_mountpoint() -> Iterator[Path]:
+    with tempfile.NamedTemporaryFile() as loop_file:
+        loop_file.truncate(2**30)
+        subprocess.check_call(["mkfs.ext4", "-q", loop_file.name])
+        with tempfile.TemporaryDirectory() as mount_temp_dir:
+            subprocess.check_call(["mount", loop_file.name, mount_temp_dir])
+            try:
+                yield Path(mount_temp_dir)
+            finally:
+                subprocess.check_call(["umount", mount_temp_dir])
+
+
+@pytest.fixture()
 def s3(_aws: None) -> S3Client:
     return boto3.client("s3")
 
@@ -53,3 +71,22 @@ def s3(_aws: None) -> S3Client:
 def bucket(s3: S3Client) -> str:
     s3.create_bucket(Bucket="test-bucket")
     return "test-bucket"
+
+
+class DownloadAndPipe(Protocol):
+    def __call__(self, key: str, args: Sequence[str | Path]) -> int: ...
+
+
+@pytest.fixture()
+def download_and_pipe(s3: S3Client, bucket: str) -> DownloadAndPipe:
+    def inner(key: str, args: Sequence[str | Path]) -> int:
+        process = Popen(args, stdin=PIPE, stdout=DEVNULL)
+        # https://github.com/python/typeshed/issues/3831
+        assert process.stdin is not None
+        s3.download_fileobj(bucket, key, process.stdin)
+        # download_fileobj doesn't close its target
+        process.stdin.close()
+        assert process.wait() == 0
+        return process.wait()
+
+    return inner

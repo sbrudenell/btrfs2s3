@@ -60,7 +60,9 @@ def test_simple_backup_of_snapshot(mksnap: MkSnap) -> None:
     assert got == expected
 
     assert resolver.get_result().keep_backups == {
-        got.uuid: KeepBackup[TS](item=got, reasons={Reason(code=ReasonCode.Retained)})
+        got.uuid: KeepBackup[TS](
+            item=got, reasons={Reason(code=ReasonCode.Retained | ReasonCode.New)}
+        )
     }
 
 
@@ -79,11 +81,7 @@ def test_backup_done_twice(mksnap: MkSnap) -> None:
 
     assert resolver.get_result().keep_backups == {
         got1.uuid: KeepBackup[TS](
-            item=got1,
-            reasons={
-                Reason(code=ReasonCode.Retained),
-                Reason(code=ReasonCode.Retained | ReasonCode.New),
-            },
+            item=got1, reasons={Reason(code=ReasonCode.Retained | ReasonCode.New)}
         )
     }
 
@@ -116,16 +114,16 @@ def test_choose_correct_parents(mksnap: MkSnap) -> None:
 
     assert resolver.get_result().keep_backups == {
         backup1.uuid: KeepBackup[TS](
-            item=backup1, reasons={Reason(code=ReasonCode.Retained)}
+            item=backup1, reasons={Reason(code=ReasonCode.Retained | ReasonCode.New)}
         ),
         backup2.uuid: KeepBackup[TS](
-            item=backup2, reasons={Reason(code=ReasonCode.Retained)}
+            item=backup2, reasons={Reason(code=ReasonCode.Retained | ReasonCode.New)}
         ),
         backup3.uuid: KeepBackup[TS](
-            item=backup3, reasons={Reason(code=ReasonCode.Retained)}
+            item=backup3, reasons={Reason(code=ReasonCode.Retained | ReasonCode.New)}
         ),
         backup4.uuid: KeepBackup[TS](
-            item=backup4, reasons={Reason(code=ReasonCode.Retained)}
+            item=backup4, reasons={Reason(code=ReasonCode.Retained | ReasonCode.New)}
         ),
     }
 

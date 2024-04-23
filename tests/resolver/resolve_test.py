@@ -145,7 +145,8 @@ def test_multiple_snapshots_and_time_spans(mksnap: MkSnap) -> None:
                 },
             ),
             expected_backup3.uuid: KeepBackup[TS](
-                item=expected_backup3, reasons={Reason(code=ReasonCode.MostRecent)}
+                item=expected_backup3,
+                reasons={Reason(code=ReasonCode.MostRecent | ReasonCode.New)},
             ),
         },
     )

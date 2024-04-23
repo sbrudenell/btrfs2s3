@@ -80,7 +80,7 @@ TS: TypeAlias = tuple[Arrow, Arrow]
 
 
 def mkretained(
-    now: str,
+    now: str | float,
     years: Iterable[int] = (),
     quarters: Iterable[int] = (),
     months: Iterable[int] = (),
@@ -125,3 +125,4 @@ def mkretained(
 
 class SubvolumeFlags(IntFlag):
     ReadOnly = 1
+    Proposed = 2**30

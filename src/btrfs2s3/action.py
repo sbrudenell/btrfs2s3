@@ -3,12 +3,9 @@
 from __future__ import annotations
 
 import dataclasses
-import functools
-from itertools import chain
 import logging
 from subprocess import PIPE
 from subprocess import Popen
-from typing import Callable
 from typing import Iterator
 from typing import TYPE_CHECKING
 
@@ -16,6 +13,8 @@ import btrfsutil
 
 from btrfs2s3._internal.util import NULL_UUID
 from btrfs2s3._internal.util import SubvolumeFlags
+from btrfs2s3.thunk import Thunk
+from btrfs2s3.thunk import ThunkArg
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -141,43 +140,43 @@ def delete_backups(s3: S3Client, bucket: str, *keys: str) -> None:
 class CreateSnapshot:
     """An intent to create a read-only snapshot of a subvolume."""
 
-    source: Path
-    path: Path
+    source: Thunk[Path]
+    path: Thunk[Path]
 
 
 @dataclasses.dataclass(frozen=True, order=True)
 class DeleteSnapshot:
     """An intent to delete a read-only snapshot."""
 
-    path: Path
+    path: Thunk[Path]
 
 
 @dataclasses.dataclass(frozen=True, order=True)
 class RenameSnapshot:
     """An intent to rename a read-only snapshot."""
 
-    source: Path
-    get_target: Callable[[], Path]
+    source: Thunk[Path]
+    target: Thunk[Path]
 
 
 @dataclasses.dataclass(frozen=True, order=True)
 class CreateBackup:
     """An intent to create a backup of a read-only snapshot."""
 
-    source: Path
-    get_snapshot: Callable[[], Path]
-    get_send_parent: Callable[[], Path | None]
-    get_key: Callable[[], str]
+    source: Thunk[Path]
+    snapshot: Thunk[Path]
+    send_parent: Thunk[Path | None]
+    key: Thunk[str]
 
 
 @dataclasses.dataclass(frozen=True, order=True)
 class DeleteBackup:
     """An intent to delete a backup."""
 
-    key: str
+    key: Thunk[str]
 
 
-class Plan:
+class Actions:
     def __init__(self) -> None:
         self._create_snapshots: list[CreateSnapshot] = []
         self._delete_snapshots: list[DeleteSnapshot] = []
@@ -185,54 +184,40 @@ class Plan:
         self._create_backups: list[CreateBackup] = []
         self._delete_backups: list[DeleteBackup] = []
 
-        self._future_rename_snapshots: list[RenameSnapshot] = []
-        self._future_create_backups: list[CreateBackup] = []
+    def create_snapshot(self, *, source: ThunkArg[Path], path: ThunkArg[Path]) -> None:
+        self._create_snapshots.append(
+            CreateSnapshot(source=Thunk(source), path=Thunk(path))
+        )
 
-    def create_rename_backup(  # noqa: PLR0913
-        self,
-        *,
-        source: Path,
-        initial_path: Path,
-        get_target_path: Callable[[], Path],
-        get_send_parent: Callable[[], Path | None],
-        get_key: Callable[[], str],
+    def rename_snapshot(
+        self, *, source: ThunkArg[Path], target: ThunkArg[Path]
     ) -> None:
-        get_target_path = functools.cache(get_target_path)
-        self._create_snapshots.append(CreateSnapshot(source=source, path=initial_path))
-        self._future_rename_snapshots.append(
-            RenameSnapshot(source=initial_path, get_target=get_target_path)
-        )
-        self._future_create_backups.append(
-            CreateBackup(
-                source=source,
-                get_snapshot=get_target_path,
-                get_send_parent=get_send_parent,
-                get_key=get_key,
-            )
-        )
-
-    def rename_snapshot(self, *, source: Path, target: Path) -> None:
         self._rename_snapshots.append(
-            RenameSnapshot(source=source, get_target=lambda: target)
+            RenameSnapshot(source=Thunk(source), target=Thunk(target))
         )
 
-    def delete_snapshot(self, snapshot: Path) -> None:
-        self._delete_snapshots.append(DeleteSnapshot(snapshot))
+    def delete_snapshot(self, path: ThunkArg[Path]) -> None:
+        self._delete_snapshots.append(DeleteSnapshot(path=Thunk(path)))
 
     def create_backup(
-        self, *, source: Path, snapshot: Path, send_parent: Path | None, key: str
+        self,
+        *,
+        source: ThunkArg[Path],
+        snapshot: ThunkArg[Path],
+        send_parent: ThunkArg[Path | None],
+        key: ThunkArg[str],
     ) -> None:
         self._create_backups.append(
             CreateBackup(
-                source=source,
-                get_snapshot=lambda: snapshot,
-                get_send_parent=lambda: send_parent,
-                get_key=lambda: key,
+                source=Thunk(source),
+                snapshot=Thunk(snapshot),
+                send_parent=Thunk(send_parent),
+                key=Thunk(key),
             )
         )
 
-    def delete_backup(self, key: str) -> None:
-        self._delete_backups.append(DeleteBackup(key))
+    def delete_backup(self, key: ThunkArg[str]) -> None:
+        self._delete_backups.append(DeleteBackup(Thunk(key)))
 
     def iter_create_snapshot_intents(self) -> Iterator[CreateSnapshot]:
         yield from sorted(self._create_snapshots)
@@ -243,16 +228,8 @@ class Plan:
     def iter_rename_snapshot_intents(self) -> Iterator[RenameSnapshot]:
         yield from sorted(self._rename_snapshots)
 
-    def iter_future_rename_snapshot_intents(self) -> Iterator[RenameSnapshot]:
-        yield from sorted(self._future_rename_snapshots)
-
     def iter_create_backup_intents(self) -> Iterator[CreateBackup]:
-        yield from sorted(
-            self._create_backups, key=lambda i: (i.source, i.get_snapshot())
-        )
-
-    def iter_future_create_backup_intents(self) -> Iterator[CreateBackup]:
-        yield from sorted(self._future_create_backups)
+        yield from sorted(self._create_backups)
 
     def iter_delete_backup_intents(self) -> Iterator[DeleteBackup]:
         yield from sorted(self._delete_backups)
@@ -260,33 +237,27 @@ class Plan:
     def execute(self, s3: S3Client, bucket: str) -> None:
         for create_snapshot_intent in self.iter_create_snapshot_intents():
             create_snapshot(
-                source=create_snapshot_intent.source, path=create_snapshot_intent.path
+                source=create_snapshot_intent.source(),
+                path=create_snapshot_intent.path(),
             )
 
-        rename_snapshot_intents = chain(
-            self.iter_rename_snapshot_intents(),
-            self.iter_future_rename_snapshot_intents(),
-        )
-        for rename_snapshot_intent in rename_snapshot_intents:
+        for rename_snapshot_intent in self.iter_rename_snapshot_intents():
             rename_snapshot(
-                source=rename_snapshot_intent.source,
-                target=rename_snapshot_intent.get_target(),
+                source=rename_snapshot_intent.source(),
+                target=rename_snapshot_intent.target(),
             )
 
-        create_backup_intents = chain(
-            self.iter_create_backup_intents(), self.iter_future_create_backup_intents()
-        )
-        for create_backup_intent in create_backup_intents:
+        for create_backup_intent in self.iter_create_backup_intents():
             create_backup(
                 s3=s3,
                 bucket=bucket,
-                snapshot=create_backup_intent.get_snapshot(),
-                send_parent=create_backup_intent.get_send_parent(),
-                key=create_backup_intent.get_key(),
+                snapshot=create_backup_intent.snapshot(),
+                send_parent=create_backup_intent.send_parent(),
+                key=create_backup_intent.key(),
             )
 
         for delete_snapshot_intent in self.iter_delete_snapshot_intents():
-            delete_snapshot(delete_snapshot_intent.path)
+            delete_snapshot(delete_snapshot_intent.path())
 
-        keys = tuple(d.key for d in self.iter_delete_backup_intents())
+        keys = tuple(d.key() for d in self.iter_delete_backup_intents())
         delete_backups(s3, bucket, *keys)

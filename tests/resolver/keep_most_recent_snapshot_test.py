@@ -74,7 +74,8 @@ def test_one_snapshot(mksnap: MkSnap) -> None:
         },
         keep_backups={
             expected_backup.uuid: KeepBackup[TS](
-                item=expected_backup, reasons={Reason(code=ReasonCode.MostRecent)}
+                item=expected_backup,
+                reasons={Reason(code=ReasonCode.MostRecent | ReasonCode.New)},
             )
         },
     )
@@ -101,7 +102,8 @@ def test_multiple_snapshots_keep_most_recent(mksnap: MkSnap) -> None:
         },
         keep_backups={
             expected_backup.uuid: KeepBackup[TS](
-                item=expected_backup, reasons={Reason(code=ReasonCode.MostRecent)}
+                item=expected_backup,
+                reasons={Reason(code=ReasonCode.MostRecent | ReasonCode.New)},
             )
         },
     )

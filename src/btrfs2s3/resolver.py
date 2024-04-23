@@ -4,6 +4,7 @@ import collections
 import contextlib
 from contextvars import ContextVar
 import dataclasses
+from dataclasses import field
 import enum
 from queue import SimpleQueue
 from typing import Collection
@@ -160,8 +161,8 @@ KeepBackup: TypeAlias = _MarkedItem[BackupInfo, _TS]
 
 @dataclasses.dataclass(frozen=True)
 class Result(Generic[_TS]):
-    keep_snapshots: dict[bytes, KeepSnapshot[_TS]]
-    keep_backups: dict[bytes, KeepBackup[_TS]]
+    keep_snapshots: dict[bytes, KeepSnapshot[_TS]] = field(default_factory=dict)
+    keep_backups: dict[bytes, KeepBackup[_TS]] = field(default_factory=dict)
 
 
 class _Resolver(Generic[_TS]):
@@ -211,6 +212,7 @@ class _Resolver(Generic[_TS]):
         if backup is None:
             backup = self._backups.get(snapshot.uuid)
         if backup is None:
+            code |= ReasonCode.New
             # Determine send-parent for a new backup
             send_parent: SubvolumeInfo | None = None
             for snapshot_time_span in self._snapshots.iter_time_spans(snapshot.ctime):
