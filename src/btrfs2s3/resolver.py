@@ -16,6 +16,7 @@ import uuid
 import warnings
 
 from btrfsutil import SubvolumeInfo
+from typing_extensions import Self
 from typing_extensions import TypeVar
 
 from btrfs2s3._internal.util import backup_of_snapshot
@@ -70,88 +71,90 @@ class _Index(Generic[_I]):
         return self._items_by_time_span.keys()
 
 
-class ReasonCode(enum.Flag):
+class Reasons(enum.Flag):
+    Empty = 0
     Retained = enum.auto()
-    New = enum.auto()
-    ReplacingNewer = enum.auto()
-    NoSnapshot = enum.auto()
-    SnapshotIsNewer = enum.auto()
     MostRecent = enum.auto()
     SendAncestor = enum.auto()
 
 
-_EMPTY_REASON_CODE = ReasonCode(0)
+class Flags(enum.Flag):
+    Empty = 0
+    New = enum.auto()
+    ReplacingNewer = enum.auto()
+    NoSnapshot = enum.auto()
+    SnapshotIsNewer = enum.auto()
 
 
-@dataclasses.dataclass(frozen=True)
-class Reason:
-    code: ReasonCode = _EMPTY_REASON_CODE
-    time_span: TS | None = None
-    other: bytes | None = None
+@dataclasses.dataclass
+class KeepMeta:
+    reasons: Reasons = Reasons.Empty
+    flags: Flags = Flags.Empty
+    time_spans: set[TS] = field(default_factory=set)
+    other_uuids: set[bytes] = field(default_factory=set)
+
+    def __or__(self, other: Self) -> Self:
+        return self.__class__(
+            reasons=self.reasons | other.reasons,
+            flags=self.flags | other.flags,
+            time_spans=self.time_spans | other.time_spans,
+            other_uuids=self.other_uuids | other.other_uuids,
+        )
 
 
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass
 class _MarkedItem(Generic[_I]):
     item: _I
-    reasons: set[Reason]
+    meta: KeepMeta = field(default_factory=KeepMeta)
 
 
 class _Marker(Generic[_I]):
     def __init__(self) -> None:
         self._result: dict[bytes, _MarkedItem[_I]] = {}
-        self._reason_code_ctx: ContextVar[ReasonCode] = ContextVar(
-            "reason_code", default=_EMPTY_REASON_CODE
+        self._reasons_ctx: ContextVar[Reasons] = ContextVar(
+            "reasons", default=Reasons.Empty
         )
-        self._time_span_ctx: ContextVar[TS | None] = ContextVar(
-            "time_span", default=None
+        self._flags_ctx: ContextVar[Flags] = ContextVar("flags", default=Flags.Empty)
+        self._time_span_ctx: ContextVar[set[TS]] = ContextVar(
+            "time_span", default=set()
         )
 
     @contextlib.contextmanager
-    def with_code(self, code: ReasonCode) -> Iterator[None]:
-        existing = self._reason_code_ctx.get()
-        token = self._reason_code_ctx.set(code | existing)
+    def with_reasons(self, reasons: Reasons) -> Iterator[None]:
+        existing = self._reasons_ctx.get()
+        token = self._reasons_ctx.set(reasons | existing)
         try:
             yield
         finally:
-            self._reason_code_ctx.reset(token)
+            self._reasons_ctx.reset(token)
 
     @contextlib.contextmanager
     def with_time_span(self, time_span: TS) -> Iterator[None]:
-        token = self._time_span_ctx.set(time_span)
+        existing = self._time_span_ctx.get()
+        token = self._time_span_ctx.set(existing | {time_span})
         try:
             yield
         finally:
             self._time_span_ctx.reset(token)
 
-    def _mk_reason(
-        self,
-        *,
-        code: ReasonCode = _EMPTY_REASON_CODE,
-        time_span: TS | None = None,
-        other: bytes | None = None,
-    ) -> Reason:
-        code |= self._reason_code_ctx.get()
-        if code == _EMPTY_REASON_CODE:
-            raise AssertionError
-        time_span = time_span or self._time_span_ctx.get()
-        return Reason(code=code, time_span=time_span, other=other)
-
     def get_result(self) -> dict[bytes, _MarkedItem[_I]]:
         return self._result
 
     def mark(
-        self,
-        item: _I,
-        *,
-        code: ReasonCode = _EMPTY_REASON_CODE,
-        time_span: TS | None = None,
-        other: bytes | None = None,
+        self, item: _I, *, flags: Flags = Flags.Empty, other_uuid: bytes | None = None
     ) -> None:
         if item.uuid not in self._result:
-            self._result[item.uuid] = _MarkedItem(item=item, reasons=set())
-        self._result[item.uuid].reasons.add(
-            self._mk_reason(code=code, time_span=time_span, other=other)
+            self._result[item.uuid] = _MarkedItem(item=item)
+        marked = self._result[item.uuid]
+        update = KeepMeta(
+            reasons=self._reasons_ctx.get(),
+            flags=flags | self._flags_ctx.get(),
+            time_spans=self._time_span_ctx.get(),
+            other_uuids={other_uuid} if other_uuid is not None else set(),
         )
+        if not update.reasons:
+            raise AssertionError
+        marked.meta |= update
 
 
 KeepSnapshot: TypeAlias = _MarkedItem[SubvolumeInfo]
@@ -186,8 +189,10 @@ class _Resolver:
             yield
 
     @contextlib.contextmanager
-    def _with_code(self, code: ReasonCode) -> Iterator[None]:
-        with self._keep_snapshots.with_code(code), self._keep_backups.with_code(code):
+    def _with_reasons(self, reasons: Reasons) -> Iterator[None]:
+        with self._keep_snapshots.with_reasons(
+            reasons
+        ), self._keep_backups.with_reasons(reasons):
             yield
 
     def get_result(self) -> Result:
@@ -200,9 +205,8 @@ class _Resolver:
         self,
         snapshot: SubvolumeInfo,
         *,
-        code: ReasonCode = _EMPTY_REASON_CODE,
-        time_span: TS | None = None,
-        other: bytes | None = None,
+        flags: Flags = Flags.Empty,
+        other_uuid: bytes | None = None,
     ) -> BackupInfo:
         backup: BackupInfo | None = None
         # Use an existing backup when available
@@ -211,7 +215,7 @@ class _Resolver:
         if backup is None:
             backup = self._backups.get(snapshot.uuid)
         if backup is None:
-            code |= ReasonCode.New
+            flags |= Flags.New
             # Determine send-parent for a new backup
             send_parent: SubvolumeInfo | None = None
             for snapshot_time_span in self._snapshots.iter_time_spans(snapshot.ctime):
@@ -224,7 +228,7 @@ class _Resolver:
 
             backup = backup_of_snapshot(snapshot, send_parent=send_parent)
 
-        self._keep_backups.mark(backup, code=code, time_span=time_span, other=other)
+        self._keep_backups.mark(backup, flags=flags, other_uuid=other_uuid)
         return backup
 
     def _keep_snapshot_and_backup_for_time_span(self, time_span: TS) -> None:
@@ -238,23 +242,23 @@ class _Resolver:
         if nominal_snapshot:
             self._keep_snapshots.mark(nominal_snapshot)
             if nominal_backup is None:
-                self._keep_backup_of_snapshot(nominal_snapshot, code=ReasonCode.New)
+                self._keep_backup_of_snapshot(nominal_snapshot, flags=Flags.New)
             elif nominal_backup.ctransid > nominal_snapshot.ctransid:
                 self._keep_backup_of_snapshot(
-                    nominal_snapshot, code=ReasonCode.ReplacingNewer
+                    nominal_snapshot, flags=Flags.ReplacingNewer
                 )
         if nominal_backup:
             if nominal_snapshot is None:
-                self._keep_backups.mark(nominal_backup, code=ReasonCode.NoSnapshot)
+                self._keep_backups.mark(nominal_backup, flags=Flags.NoSnapshot)
             elif nominal_backup.ctransid < nominal_snapshot.ctransid:
-                self._keep_backups.mark(nominal_backup, code=ReasonCode.SnapshotIsNewer)
+                self._keep_backups.mark(nominal_backup, flags=Flags.SnapshotIsNewer)
             elif nominal_backup.ctransid == nominal_snapshot.ctransid:
                 self._keep_backups.mark(nominal_backup)
 
     def keep_snapshots_and_backups_for_retained_time_spans(
         self, is_time_span_retained: IsTimeSpanRetained
     ) -> None:
-        with self._with_code(ReasonCode.Retained):
+        with self._with_reasons(Reasons.Retained):
             all_time_spans = set(self._snapshots.get_all_time_spans()) | set(
                 self._backups.get_all_time_spans()
             )
@@ -271,7 +275,7 @@ class _Resolver:
             self._keep_backup_of_snapshot(most_recent_snapshot)
 
     def keep_most_recent_snapshot(self) -> None:
-        with self._with_code(ReasonCode.MostRecent):
+        with self._with_reasons(Reasons.MostRecent):
             self._keep_most_recent_snapshot()
 
     def _keep_send_ancestors_of_backups(self) -> None:
@@ -290,12 +294,12 @@ class _Resolver:
                 # This can be common. For example in January, if December's monthly
                 # backup should be retained, but the December backup's send-parent
                 # is last year's yearly backup
-                self._keep_backups.mark(parent_backup, other=backup.uuid)
+                self._keep_backups.mark(parent_backup, other_uuid=backup.uuid)
             else:
                 parent_snapshot = self._snapshots.get(backup.send_parent_uuid)
                 if parent_snapshot:
                     parent_backup = self._keep_backup_of_snapshot(
-                        parent_snapshot, code=ReasonCode.New, other=backup.uuid
+                        parent_snapshot, flags=Flags.New, other_uuid=backup.uuid
                     )
                 else:
                     warnings.warn(
@@ -308,7 +312,7 @@ class _Resolver:
                 backups_to_check.put(parent_backup)
 
     def keep_send_ancestors_of_backups(self) -> None:
-        with self._with_code(ReasonCode.SendAncestor):
+        with self._with_reasons(Reasons.SendAncestor):
             self._keep_send_ancestors_of_backups()
 
 

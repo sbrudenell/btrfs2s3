@@ -15,9 +15,10 @@ from btrfsutil import SubvolumeInfo
 
 from btrfs2s3._internal.util import mksubvol
 from btrfs2s3._internal.util import SubvolumeFlags
+from btrfs2s3.resolver import Flags
 from btrfs2s3.resolver import IsTimeSpanRetained
 from btrfs2s3.resolver import IterTimeSpans
-from btrfs2s3.resolver import Reason
+from btrfs2s3.resolver import KeepMeta
 from btrfs2s3.resolver import resolve
 from btrfs2s3.s3 import iter_backups
 from btrfs2s3.thunk import Thunk
@@ -40,16 +41,22 @@ class SnapshotAssessment:
     info: SubvolumeInfo
     target_path: Thunk[Path]
     real_info: Thunk[SubvolumeInfo]
-    new: bool = False
-    keep_reasons: set[Reason] = field(default_factory=set)
+    keep_meta: KeepMeta = field(default_factory=KeepMeta)
+
+    @property
+    def new(self) -> bool:
+        return bool(self.keep_meta.flags & Flags.New)
 
 
 @dataclass
 class BackupAssessment:
     backup: Thunk[BackupInfo]
     key: Thunk[str]
-    new: bool = False
-    keep_reasons: set[Reason] = field(default_factory=set)
+    keep_meta: KeepMeta = field(default_factory=KeepMeta)
+
+    @property
+    def new(self) -> bool:
+        return bool(self.keep_meta.flags & Flags.New)
 
 
 @dataclass
@@ -83,7 +90,9 @@ def _get_send_parent_path_for_backup_thunk(
 def _backup_assessment_to_actions(
     source: SourceAssessment, backup: BackupAssessment, actions: Actions
 ) -> None:
-    if backup.new:
+    if not backup.keep_meta.reasons:
+        actions.delete_backup(backup.key)
+    elif backup.new:
         snapshot = partial(_get_snapshot_path_for_backup_thunk, source, backup.backup)
         send_parent = partial(
             _get_send_parent_path_for_backup_thunk, source, backup.backup
@@ -94,21 +103,20 @@ def _backup_assessment_to_actions(
             send_parent=send_parent,
             key=backup.key,
         )
-    if not backup.keep_reasons:
-        actions.delete_backup(backup.key)
 
 
 def _snapshot_assessment_to_actions(
     source: SourceAssessment, snapshot: SnapshotAssessment, actions: Actions
 ) -> None:
-    if snapshot.new:
-        actions.create_snapshot(source=source.path, path=snapshot.initial_path)
-    if not snapshot.keep_reasons:
+    if not snapshot.keep_meta.reasons:
         actions.delete_snapshot(snapshot.initial_path)
-    if snapshot.initial_path != snapshot.target_path.peek():
-        actions.rename_snapshot(
-            source=snapshot.initial_path, target=snapshot.target_path
-        )
+    else:
+        if snapshot.new:
+            actions.create_snapshot(source=source.path, path=snapshot.initial_path)
+        if snapshot.initial_path != snapshot.target_path.peek():
+            actions.rename_snapshot(
+                source=snapshot.initial_path, target=snapshot.target_path
+            )
 
 
 def assessment_to_actions(assessment: Assessment, actions: Actions) -> None:
@@ -180,8 +188,8 @@ class _SourceAssessor:
             initial_path=initial_path,
             info=proposed_info,
             target_path=Thunk(initial_path),
-            new=True,
             real_info=Thunk(get_real_info),
+            keep_meta=KeepMeta(flags=Flags.New),
         )
 
     def _get_target_path(self, snapshot: SnapshotAssessment) -> ThunkArg[Path]:
@@ -215,7 +223,7 @@ class _SourceAssessor:
         # Mark snapshots as kept, and rename these if necessary
         for uuid, keep_snapshot in result.keep_snapshots.items():
             snapshot = self.assessment.snapshots[uuid]
-            snapshot.keep_reasons = keep_snapshot.reasons
+            snapshot.keep_meta |= keep_snapshot.meta
             # Update the target name, only for snapshots we'll keep
             snapshot.target_path = Thunk(self._get_target_path(snapshot))
         # Mark backups as kept, possibly creating new entries
@@ -236,10 +244,8 @@ class _SourceAssessor:
                 else:
                     backup = Thunk(keep_backup.item)
                     key = Thunk(self._make_backup_key(keep_backup.item))
-                self.assessment.backups[uuid] = BackupAssessment(
-                    backup=backup, key=key, new=True
-                )
-            self.assessment.backups[uuid].keep_reasons = keep_backup.reasons
+                self.assessment.backups[uuid] = BackupAssessment(backup=backup, key=key)
+            self.assessment.backups[uuid].keep_meta |= keep_backup.meta
 
     def _get_real_backup(
         self, target_path: Path, real_info: SubvolumeInfo

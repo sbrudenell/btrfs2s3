@@ -10,10 +10,11 @@ from btrfs2s3._internal.util import backup_of_snapshot
 from btrfs2s3._internal.util import mkretained
 from btrfs2s3._internal.util import mksubvol
 from btrfs2s3.resolver import _Resolver
+from btrfs2s3.resolver import Flags
 from btrfs2s3.resolver import KeepBackup
+from btrfs2s3.resolver import KeepMeta
 from btrfs2s3.resolver import KeepSnapshot
-from btrfs2s3.resolver import Reason
-from btrfs2s3.resolver import ReasonCode
+from btrfs2s3.resolver import Reasons
 from btrfs2s3.resolver import Result
 import pytest
 
@@ -54,6 +55,10 @@ def test_noop() -> None:
     assert resolver.get_result() == Result(keep_snapshots={}, keep_backups={})
 
 
+def _t(t: str) -> float:
+    return arrow.get(t).timestamp()
+
+
 def test_one_snapshot_multiple_time_spans(mksnap: MkSnap) -> None:
     # One snapshot on Jan 1st
     snapshot = mksnap(t="2006-01-01")
@@ -71,44 +76,27 @@ def test_one_snapshot_multiple_time_spans(mksnap: MkSnap) -> None:
     assert resolver.get_result() == Result(
         keep_snapshots={
             snapshot.uuid: KeepSnapshot(
-                item=snapshot,
-                reasons={
-                    Reason(
-                        code=ReasonCode.Retained,
-                        time_span=(
-                            arrow.get("2006-01-01").timestamp(),
-                            arrow.get("2007-01-01").timestamp(),
-                        ),
-                    ),
-                    Reason(
-                        code=ReasonCode.Retained,
-                        time_span=(
-                            arrow.get("2006-01-01").timestamp(),
-                            arrow.get("2006-02-01").timestamp(),
-                        ),
-                    ),
-                },
+                snapshot,
+                KeepMeta(
+                    reasons=Reasons.Retained,
+                    time_spans={
+                        (_t("2006-01-01"), _t("2007-01-01")),
+                        (_t("2006-01-01"), _t("2006-02-01")),
+                    },
+                ),
             )
         },
         keep_backups={
             expected_backup.uuid: KeepBackup(
-                item=expected_backup,
-                reasons={
-                    Reason(
-                        code=ReasonCode.Retained | ReasonCode.New,
-                        time_span=(
-                            arrow.get("2006-01-01").timestamp(),
-                            arrow.get("2007-01-01").timestamp(),
-                        ),
-                    ),
-                    Reason(
-                        code=ReasonCode.Retained | ReasonCode.New,
-                        time_span=(
-                            arrow.get("2006-01-01").timestamp(),
-                            arrow.get("2006-02-01").timestamp(),
-                        ),
-                    ),
-                },
+                expected_backup,
+                KeepMeta(
+                    reasons=Reasons.Retained,
+                    flags=Flags.New,
+                    time_spans={
+                        (_t("2006-01-01"), _t("2007-01-01")),
+                        (_t("2006-01-01"), _t("2006-02-01")),
+                    },
+                ),
             )
         },
     )
@@ -129,30 +117,20 @@ def test_one_snapshot_with_existing_backup(mksnap: MkSnap) -> None:
     assert resolver.get_result() == Result(
         keep_snapshots={
             snapshot.uuid: KeepSnapshot(
-                item=snapshot,
-                reasons={
-                    Reason(
-                        code=ReasonCode.Retained,
-                        time_span=(
-                            arrow.get("2006-01-01").timestamp(),
-                            arrow.get("2007-01-01").timestamp(),
-                        ),
-                    )
-                },
+                snapshot,
+                KeepMeta(
+                    reasons=Reasons.Retained,
+                    time_spans={(_t("2006-01-01"), _t("2007-01-01"))},
+                ),
             )
         },
         keep_backups={
             backup.uuid: KeepBackup(
-                item=backup,
-                reasons={
-                    Reason(
-                        code=ReasonCode.Retained,
-                        time_span=(
-                            arrow.get("2006-01-01").timestamp(),
-                            arrow.get("2007-01-01").timestamp(),
-                        ),
-                    )
-                },
+                backup,
+                KeepMeta(
+                    reasons=Reasons.Retained,
+                    time_spans={(_t("2006-01-01"), _t("2007-01-01"))},
+                ),
             )
         },
     )
@@ -175,16 +153,12 @@ def test_one_existing_backup_and_no_snapshot(mksnap: MkSnap) -> None:
         keep_snapshots={},
         keep_backups={
             backup.uuid: KeepBackup(
-                item=backup,
-                reasons={
-                    Reason(
-                        code=ReasonCode.Retained | ReasonCode.NoSnapshot,
-                        time_span=(
-                            arrow.get("2006-01-01").timestamp(),
-                            arrow.get("2007-01-01").timestamp(),
-                        ),
-                    )
-                },
+                backup,
+                KeepMeta(
+                    reasons=Reasons.Retained,
+                    flags=Flags.NoSnapshot,
+                    time_spans={(_t("2006-01-01"), _t("2007-01-01"))},
+                ),
             )
         },
     )
@@ -210,30 +184,21 @@ def test_one_existing_backup_and_newer_snapshot(mksnap: MkSnap) -> None:
     assert resolver.get_result() == Result(
         keep_snapshots={
             snapshot2.uuid: KeepSnapshot(
-                item=snapshot2,
-                reasons={
-                    Reason(
-                        code=ReasonCode.Retained,
-                        time_span=(
-                            arrow.get("2006-01-01").timestamp(),
-                            arrow.get("2007-01-01").timestamp(),
-                        ),
-                    )
-                },
+                snapshot2,
+                KeepMeta(
+                    reasons=Reasons.Retained,
+                    time_spans={(_t("2006-01-01"), _t("2007-01-01"))},
+                ),
             )
         },
         keep_backups={
             backup1.uuid: KeepBackup(
-                item=backup1,
-                reasons={
-                    Reason(
-                        code=ReasonCode.Retained | ReasonCode.SnapshotIsNewer,
-                        time_span=(
-                            arrow.get("2006-01-01").timestamp(),
-                            arrow.get("2007-01-01").timestamp(),
-                        ),
-                    )
-                },
+                backup1,
+                KeepMeta(
+                    reasons=Reasons.Retained,
+                    flags=Flags.SnapshotIsNewer,
+                    time_spans={(_t("2006-01-01"), _t("2007-01-01"))},
+                ),
             )
         },
     )
@@ -261,32 +226,21 @@ def test_one_existing_backup_and_older_snapshot(mksnap: MkSnap) -> None:
     assert resolver.get_result() == Result(
         keep_snapshots={
             snapshot1.uuid: KeepSnapshot(
-                item=snapshot1,
-                reasons={
-                    Reason(
-                        code=ReasonCode.Retained,
-                        time_span=(
-                            arrow.get("2006-01-01").timestamp(),
-                            arrow.get("2007-01-01").timestamp(),
-                        ),
-                    )
-                },
+                snapshot1,
+                KeepMeta(
+                    reasons=Reasons.Retained,
+                    time_spans={(_t("2006-01-01"), _t("2007-01-01"))},
+                ),
             )
         },
         keep_backups={
             expected_backup.uuid: KeepBackup(
-                item=expected_backup,
-                reasons={
-                    Reason(
-                        code=ReasonCode.Retained
-                        | ReasonCode.New
-                        | ReasonCode.ReplacingNewer,
-                        time_span=(
-                            arrow.get("2006-01-01").timestamp(),
-                            arrow.get("2007-01-01").timestamp(),
-                        ),
-                    )
-                },
+                expected_backup,
+                KeepMeta(
+                    reasons=Reasons.Retained,
+                    flags=Flags.New | Flags.ReplacingNewer,
+                    time_spans={(_t("2006-01-01"), _t("2007-01-01"))},
+                ),
             )
         },
     )

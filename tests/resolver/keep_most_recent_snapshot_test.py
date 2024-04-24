@@ -10,10 +10,11 @@ from btrfs2s3._internal.util import backup_of_snapshot
 from btrfs2s3._internal.util import iter_all_time_spans
 from btrfs2s3._internal.util import mksubvol
 from btrfs2s3.resolver import _Resolver
+from btrfs2s3.resolver import Flags
 from btrfs2s3.resolver import KeepBackup
+from btrfs2s3.resolver import KeepMeta
 from btrfs2s3.resolver import KeepSnapshot
-from btrfs2s3.resolver import Reason
-from btrfs2s3.resolver import ReasonCode
+from btrfs2s3.resolver import Reasons
 from btrfs2s3.resolver import Result
 import pytest
 
@@ -62,14 +63,11 @@ def test_one_snapshot(mksnap: MkSnap) -> None:
     expected_backup = backup_of_snapshot(snapshot, send_parent=None)
     assert resolver.get_result() == Result(
         keep_snapshots={
-            snapshot.uuid: KeepSnapshot(
-                item=snapshot, reasons={Reason(code=ReasonCode.MostRecent)}
-            )
+            snapshot.uuid: KeepSnapshot(snapshot, KeepMeta(reasons=Reasons.MostRecent))
         },
         keep_backups={
             expected_backup.uuid: KeepBackup(
-                item=expected_backup,
-                reasons={Reason(code=ReasonCode.MostRecent | ReasonCode.New)},
+                expected_backup, KeepMeta(reasons=Reasons.MostRecent, flags=Flags.New)
             )
         },
     )
@@ -91,13 +89,12 @@ def test_multiple_snapshots_keep_most_recent(mksnap: MkSnap) -> None:
     assert resolver.get_result() == Result(
         keep_snapshots={
             snapshot2.uuid: KeepSnapshot(
-                item=snapshot2, reasons={Reason(code=ReasonCode.MostRecent)}
+                snapshot2, KeepMeta(reasons=Reasons.MostRecent)
             )
         },
         keep_backups={
             expected_backup.uuid: KeepBackup(
-                item=expected_backup,
-                reasons={Reason(code=ReasonCode.MostRecent | ReasonCode.New)},
+                expected_backup, KeepMeta(reasons=Reasons.MostRecent, flags=Flags.New)
             )
         },
     )

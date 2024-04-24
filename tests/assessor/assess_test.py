@@ -13,8 +13,9 @@ from btrfs2s3.action import Actions
 from btrfs2s3.assessor import assess
 from btrfs2s3.assessor import assessment_to_actions
 from btrfs2s3.backups import BackupInfo
-from btrfs2s3.resolver import Reason
-from btrfs2s3.resolver import ReasonCode
+from btrfs2s3.resolver import Flags
+from btrfs2s3.resolver import KeepMeta
+from btrfs2s3.resolver import Reasons
 from btrfs2s3.s3 import iter_backups
 import btrfsutil
 import pytest
@@ -56,20 +57,23 @@ def test_create_and_backup_new_snapshot(
     (source_asmt,) = list(assessment.sources.values())
     # We should only keep one proposed snapshot
     (snapshot_asmt,) = list(source_asmt.snapshots.values())
-    assert snapshot_asmt.new
     proposed_info = snapshot_asmt.info
     assert proposed_info.uuid != NULL_UUID
     assert proposed_info.parent_uuid == btrfsutil.subvolume_info(source).uuid
     want_flags = SubvolumeFlags.Proposed | SubvolumeFlags.ReadOnly
     assert proposed_info.flags & want_flags == want_flags
-    assert snapshot_asmt.keep_reasons == {Reason(code=ReasonCode.MostRecent)}
+    assert snapshot_asmt.keep_meta == KeepMeta(
+        reasons=Reasons.MostRecent, flags=Flags.New
+    )
+    assert snapshot_asmt.new
 
     # We should only keep one proposed full backup
     ((backup_uuid, backup_asmt),) = list(source_asmt.backups.items())
     assert backup_uuid == proposed_info.uuid
-    assert backup_asmt.keep_reasons == {
-        Reason(code=ReasonCode.MostRecent | ReasonCode.New)
-    }
+    assert backup_asmt.keep_meta == KeepMeta(
+        reasons=Reasons.MostRecent, flags=Flags.New
+    )
+    assert backup_asmt.new
 
     actions = Actions()
     assessment_to_actions(assessment, actions)
@@ -121,7 +125,9 @@ def test_create_and_backup_with_parent(
 
     # This isn't guaranteed to work at year boundaries. Can't think of a better
     # way to do it right now.
-    iter_time_spans, is_time_span_retained = mkretained(now=time.time(), years=(0,))
+    now = time.time()
+    iter_time_spans, is_time_span_retained = mkretained(now=now, years=(0,))
+    expected_time_span = next(iter(iter_time_spans(now)))
     assessment = assess(
         snapshot_dir=snapshot_dir,
         sources=(source,),
@@ -134,18 +140,19 @@ def test_create_and_backup_with_parent(
     (source_asmt,) = list(assessment.sources.values())
     (old_asmt, new_asmt) = sorted(source_asmt.snapshots.values(), key=lambda a: a.new)
     # One assessment for the new snapshot
-    assert new_asmt.new
     proposed_info = new_asmt.info
     assert proposed_info.uuid != NULL_UUID
     assert proposed_info.parent_uuid == btrfsutil.subvolume_info(source).uuid
     want_flags = SubvolumeFlags.Proposed | SubvolumeFlags.ReadOnly
     assert proposed_info.flags & want_flags == want_flags
-    assert new_asmt.keep_reasons == {Reason(code=ReasonCode.MostRecent)}
+    assert new_asmt.keep_meta == KeepMeta(reasons=Reasons.MostRecent, flags=Flags.New)
+    assert new_asmt.new
     # One assessment for the existing snapshot
-    assert not old_asmt.new
     assert old_asmt.info.uuid == btrfsutil.subvolume_info(snapshot1).uuid
-    (reason,) = old_asmt.keep_reasons
-    assert reason.code & ReasonCode.Retained
+    assert old_asmt.keep_meta == KeepMeta(
+        reasons=Reasons.Retained, time_spans={expected_time_span}
+    )
+    assert not old_asmt.new
 
     # One backup assessment will match the uuid of the existing snapshot, but
     # the other will match a proposed uuid
@@ -153,11 +160,12 @@ def test_create_and_backup_with_parent(
     delta_asmt = source_asmt.backups[new_asmt.info.uuid]
     assert full_asmt.backup.check().uuid == old_asmt.info.uuid
     assert full_asmt.backup.check().send_parent_uuid is None
-    (full_reason,) = full_asmt.keep_reasons
-    assert full_reason.code & ReasonCode.Retained
-    assert delta_asmt.keep_reasons == {
-        Reason(code=ReasonCode.MostRecent | ReasonCode.New)
-    }
+    assert full_asmt.keep_meta == KeepMeta(
+        reasons=Reasons.Retained, flags=Flags.New, time_spans={expected_time_span}
+    )
+    assert full_asmt.new
+    assert delta_asmt.keep_meta == KeepMeta(reasons=Reasons.MostRecent, flags=Flags.New)
+    assert delta_asmt.new
 
     actions = Actions()
     assessment_to_actions(assessment, actions)
@@ -216,21 +224,22 @@ def test_rename_snapshot(
     (source_asmt,) = list(assessment.sources.values())
     # Keep only the existing snapshot
     (snapshot_asmt,) = list(source_asmt.snapshots.values())
-    assert not snapshot_asmt.new
     assert snapshot_asmt.info.uuid == btrfsutil.subvolume_info(snapshot).uuid
     assert snapshot_asmt.info.parent_uuid == btrfsutil.subvolume_info(source).uuid
     check_flags = SubvolumeFlags.Proposed | SubvolumeFlags.ReadOnly
     want_flags = SubvolumeFlags.ReadOnly
     assert snapshot_asmt.info.flags & check_flags == want_flags
     assert snapshot_asmt.target_path.check().name.startswith(source.name)
-    assert snapshot_asmt.keep_reasons == {Reason(code=ReasonCode.MostRecent)}
+    assert snapshot_asmt.keep_meta == KeepMeta(reasons=Reasons.MostRecent)
+    assert not snapshot_asmt.new
 
     # We should only keep one full backup, of the existing snapshot
     ((backup_uuid, backup_asmt),) = list(source_asmt.backups.items())
     assert backup_uuid == snapshot_asmt.info.uuid
-    assert backup_asmt.keep_reasons == {
-        Reason(code=ReasonCode.MostRecent | ReasonCode.New)
-    }
+    assert backup_asmt.keep_meta == KeepMeta(
+        reasons=Reasons.MostRecent, flags=Flags.New
+    )
+    assert backup_asmt.new
 
     actions = Actions()
     assessment_to_actions(assessment, actions)
@@ -289,25 +298,26 @@ def test_delete_only_snapshot_because_proposed_would_be_newer(
     (source_asmt,) = list(assessment.sources.values())
     # Two assessments: one for the existing snapshot, one proposed
     (old_asmt, new_asmt) = sorted(source_asmt.snapshots.values(), key=lambda a: a.new)
-    assert new_asmt.new
     proposed_info = new_asmt.info
     assert proposed_info.uuid != NULL_UUID
     assert proposed_info.parent_uuid == btrfsutil.subvolume_info(source).uuid
     want_flags = SubvolumeFlags.Proposed | SubvolumeFlags.ReadOnly
     assert proposed_info.flags & want_flags == want_flags
-    assert new_asmt.keep_reasons == {Reason(code=ReasonCode.MostRecent)}
+    assert new_asmt.keep_meta == KeepMeta(reasons=Reasons.MostRecent, flags=Flags.New)
+    assert new_asmt.new
     # Assessment of the existing snapshot
-    assert not old_asmt.new
     assert old_asmt.info.uuid == btrfsutil.subvolume_info(initial_snapshot).uuid
     assert old_asmt.initial_path == initial_snapshot
-    assert old_asmt.keep_reasons == set()
+    assert old_asmt.keep_meta == KeepMeta()
+    assert not old_asmt.new
 
     # We should only keep one proposed full backup
     ((backup_uuid, backup_asmt),) = list(source_asmt.backups.items())
     assert backup_uuid == proposed_info.uuid
-    assert backup_asmt.keep_reasons == {
-        Reason(code=ReasonCode.MostRecent | ReasonCode.New)
-    }
+    assert backup_asmt.keep_meta == KeepMeta(
+        reasons=Reasons.MostRecent, flags=Flags.New
+    )
+    assert backup_asmt.new
 
     actions = Actions()
     assessment_to_actions(assessment, actions)
