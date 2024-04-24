@@ -2,16 +2,13 @@ from __future__ import annotations
 
 import functools
 import random
-from typing import Iterable
 from typing import Protocol
 from typing import TYPE_CHECKING
 
 import arrow
-from btrfs2s3._internal import arrowutil
-from btrfs2s3._internal.arrowutil import iter_intersecting_time_spans
 from btrfs2s3._internal.util import backup_of_snapshot
+from btrfs2s3._internal.util import mkretained
 from btrfs2s3._internal.util import mksubvol
-from btrfs2s3._internal.util import TS
 from btrfs2s3.resolver import _Resolver
 from btrfs2s3.resolver import KeepBackup
 from btrfs2s3.resolver import KeepSnapshot
@@ -46,63 +43,70 @@ def mksnap(parent_uuid: bytes) -> MkSnap:
     return inner
 
 
-def iter_time_spans(timestamp: float) -> Iterable[TS]:
-    return iter_intersecting_time_spans(arrow.get(timestamp), bounds="[]")
-
-
 def test_noop() -> None:
+    iter_time_spans, _ = mkretained(0, years=(0,))
     resolver = _Resolver(snapshots=(), backups=(), iter_time_spans=iter_time_spans)
 
     resolver.keep_snapshots_and_backups_for_retained_time_spans(
         lambda _: True  # pragma: no cover
     )
 
-    assert resolver.get_result() == Result[TS](keep_snapshots={}, keep_backups={})
+    assert resolver.get_result() == Result(keep_snapshots={}, keep_backups={})
 
 
 def test_one_snapshot_multiple_time_spans(mksnap: MkSnap) -> None:
     # One snapshot on Jan 1st
     snapshot = mksnap(t="2006-01-01")
     # Retain one yearly and one monthly backup. Current day is Jan 1st.
-    time_spans = list(
-        arrowutil.iter_time_spans(
-            arrow.get("2006-01-01"), years=(0,), months=(0,), bounds="[]"
-        )
+    iter_time_spans, is_time_span_retained = mkretained(
+        "2006-01-01", years=(0,), months=(0,)
     )
     resolver = _Resolver(
         snapshots=(snapshot,), backups=(), iter_time_spans=iter_time_spans
     )
 
-    resolver.keep_snapshots_and_backups_for_retained_time_spans(time_spans.__contains__)
+    resolver.keep_snapshots_and_backups_for_retained_time_spans(is_time_span_retained)
 
     expected_backup = backup_of_snapshot(snapshot, send_parent=None)
-    assert resolver.get_result() == Result[TS](
+    assert resolver.get_result() == Result(
         keep_snapshots={
-            snapshot.uuid: KeepSnapshot[TS](
+            snapshot.uuid: KeepSnapshot(
                 item=snapshot,
                 reasons={
                     Reason(
                         code=ReasonCode.Retained,
-                        time_span=(arrow.get("2006-01-01"), arrow.get("2007-01-01")),
+                        time_span=(
+                            arrow.get("2006-01-01").timestamp(),
+                            arrow.get("2007-01-01").timestamp(),
+                        ),
                     ),
                     Reason(
                         code=ReasonCode.Retained,
-                        time_span=(arrow.get("2006-01-01"), arrow.get("2006-02-01")),
+                        time_span=(
+                            arrow.get("2006-01-01").timestamp(),
+                            arrow.get("2006-02-01").timestamp(),
+                        ),
                     ),
                 },
             )
         },
         keep_backups={
-            expected_backup.uuid: KeepBackup[TS](
+            expected_backup.uuid: KeepBackup(
                 item=expected_backup,
                 reasons={
                     Reason(
                         code=ReasonCode.Retained | ReasonCode.New,
-                        time_span=(arrow.get("2006-01-01"), arrow.get("2007-01-01")),
+                        time_span=(
+                            arrow.get("2006-01-01").timestamp(),
+                            arrow.get("2007-01-01").timestamp(),
+                        ),
                     ),
                     Reason(
                         code=ReasonCode.Retained | ReasonCode.New,
-                        time_span=(arrow.get("2006-01-01"), arrow.get("2006-02-01")),
+                        time_span=(
+                            arrow.get("2006-01-01").timestamp(),
+                            arrow.get("2006-02-01").timestamp(),
+                        ),
                     ),
                 },
             )
@@ -115,34 +119,38 @@ def test_one_snapshot_with_existing_backup(mksnap: MkSnap) -> None:
     snapshot = mksnap(t="2006-01-01")
     backup = backup_of_snapshot(snapshot, send_parent=None)
     # Retain one yearly backup. Current day is Jan 1st.
-    time_spans = list(
-        arrowutil.iter_time_spans(arrow.get("2006-01-01"), years=(0,), bounds="[]")
-    )
+    iter_time_spans, is_time_span_retained = mkretained("2006-01-01", years=(0,))
     resolver = _Resolver(
         snapshots=(snapshot,), backups=(backup,), iter_time_spans=iter_time_spans
     )
 
-    resolver.keep_snapshots_and_backups_for_retained_time_spans(time_spans.__contains__)
+    resolver.keep_snapshots_and_backups_for_retained_time_spans(is_time_span_retained)
 
-    assert resolver.get_result() == Result[TS](
+    assert resolver.get_result() == Result(
         keep_snapshots={
-            snapshot.uuid: KeepSnapshot[TS](
+            snapshot.uuid: KeepSnapshot(
                 item=snapshot,
                 reasons={
                     Reason(
                         code=ReasonCode.Retained,
-                        time_span=(arrow.get("2006-01-01"), arrow.get("2007-01-01")),
+                        time_span=(
+                            arrow.get("2006-01-01").timestamp(),
+                            arrow.get("2007-01-01").timestamp(),
+                        ),
                     )
                 },
             )
         },
         keep_backups={
-            backup.uuid: KeepBackup[TS](
+            backup.uuid: KeepBackup(
                 item=backup,
                 reasons={
                     Reason(
                         code=ReasonCode.Retained,
-                        time_span=(arrow.get("2006-01-01"), arrow.get("2007-01-01")),
+                        time_span=(
+                            arrow.get("2006-01-01").timestamp(),
+                            arrow.get("2007-01-01").timestamp(),
+                        ),
                     )
                 },
             )
@@ -155,25 +163,26 @@ def test_one_existing_backup_and_no_snapshot(mksnap: MkSnap) -> None:
     snapshot = mksnap(t="2006-01-01")
     backup = backup_of_snapshot(snapshot, send_parent=None)
     # Retain one yearly backup. Current day is Jan 1st.
-    time_spans = list(
-        arrowutil.iter_time_spans(arrow.get("2006-01-01"), years=(0,), bounds="[]")
-    )
+    iter_time_spans, is_time_span_retained = mkretained("2006-01-01", years=(0,))
     # Don't include the snapshot
     resolver = _Resolver(
         snapshots=(), backups=(backup,), iter_time_spans=iter_time_spans
     )
 
-    resolver.keep_snapshots_and_backups_for_retained_time_spans(time_spans.__contains__)
+    resolver.keep_snapshots_and_backups_for_retained_time_spans(is_time_span_retained)
 
-    assert resolver.get_result() == Result[TS](
+    assert resolver.get_result() == Result(
         keep_snapshots={},
         keep_backups={
-            backup.uuid: KeepBackup[TS](
+            backup.uuid: KeepBackup(
                 item=backup,
                 reasons={
                     Reason(
                         code=ReasonCode.Retained | ReasonCode.NoSnapshot,
-                        time_span=(arrow.get("2006-01-01"), arrow.get("2007-01-01")),
+                        time_span=(
+                            arrow.get("2006-01-01").timestamp(),
+                            arrow.get("2007-01-01").timestamp(),
+                        ),
                     )
                 },
             )
@@ -188,37 +197,41 @@ def test_one_existing_backup_and_newer_snapshot(mksnap: MkSnap) -> None:
     # One backup of the earlier snapshot
     backup1 = backup_of_snapshot(snapshot1, send_parent=None)
     # Retain one yearly backup. Current day is Jan 1st.
-    time_spans = list(
-        arrowutil.iter_time_spans(arrow.get("2006-01-01"), years=(0,), bounds="[]")
-    )
+    iter_time_spans, is_time_span_retained = mkretained("2006-01-01", years=(0,))
     # Don't include the older snapshot
     resolver = _Resolver(
         snapshots=(snapshot2,), backups=(backup1,), iter_time_spans=iter_time_spans
     )
 
-    resolver.keep_snapshots_and_backups_for_retained_time_spans(time_spans.__contains__)
+    resolver.keep_snapshots_and_backups_for_retained_time_spans(is_time_span_retained)
 
     # Note that keep_most_recent_snapshot() would add a backup of the newer
     # snapshot
-    assert resolver.get_result() == Result[TS](
+    assert resolver.get_result() == Result(
         keep_snapshots={
-            snapshot2.uuid: KeepSnapshot[TS](
+            snapshot2.uuid: KeepSnapshot(
                 item=snapshot2,
                 reasons={
                     Reason(
                         code=ReasonCode.Retained,
-                        time_span=(arrow.get("2006-01-01"), arrow.get("2007-01-01")),
+                        time_span=(
+                            arrow.get("2006-01-01").timestamp(),
+                            arrow.get("2007-01-01").timestamp(),
+                        ),
                     )
                 },
             )
         },
         keep_backups={
-            backup1.uuid: KeepBackup[TS](
+            backup1.uuid: KeepBackup(
                 item=backup1,
                 reasons={
                     Reason(
                         code=ReasonCode.Retained | ReasonCode.SnapshotIsNewer,
-                        time_span=(arrow.get("2006-01-01"), arrow.get("2007-01-01")),
+                        time_span=(
+                            arrow.get("2006-01-01").timestamp(),
+                            arrow.get("2007-01-01").timestamp(),
+                        ),
                     )
                 },
             )
@@ -233,41 +246,45 @@ def test_one_existing_backup_and_older_snapshot(mksnap: MkSnap) -> None:
     # One backup of the newer snapshot
     backup2 = backup_of_snapshot(snapshot2, send_parent=None)
     # Retain one yearly backup. Current day is Jan 1st.
-    time_spans = list(
-        arrowutil.iter_time_spans(arrow.get("2006-01-01"), years=(0,), bounds="[]")
-    )
+    iter_time_spans, is_time_span_retained = mkretained("2006-01-01", years=(0,))
     resolver = _Resolver(
         snapshots=(snapshot1, snapshot2),
         backups=(backup2,),
         iter_time_spans=iter_time_spans,
     )
 
-    resolver.keep_snapshots_and_backups_for_retained_time_spans(time_spans.__contains__)
+    resolver.keep_snapshots_and_backups_for_retained_time_spans(is_time_span_retained)
 
     # Note that keep_most_recent_snapshot() would add a backup of the newer
     # snapshot
     expected_backup = backup_of_snapshot(snapshot1, send_parent=None)
-    assert resolver.get_result() == Result[TS](
+    assert resolver.get_result() == Result(
         keep_snapshots={
-            snapshot1.uuid: KeepSnapshot[TS](
+            snapshot1.uuid: KeepSnapshot(
                 item=snapshot1,
                 reasons={
                     Reason(
                         code=ReasonCode.Retained,
-                        time_span=(arrow.get("2006-01-01"), arrow.get("2007-01-01")),
+                        time_span=(
+                            arrow.get("2006-01-01").timestamp(),
+                            arrow.get("2007-01-01").timestamp(),
+                        ),
                     )
                 },
             )
         },
         keep_backups={
-            expected_backup.uuid: KeepBackup[TS](
+            expected_backup.uuid: KeepBackup(
                 item=expected_backup,
                 reasons={
                     Reason(
                         code=ReasonCode.Retained
                         | ReasonCode.New
                         | ReasonCode.ReplacingNewer,
-                        time_span=(arrow.get("2006-01-01"), arrow.get("2007-01-01")),
+                        time_span=(
+                            arrow.get("2006-01-01").timestamp(),
+                            arrow.get("2007-01-01").timestamp(),
+                        ),
                     )
                 },
             )

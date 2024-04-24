@@ -9,7 +9,6 @@ import enum
 from queue import SimpleQueue
 from typing import Collection
 from typing import Generic
-from typing import Hashable
 from typing import Iterator
 from typing import Protocol
 from typing import TypeAlias
@@ -24,6 +23,7 @@ from btrfs2s3._internal.util import (
     IsTimeSpanRetained as IsTimeSpanRetained,  # noqa: PLC0414
 )
 from btrfs2s3._internal.util import IterTimeSpans as IterTimeSpans  # noqa: PLC0414
+from btrfs2s3._internal.util import TS
 from btrfs2s3.backups import BackupInfo
 
 
@@ -36,13 +36,12 @@ class _Info(Protocol):
     def ctransid(self) -> int: ...
 
 
-_TS = TypeVar("_TS", bound=Hashable)
 _I = TypeVar("_I", bound=_Info)
 
 
-class _Index(Generic[_I, _TS]):
+class _Index(Generic[_I]):
     def __init__(
-        self, *, items: Collection[_I], iter_time_spans: IterTimeSpans[_TS]
+        self, *, items: Collection[_I], iter_time_spans: IterTimeSpans
     ) -> None:
         self.iter_time_spans = iter_time_spans
         self._item_by_uuid = {}
@@ -53,7 +52,7 @@ class _Index(Generic[_I, _TS]):
             for time_span in self.iter_time_spans(item.ctime):
                 self._items_by_time_span[time_span].append(item)
 
-    def get_nominal(self, time_span: _TS) -> _I | None:
+    def get_nominal(self, time_span: TS) -> _I | None:
         items = self._items_by_time_span.get(time_span)
         if items:
             return min(items, key=lambda i: i.ctransid)
@@ -67,7 +66,7 @@ class _Index(Generic[_I, _TS]):
             return max(self._item_by_uuid.values(), key=lambda i: i.ctransid)
         return None
 
-    def get_all_time_spans(self) -> Collection[_TS]:
+    def get_all_time_spans(self) -> Collection[TS]:
         return self._items_by_time_span.keys()
 
 
@@ -85,25 +84,25 @@ _EMPTY_REASON_CODE = ReasonCode(0)
 
 
 @dataclasses.dataclass(frozen=True)
-class Reason(Generic[_TS]):
+class Reason:
     code: ReasonCode = _EMPTY_REASON_CODE
-    time_span: _TS | None = None
+    time_span: TS | None = None
     other: bytes | None = None
 
 
 @dataclasses.dataclass(frozen=True)
-class _MarkedItem(Generic[_I, _TS]):
+class _MarkedItem(Generic[_I]):
     item: _I
-    reasons: set[Reason[_TS]]
+    reasons: set[Reason]
 
 
-class _Marker(Generic[_I, _TS]):
+class _Marker(Generic[_I]):
     def __init__(self) -> None:
-        self._result: dict[bytes, _MarkedItem[_I, _TS]] = {}
+        self._result: dict[bytes, _MarkedItem[_I]] = {}
         self._reason_code_ctx: ContextVar[ReasonCode] = ContextVar(
             "reason_code", default=_EMPTY_REASON_CODE
         )
-        self._time_span_ctx: ContextVar[_TS | None] = ContextVar(
+        self._time_span_ctx: ContextVar[TS | None] = ContextVar(
             "time_span", default=None
         )
 
@@ -117,7 +116,7 @@ class _Marker(Generic[_I, _TS]):
             self._reason_code_ctx.reset(token)
 
     @contextlib.contextmanager
-    def with_time_span(self, time_span: _TS) -> Iterator[None]:
+    def with_time_span(self, time_span: TS) -> Iterator[None]:
         token = self._time_span_ctx.set(time_span)
         try:
             yield
@@ -128,16 +127,16 @@ class _Marker(Generic[_I, _TS]):
         self,
         *,
         code: ReasonCode = _EMPTY_REASON_CODE,
-        time_span: _TS | None = None,
+        time_span: TS | None = None,
         other: bytes | None = None,
-    ) -> Reason[_TS]:
+    ) -> Reason:
         code |= self._reason_code_ctx.get()
         if code == _EMPTY_REASON_CODE:
             raise AssertionError
         time_span = time_span or self._time_span_ctx.get()
         return Reason(code=code, time_span=time_span, other=other)
 
-    def get_result(self) -> dict[bytes, _MarkedItem[_I, _TS]]:
+    def get_result(self) -> dict[bytes, _MarkedItem[_I]]:
         return self._result
 
     def mark(
@@ -145,7 +144,7 @@ class _Marker(Generic[_I, _TS]):
         item: _I,
         *,
         code: ReasonCode = _EMPTY_REASON_CODE,
-        time_span: _TS | None = None,
+        time_span: TS | None = None,
         other: bytes | None = None,
     ) -> None:
         if item.uuid not in self._result:
@@ -155,32 +154,32 @@ class _Marker(Generic[_I, _TS]):
         )
 
 
-KeepSnapshot: TypeAlias = _MarkedItem[SubvolumeInfo, _TS]
-KeepBackup: TypeAlias = _MarkedItem[BackupInfo, _TS]
+KeepSnapshot: TypeAlias = _MarkedItem[SubvolumeInfo]
+KeepBackup: TypeAlias = _MarkedItem[BackupInfo]
 
 
 @dataclasses.dataclass(frozen=True)
-class Result(Generic[_TS]):
-    keep_snapshots: dict[bytes, KeepSnapshot[_TS]] = field(default_factory=dict)
-    keep_backups: dict[bytes, KeepBackup[_TS]] = field(default_factory=dict)
+class Result:
+    keep_snapshots: dict[bytes, KeepSnapshot] = field(default_factory=dict)
+    keep_backups: dict[bytes, KeepBackup] = field(default_factory=dict)
 
 
-class _Resolver(Generic[_TS]):
+class _Resolver:
     def __init__(
         self,
         *,
         snapshots: Collection[SubvolumeInfo],
         backups: Collection[BackupInfo],
-        iter_time_spans: IterTimeSpans[_TS],
+        iter_time_spans: IterTimeSpans,
     ) -> None:
         self._snapshots = _Index(items=snapshots, iter_time_spans=iter_time_spans)
         self._backups = _Index(items=backups, iter_time_spans=iter_time_spans)
 
-        self._keep_snapshots: _Marker[SubvolumeInfo, _TS] = _Marker()
-        self._keep_backups: _Marker[BackupInfo, _TS] = _Marker()
+        self._keep_snapshots: _Marker[SubvolumeInfo] = _Marker()
+        self._keep_backups: _Marker[BackupInfo] = _Marker()
 
     @contextlib.contextmanager
-    def _with_time_span(self, time_span: _TS) -> Iterator[None]:
+    def _with_time_span(self, time_span: TS) -> Iterator[None]:
         with self._keep_snapshots.with_time_span(
             time_span
         ), self._keep_backups.with_time_span(time_span):
@@ -191,7 +190,7 @@ class _Resolver(Generic[_TS]):
         with self._keep_snapshots.with_code(code), self._keep_backups.with_code(code):
             yield
 
-    def get_result(self) -> Result[_TS]:
+    def get_result(self) -> Result:
         return Result(
             keep_snapshots=self._keep_snapshots.get_result(),
             keep_backups=self._keep_backups.get_result(),
@@ -202,7 +201,7 @@ class _Resolver(Generic[_TS]):
         snapshot: SubvolumeInfo,
         *,
         code: ReasonCode = _EMPTY_REASON_CODE,
-        time_span: _TS | None = None,
+        time_span: TS | None = None,
         other: bytes | None = None,
     ) -> BackupInfo:
         backup: BackupInfo | None = None
@@ -228,7 +227,7 @@ class _Resolver(Generic[_TS]):
         self._keep_backups.mark(backup, code=code, time_span=time_span, other=other)
         return backup
 
-    def _keep_snapshot_and_backup_for_time_span(self, time_span: _TS) -> None:
+    def _keep_snapshot_and_backup_for_time_span(self, time_span: TS) -> None:
         nominal_snapshot = self._snapshots.get_nominal(time_span)
         nominal_backup = self._backups.get_nominal(time_span)
 
@@ -253,7 +252,7 @@ class _Resolver(Generic[_TS]):
                 self._keep_backups.mark(nominal_backup)
 
     def keep_snapshots_and_backups_for_retained_time_spans(
-        self, is_time_span_retained: IsTimeSpanRetained[_TS]
+        self, is_time_span_retained: IsTimeSpanRetained
     ) -> None:
         with self._with_code(ReasonCode.Retained):
             all_time_spans = set(self._snapshots.get_all_time_spans()) | set(
@@ -317,9 +316,9 @@ def resolve(
     *,
     snapshots: Collection[SubvolumeInfo],
     backups: Collection[BackupInfo],
-    iter_time_spans: IterTimeSpans[_TS],
-    is_time_span_retained: IsTimeSpanRetained[_TS],
-) -> Result[_TS]:
+    iter_time_spans: IterTimeSpans,
+    is_time_span_retained: IsTimeSpanRetained,
+) -> Result:
     resolver = _Resolver(
         snapshots=snapshots, backups=backups, iter_time_spans=iter_time_spans
     )

@@ -2,15 +2,13 @@ from __future__ import annotations
 
 import functools
 import random
-from typing import Iterable
 from typing import Protocol
 from typing import TYPE_CHECKING
 
 import arrow
-from btrfs2s3._internal.arrowutil import iter_intersecting_time_spans
 from btrfs2s3._internal.util import backup_of_snapshot
+from btrfs2s3._internal.util import iter_all_time_spans
 from btrfs2s3._internal.util import mksubvol
-from btrfs2s3._internal.util import TS
 from btrfs2s3.resolver import _Resolver
 from btrfs2s3.resolver import KeepBackup
 from btrfs2s3.resolver import KeepSnapshot
@@ -45,35 +43,31 @@ def mksnap(parent_uuid: bytes) -> MkSnap:
     return inner
 
 
-def iter_time_spans(timestamp: float) -> Iterable[TS]:
-    return iter_intersecting_time_spans(arrow.get(timestamp), bounds="[]")
-
-
 def test_noop() -> None:
-    resolver = _Resolver(snapshots=(), backups=(), iter_time_spans=iter_time_spans)
+    resolver = _Resolver(snapshots=(), backups=(), iter_time_spans=iter_all_time_spans)
 
     resolver.keep_most_recent_snapshot()
 
-    assert resolver.get_result() == Result[TS](keep_snapshots={}, keep_backups={})
+    assert resolver.get_result() == Result(keep_snapshots={}, keep_backups={})
 
 
 def test_one_snapshot(mksnap: MkSnap) -> None:
     snapshot = mksnap()
     resolver = _Resolver(
-        snapshots=(snapshot,), backups=(), iter_time_spans=iter_time_spans
+        snapshots=(snapshot,), backups=(), iter_time_spans=iter_all_time_spans
     )
 
     resolver.keep_most_recent_snapshot()
 
     expected_backup = backup_of_snapshot(snapshot, send_parent=None)
-    assert resolver.get_result() == Result[TS](
+    assert resolver.get_result() == Result(
         keep_snapshots={
-            snapshot.uuid: KeepSnapshot[TS](
+            snapshot.uuid: KeepSnapshot(
                 item=snapshot, reasons={Reason(code=ReasonCode.MostRecent)}
             )
         },
         keep_backups={
-            expected_backup.uuid: KeepBackup[TS](
+            expected_backup.uuid: KeepBackup(
                 item=expected_backup,
                 reasons={Reason(code=ReasonCode.MostRecent | ReasonCode.New)},
             )
@@ -88,20 +82,20 @@ def test_multiple_snapshots_keep_most_recent(mksnap: MkSnap) -> None:
     resolver = _Resolver(
         snapshots=(snapshot1, snapshot2),
         backups=(backup1,),
-        iter_time_spans=iter_time_spans,
+        iter_time_spans=iter_all_time_spans,
     )
 
     resolver.keep_most_recent_snapshot()
 
     expected_backup = backup_of_snapshot(snapshot2, send_parent=snapshot1)
-    assert resolver.get_result() == Result[TS](
+    assert resolver.get_result() == Result(
         keep_snapshots={
-            snapshot2.uuid: KeepSnapshot[TS](
+            snapshot2.uuid: KeepSnapshot(
                 item=snapshot2, reasons={Reason(code=ReasonCode.MostRecent)}
             )
         },
         keep_backups={
-            expected_backup.uuid: KeepBackup[TS](
+            expected_backup.uuid: KeepBackup(
                 item=expected_backup,
                 reasons={Reason(code=ReasonCode.MostRecent | ReasonCode.New)},
             )

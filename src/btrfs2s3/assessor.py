@@ -5,11 +5,8 @@ from dataclasses import field
 from functools import partial
 import os
 import time
-from typing import Generic
-from typing import Hashable
 from typing import Sequence
 from typing import TYPE_CHECKING
-from typing import TypeVar
 from uuid import uuid4
 
 import arrow
@@ -37,48 +34,45 @@ if TYPE_CHECKING:
     from btrfs2s3.backups import BackupInfo
 
 
-_TS = TypeVar("_TS", bound=Hashable)
-
-
 @dataclass
-class SnapshotAssessment(Generic[_TS]):
+class SnapshotAssessment:
     initial_path: Path
     info: SubvolumeInfo
     target_path: Thunk[Path]
     real_info: Thunk[SubvolumeInfo]
     new: bool = False
-    keep_reasons: set[Reason[_TS]] = field(default_factory=set)
+    keep_reasons: set[Reason] = field(default_factory=set)
 
 
 @dataclass
-class BackupAssessment(Generic[_TS]):
+class BackupAssessment:
     backup: Thunk[BackupInfo]
     key: Thunk[str]
     new: bool = False
-    keep_reasons: set[Reason[_TS]] = field(default_factory=set)
+    keep_reasons: set[Reason] = field(default_factory=set)
 
 
 @dataclass
-class SourceAssessment(Generic[_TS]):
+class SourceAssessment:
     path: Path
     info: SubvolumeInfo
-    snapshots: dict[bytes, SnapshotAssessment[_TS]] = field(default_factory=dict)
-    backups: dict[bytes, BackupAssessment[_TS]] = field(default_factory=dict)
+    snapshots: dict[bytes, SnapshotAssessment] = field(default_factory=dict)
+    backups: dict[bytes, BackupAssessment] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
-class Assessment(Generic[_TS]):
-    sources: dict[bytes, SourceAssessment[_TS]] = field(default_factory=dict)
+class Assessment:
+    sources: dict[bytes, SourceAssessment] = field(default_factory=dict)
 
 
 def _get_snapshot_path_for_backup_thunk(
-    source: SourceAssessment[_TS], backup: Thunk[BackupInfo]
+    source: SourceAssessment, backup: Thunk[BackupInfo]
 ) -> Path:
     return source.snapshots[backup().uuid].target_path()
 
 
 def _get_send_parent_path_for_backup_thunk(
-    source: SourceAssessment[_TS], backup: Thunk[BackupInfo]
+    source: SourceAssessment, backup: Thunk[BackupInfo]
 ) -> Path | None:
     info = backup()
     if info.send_parent_uuid is None:
@@ -87,7 +81,7 @@ def _get_send_parent_path_for_backup_thunk(
 
 
 def _backup_assessment_to_actions(
-    source: SourceAssessment[_TS], backup: BackupAssessment[_TS], actions: Actions
+    source: SourceAssessment, backup: BackupAssessment, actions: Actions
 ) -> None:
     if backup.new:
         snapshot = partial(_get_snapshot_path_for_backup_thunk, source, backup.backup)
@@ -105,7 +99,7 @@ def _backup_assessment_to_actions(
 
 
 def _snapshot_assessment_to_actions(
-    source: SourceAssessment[_TS], snapshot: SnapshotAssessment[_TS], actions: Actions
+    source: SourceAssessment, snapshot: SnapshotAssessment, actions: Actions
 ) -> None:
     if snapshot.new:
         actions.create_snapshot(source=source.path, path=snapshot.initial_path)
@@ -117,7 +111,7 @@ def _snapshot_assessment_to_actions(
         )
 
 
-def assessment_to_actions(assessment: Assessment[_TS], actions: Actions) -> None:
+def assessment_to_actions(assessment: Assessment, actions: Actions) -> None:
     for source in assessment.sources.values():
         for snapshot in source.snapshots.values():
             _snapshot_assessment_to_actions(source, snapshot, actions)
@@ -126,16 +120,16 @@ def assessment_to_actions(assessment: Assessment[_TS], actions: Actions) -> None
 
 
 @dataclass
-class _ResolveArgs(Generic[_TS]):
-    iter_time_spans: IterTimeSpans[_TS]
-    is_time_span_retained: IsTimeSpanRetained[_TS]
+class _ResolveArgs:
+    iter_time_spans: IterTimeSpans
+    is_time_span_retained: IsTimeSpanRetained
 
 
 @dataclass
-class _SourceAssessor(Generic[_TS]):
-    assessment: SourceAssessment[_TS]
+class _SourceAssessor:
+    assessment: SourceAssessment
     snapshot_dir: Path
-    resolve_args: _ResolveArgs[_TS]
+    resolve_args: _ResolveArgs
     tzinfo: tzinfo | str | None
 
     def _make_snapshot_path(self, info: SubvolumeInfo) -> Path:
@@ -190,12 +184,12 @@ class _SourceAssessor(Generic[_TS]):
             real_info=Thunk(get_real_info),
         )
 
-    def _get_target_path(self, snapshot: SnapshotAssessment[_TS]) -> ThunkArg[Path]:
+    def _get_target_path(self, snapshot: SnapshotAssessment) -> ThunkArg[Path]:
         if snapshot.real_info.is_tbd():
             return lambda: self._make_snapshot_path(snapshot.real_info())
         return self._make_snapshot_path(snapshot.real_info())
 
-    def _do_resolve(self, *, include_proposed: bool = True) -> resolver.Result[_TS]:
+    def _do_resolve(self, *, include_proposed: bool = True) -> resolver.Result:
         snapshots = []
         for snapshot in self.assessment.snapshots.values():
             if snapshot.info.flags & SubvolumeFlags.Proposed and not include_proposed:
@@ -265,13 +259,13 @@ class _SourceAssessor(Generic[_TS]):
 
 
 @dataclass
-class _Assessor(Generic[_TS]):
+class _Assessor:
     snapshot_dir: Path
     sources: Sequence[Path]
-    resolve_args: _ResolveArgs[_TS]
+    resolve_args: _ResolveArgs
     tzinfo: tzinfo | str | None
 
-    _assessment: Assessment[_TS] = field(init=False, default_factory=Assessment)
+    _assessment: Assessment = field(init=False, default_factory=Assessment)
 
     def _collect_sources(self) -> None:
         for source in self.sources:
@@ -333,7 +327,7 @@ class _Assessor(Generic[_TS]):
         self._collect_backups(s3, bucket)
         self._assess_for_all_sources()
 
-    def get_assessment(self) -> Assessment[_TS]:
+    def get_assessment(self) -> Assessment:
         return self._assessment
 
 
@@ -343,10 +337,10 @@ def assess(  # noqa: PLR0913
     sources: Sequence[Path],
     s3: S3Client,
     bucket: str,
-    iter_time_spans: IterTimeSpans[_TS],
-    is_time_span_retained: IsTimeSpanRetained[_TS],
+    iter_time_spans: IterTimeSpans,
+    is_time_span_retained: IsTimeSpanRetained,
     tzinfo: tzinfo | str | None = None,
-) -> Assessment[_TS]:
+) -> Assessment:
     assessor = _Assessor(
         snapshot_dir=snapshot_dir,
         sources=sources,

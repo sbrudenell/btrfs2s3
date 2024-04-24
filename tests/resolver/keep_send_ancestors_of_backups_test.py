@@ -2,15 +2,13 @@ from __future__ import annotations
 
 import functools
 import random
-from typing import Iterable
 from typing import Protocol
 from typing import TYPE_CHECKING
 
 import arrow
-from btrfs2s3._internal.arrowutil import iter_intersecting_time_spans
 from btrfs2s3._internal.util import backup_of_snapshot
+from btrfs2s3._internal.util import iter_all_time_spans
 from btrfs2s3._internal.util import mksubvol
-from btrfs2s3._internal.util import TS
 from btrfs2s3.resolver import _Resolver
 from btrfs2s3.resolver import KeepBackup
 from btrfs2s3.resolver import Reason
@@ -44,32 +42,28 @@ def mksnap(parent_uuid: bytes) -> MkSnap:
     return inner
 
 
-def iter_time_spans(timestamp: float) -> Iterable[TS]:
-    return iter_intersecting_time_spans(arrow.get(timestamp), bounds="[]")
-
-
 def test_noop() -> None:
-    resolver = _Resolver(snapshots=(), backups=(), iter_time_spans=iter_time_spans)
+    resolver = _Resolver(snapshots=(), backups=(), iter_time_spans=iter_all_time_spans)
 
     resolver.keep_send_ancestors_of_backups()
 
-    assert resolver.get_result() == Result[TS](keep_snapshots={}, keep_backups={})
+    assert resolver.get_result() == Result(keep_snapshots={}, keep_backups={})
 
 
 def test_backup_with_no_parent(mksnap: MkSnap) -> None:
     snapshot1 = mksnap()
     backup1 = backup_of_snapshot(snapshot1, send_parent=None)
     resolver = _Resolver(
-        snapshots=(), backups=(backup1,), iter_time_spans=iter_time_spans
+        snapshots=(), backups=(backup1,), iter_time_spans=iter_all_time_spans
     )
     resolver._keep_backups.mark(backup1, code=ReasonCode.Retained)
 
     resolver.keep_send_ancestors_of_backups()
 
-    assert resolver.get_result() == Result[TS](
+    assert resolver.get_result() == Result(
         keep_snapshots={},
         keep_backups={
-            backup1.uuid: KeepBackup[TS](
+            backup1.uuid: KeepBackup(
                 item=backup1, reasons={Reason(code=ReasonCode.Retained)}
             )
         },
@@ -86,7 +80,7 @@ def test_send_ancestors_already_kept(mksnap: MkSnap) -> None:
     resolver = _Resolver(
         snapshots=(),
         backups=(backup1, backup2, backup3),
-        iter_time_spans=iter_time_spans,
+        iter_time_spans=iter_all_time_spans,
     )
     resolver._keep_backups.mark(backup1, code=ReasonCode.Retained)
     resolver._keep_backups.mark(backup2, code=ReasonCode.Retained)
@@ -94,16 +88,16 @@ def test_send_ancestors_already_kept(mksnap: MkSnap) -> None:
 
     resolver.keep_send_ancestors_of_backups()
 
-    assert resolver.get_result() == Result[TS](
+    assert resolver.get_result() == Result(
         keep_snapshots={},
         keep_backups={
-            backup1.uuid: KeepBackup[TS](
+            backup1.uuid: KeepBackup(
                 item=backup1, reasons={Reason(code=ReasonCode.Retained)}
             ),
-            backup2.uuid: KeepBackup[TS](
+            backup2.uuid: KeepBackup(
                 item=backup2, reasons={Reason(code=ReasonCode.Retained)}
             ),
-            backup3.uuid: KeepBackup[TS](
+            backup3.uuid: KeepBackup(
                 item=backup3, reasons={Reason(code=ReasonCode.Retained)}
             ),
         },
@@ -120,24 +114,24 @@ def test_send_ancestors_created_but_not_yet_kept(mksnap: MkSnap) -> None:
     resolver = _Resolver(
         snapshots=(snapshot1, snapshot2, snapshot3),
         backups=(backup1, backup2, backup3),
-        iter_time_spans=iter_time_spans,
+        iter_time_spans=iter_all_time_spans,
     )
     resolver._keep_backups.mark(backup3, code=ReasonCode.Retained)
 
     resolver.keep_send_ancestors_of_backups()
 
-    assert resolver.get_result() == Result[TS](
+    assert resolver.get_result() == Result(
         keep_snapshots={},
         keep_backups={
-            backup1.uuid: KeepBackup[TS](
+            backup1.uuid: KeepBackup(
                 item=backup1,
                 reasons={Reason(code=ReasonCode.SendAncestor, other=backup2.uuid)},
             ),
-            backup2.uuid: KeepBackup[TS](
+            backup2.uuid: KeepBackup(
                 item=backup2,
                 reasons={Reason(code=ReasonCode.SendAncestor, other=backup3.uuid)},
             ),
-            backup3.uuid: KeepBackup[TS](
+            backup3.uuid: KeepBackup(
                 item=backup3, reasons={Reason(code=ReasonCode.Retained)}
             ),
         },
@@ -152,7 +146,7 @@ def test_send_ancestors_not_yet_created(mksnap: MkSnap) -> None:
     resolver = _Resolver(
         snapshots=(snapshot1, snapshot2, snapshot3),
         backups=(backup3,),
-        iter_time_spans=iter_time_spans,
+        iter_time_spans=iter_all_time_spans,
     )
     resolver._keep_backups.mark(backup3, code=ReasonCode.Retained)
 
@@ -160,10 +154,10 @@ def test_send_ancestors_not_yet_created(mksnap: MkSnap) -> None:
 
     expected_backup1 = backup_of_snapshot(snapshot1, send_parent=None)
     expected_backup2 = backup_of_snapshot(snapshot2, send_parent=snapshot1)
-    assert resolver.get_result() == Result[TS](
+    assert resolver.get_result() == Result(
         keep_snapshots={},
         keep_backups={
-            expected_backup1.uuid: KeepBackup[TS](
+            expected_backup1.uuid: KeepBackup(
                 item=expected_backup1,
                 reasons={
                     Reason(
@@ -172,7 +166,7 @@ def test_send_ancestors_not_yet_created(mksnap: MkSnap) -> None:
                     )
                 },
             ),
-            expected_backup2.uuid: KeepBackup[TS](
+            expected_backup2.uuid: KeepBackup(
                 item=expected_backup2,
                 reasons={
                     Reason(
@@ -181,7 +175,7 @@ def test_send_ancestors_not_yet_created(mksnap: MkSnap) -> None:
                     )
                 },
             ),
-            backup3.uuid: KeepBackup[TS](
+            backup3.uuid: KeepBackup(
                 item=backup3, reasons={Reason(code=ReasonCode.Retained)}
             ),
         },
@@ -193,17 +187,17 @@ def test_backup_chain_broken(mksnap: MkSnap) -> None:
     snapshot2 = mksnap()
     backup2 = backup_of_snapshot(snapshot2, send_parent=snapshot1)
     resolver = _Resolver(
-        snapshots=(), backups=(backup2,), iter_time_spans=iter_time_spans
+        snapshots=(), backups=(backup2,), iter_time_spans=iter_all_time_spans
     )
     resolver._keep_backups.mark(backup2, code=ReasonCode.Retained)
 
     with pytest.warns(UserWarning, match="Backup chain is broken"):
         resolver.keep_send_ancestors_of_backups()
 
-    assert resolver.get_result() == Result[TS](
+    assert resolver.get_result() == Result(
         keep_snapshots={},
         keep_backups={
-            backup2.uuid: KeepBackup[TS](
+            backup2.uuid: KeepBackup(
                 item=backup2, reasons={Reason(code=ReasonCode.Retained)}
             )
         },
