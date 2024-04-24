@@ -59,6 +59,9 @@ order-by-type = false
 "src/btrfs2s3/resolver.py" = [
   "D",
 ]
+"src/btrfs2s3/assessor.py" = [
+  "D",
+]
 "typeshed/*" = [
   "A",
 ]
