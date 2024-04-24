@@ -71,41 +71,58 @@ class Assessment(Generic[_TS]):
     sources: dict[bytes, SourceAssessment[_TS]] = field(default_factory=dict)
 
 
+def _get_snapshot_path_for_backup_thunk(
+    source: SourceAssessment[_TS], backup: Thunk[BackupInfo]
+) -> Path:
+    return source.snapshots[backup().uuid].target_path()
+
+
+def _get_send_parent_path_for_backup_thunk(
+    source: SourceAssessment[_TS], backup: Thunk[BackupInfo]
+) -> Path | None:
+    info = backup()
+    if info.send_parent_uuid is None:
+        return None
+    return source.snapshots[info.send_parent_uuid].target_path()
+
+
+def _backup_assessment_to_actions(
+    source: SourceAssessment[_TS], backup: BackupAssessment[_TS], actions: Actions
+) -> None:
+    if backup.new:
+        snapshot = partial(_get_snapshot_path_for_backup_thunk, source, backup.backup)
+        send_parent = partial(
+            _get_send_parent_path_for_backup_thunk, source, backup.backup
+        )
+        actions.create_backup(
+            source=source.path,
+            snapshot=snapshot,
+            send_parent=send_parent,
+            key=backup.key,
+        )
+    if not backup.keep_reasons:
+        actions.delete_backup(backup.key)
+
+
+def _snapshot_assessment_to_actions(
+    source: SourceAssessment[_TS], snapshot: SnapshotAssessment[_TS], actions: Actions
+) -> None:
+    if snapshot.new:
+        actions.create_snapshot(source=source.path, path=snapshot.initial_path)
+    if not snapshot.keep_reasons:
+        actions.delete_snapshot(snapshot.initial_path)
+    if snapshot.initial_path != snapshot.target_path.peek():
+        actions.rename_snapshot(
+            source=snapshot.initial_path, target=snapshot.target_path
+        )
+
+
 def assessment_to_actions(assessment: Assessment[_TS], actions: Actions) -> None:
-    def _get_snapshot_path(
-        source: SourceAssessment[_TS], backup: Thunk[BackupInfo]
-    ) -> Path:
-        info = backup()
-        return source.snapshots[info.uuid].target_path()
-
-    def _get_send_parent_path(
-        source: SourceAssessment[_TS], backup: Thunk[BackupInfo]
-    ) -> Path | None:
-        info = backup()
-        if info.send_parent_uuid is None:
-            return None
-        return source.snapshots[info.send_parent_uuid].target_path()
-
     for source in assessment.sources.values():
         for snapshot in source.snapshots.values():
-            if snapshot.new:
-                actions.create_snapshot(source=source.path, path=snapshot.initial_path)
-            if not snapshot.keep_reasons:
-                actions.delete_snapshot(snapshot.initial_path)
-            if snapshot.initial_path != snapshot.target_path.peek():
-                actions.rename_snapshot(
-                    source=snapshot.initial_path, target=snapshot.target_path
-                )
+            _snapshot_assessment_to_actions(source, snapshot, actions)
         for backup in source.backups.values():
-            if backup.new:
-                actions.create_backup(
-                    source=source.path,
-                    snapshot=partial(_get_snapshot_path, source, backup.backup),
-                    send_parent=partial(_get_send_parent_path, source, backup.backup),
-                    key=backup.key,
-                )
-            if not backup.keep_reasons:
-                actions.delete_backup(backup.key)
+            _backup_assessment_to_actions(source, backup, actions)
 
 
 @dataclass
