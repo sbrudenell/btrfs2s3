@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from btrfs2s3 import resolver
     from btrfs2s3.action import Actions
     from btrfs2s3.backups import BackupInfo
-    from btrfs2s3.retention import Policy
+    from btrfs2s3.preservation import Policy
 
 
 @dataclass

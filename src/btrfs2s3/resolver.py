@@ -24,8 +24,8 @@ from btrfs2s3._internal.util import backup_of_snapshot
 from btrfs2s3.backups import BackupInfo
 
 if TYPE_CHECKING:
-    from btrfs2s3.retention import Policy
-    from btrfs2s3.retention import TS
+    from btrfs2s3.preservation import Policy
+    from btrfs2s3.preservation import TS
 
 
 class _Info(Protocol):
@@ -70,7 +70,7 @@ class _Index(Generic[_I]):
 
 class Reasons(enum.Flag):
     Empty = 0
-    Retained = enum.auto()
+    Preserved = enum.auto()
     MostRecent = enum.auto()
     SendAncestor = enum.auto()
 
@@ -253,13 +253,13 @@ class _Resolver:
             elif nominal_backup.ctransid == nominal_snapshot.ctransid:
                 self._keep_backups.mark(nominal_backup)
 
-    def keep_snapshots_and_backups_for_retained_time_spans(self) -> None:
-        with self._with_reasons(Reasons.Retained):
+    def keep_snapshots_and_backups_for_preserved_time_spans(self) -> None:
+        with self._with_reasons(Reasons.Preserved):
             all_time_spans = set(self._snapshots.get_all_time_spans()) | set(
                 self._backups.get_all_time_spans()
             )
             for time_span in all_time_spans:
-                if not self._policy.is_time_span_retained(time_span):
+                if not self._policy.should_preserve_for_time_span(time_span):
                     continue
                 with self._with_time_span(time_span):
                     self._keep_snapshot_and_backup_for_time_span(time_span)
@@ -288,7 +288,7 @@ class _Resolver:
             parent_backup = self._backups.get(backup.send_parent_uuid)
             if parent_backup:
                 # This can be common. For example in January, if December's monthly
-                # backup should be retained, but the December backup's send-parent
+                # backup should be preserved, but the December backup's send-parent
                 # is last year's yearly backup
                 self._keep_backups.mark(parent_backup, other_uuid=backup.uuid)
             else:
@@ -319,7 +319,7 @@ def resolve(
     policy: Policy,
 ) -> Result:
     resolver = _Resolver(snapshots=snapshots, backups=backups, policy=policy)
-    resolver.keep_snapshots_and_backups_for_retained_time_spans()
+    resolver.keep_snapshots_and_backups_for_preserved_time_spans()
 
     resolver.keep_most_recent_snapshot()
 

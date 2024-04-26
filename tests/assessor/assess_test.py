@@ -12,11 +12,11 @@ from btrfs2s3.action import Actions
 from btrfs2s3.assessor import assess
 from btrfs2s3.assessor import assessment_to_actions
 from btrfs2s3.backups import BackupInfo
+from btrfs2s3.preservation import Params
+from btrfs2s3.preservation import Policy
 from btrfs2s3.resolver import Flags
 from btrfs2s3.resolver import KeepMeta
 from btrfs2s3.resolver import Reasons
-from btrfs2s3.retention import Params
-from btrfs2s3.retention import Policy
 from btrfs2s3.s3 import iter_backups
 import btrfsutil
 import pytest
@@ -148,7 +148,7 @@ def test_create_and_backup_with_parent(
     # One assessment for the existing snapshot
     assert old_asmt.info.uuid == btrfsutil.subvolume_info(snapshot1).uuid
     assert old_asmt.keep_meta == KeepMeta(
-        reasons=Reasons.Retained, time_spans={expected_time_span}
+        reasons=Reasons.Preserved, time_spans={expected_time_span}
     )
     assert not old_asmt.new
 
@@ -159,7 +159,7 @@ def test_create_and_backup_with_parent(
     assert full_asmt.backup.check().uuid == old_asmt.info.uuid
     assert full_asmt.backup.check().send_parent_uuid is None
     assert full_asmt.keep_meta == KeepMeta(
-        reasons=Reasons.Retained, flags=Flags.New, time_spans={expected_time_span}
+        reasons=Reasons.Preserved, flags=Flags.New, time_spans={expected_time_span}
     )
     assert full_asmt.new
     assert delta_asmt.keep_meta == KeepMeta(reasons=Reasons.MostRecent, flags=Flags.New)

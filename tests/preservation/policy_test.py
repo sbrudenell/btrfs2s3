@@ -6,10 +6,10 @@ from typing import cast
 
 import arrow
 from btrfs2s3._internal.arrowutil import convert_span
-from btrfs2s3.retention import Params
-from btrfs2s3.retention import Policy
-from btrfs2s3.retention import Timeframe
-from btrfs2s3.retention import TIMEFRAMES
+from btrfs2s3.preservation import Params
+from btrfs2s3.preservation import Policy
+from btrfs2s3.preservation import Timeframe
+from btrfs2s3.preservation import TIMEFRAMES
 import pytest
 from zoneinfo import ZoneInfo
 
@@ -29,24 +29,24 @@ def test_empty_iter_time_spans(timeframe: Timeframe) -> None:
     time_span = convert_span(
         arrow.get(_random_timestamp()).span(timeframe, bounds="[]")
     )
-    assert not policy.is_time_span_retained(time_span)
+    assert not policy.should_preserve_for_time_span(time_span)
 
 
-def test_empty_is_time_span_retained(timeframe: Timeframe) -> None:
+def test_empty_should_preserve_for_time_span(timeframe: Timeframe) -> None:
     policy = Policy(now=_random_timestamp())
     time_span = convert_span(
         arrow.get(_random_timestamp()).span(timeframe, bounds="[]")
     )
-    assert not policy.is_time_span_retained(time_span)
+    assert not policy.should_preserve_for_time_span(time_span)
 
 
 def test_all(timeframe: Timeframe) -> None:
-    # This should be changed when we implement infinite retention policies
+    # This should be changed when we implement infinite preservation policies
     now = _random_timestamp()
     time_span = convert_span(arrow.get(now).span(timeframe, bounds="[]"))
     policy = Policy.all(now=now)
     assert time_span in list(policy.iter_time_spans(now))
-    assert policy.is_time_span_retained(time_span)
+    assert policy.should_preserve_for_time_span(time_span)
 
 
 def test_some_time_frames() -> None:
@@ -57,7 +57,7 @@ def test_some_time_frames() -> None:
     assert start < policy.now < end
 
     assert time_span in policy.iter_time_spans(time.time())
-    assert policy.is_time_span_retained(time_span)
+    assert policy.should_preserve_for_time_span(time_span)
 
 
 def test_alternate_now() -> None:
@@ -66,7 +66,7 @@ def test_alternate_now() -> None:
     time_span = convert_span(arrow.get(0).span("year", bounds="[]"))
 
     assert time_span in policy.iter_time_spans(0)
-    assert policy.is_time_span_retained(time_span)
+    assert policy.should_preserve_for_time_span(time_span)
 
 
 def test_alternate_timezone() -> None:
@@ -75,4 +75,4 @@ def test_alternate_timezone() -> None:
     time_span = convert_span(arrow.get(tzinfo=tzinfo).span("year", bounds="[]"))
 
     assert time_span in policy.iter_time_spans(time.time())
-    assert policy.is_time_span_retained(time_span)
+    assert policy.should_preserve_for_time_span(time_span)

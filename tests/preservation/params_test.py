@@ -1,4 +1,4 @@
-from btrfs2s3.retention import Params
+from btrfs2s3.preservation import Params
 import pytest
 
 
@@ -36,5 +36,5 @@ def test_parse() -> None:
 
 
 def test_parse_fail() -> None:
-    with pytest.raises(ValueError, match="invalid retention params"):
+    with pytest.raises(ValueError, match="invalid preservation params"):
         Params.parse("invalid")

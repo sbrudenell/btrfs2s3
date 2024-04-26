@@ -1,33 +1,33 @@
-"""Code related to schedule-based retention of snapshots of data.
+"""Code related to schedule-based preservation of snapshots of data.
 
-The design of btrfs2s3's retention schedule is based on the "retention
+The design of btrfs2s3's preservation schedule is based on the "retention
 policies" of
 btrbk. See https://digint.ch/btrbk/doc/btrbk.conf.5.html#_retention_policy for
 details.
 
-Broadly, we define a set of time spans, and for each one we retain the first
+Broadly, we define a set of time spans, and for each one we preserve the first
 snapshot that was created in that time span.
 
 The first snapshot of a year is considered the yearly snapshot. The first
 snapshot of a month is the monthly snapshot. We say that a
 snapshot is "nominal" for the year and/or month, respectively.
 
-btrfs2s3 supports retaining yearly, quarterly, monthly, weekly,
+btrfs2s3 supports preserving yearly, quarterly, monthly, weekly,
 daily, hourly, "minutely" and "secondly" snapshots.
 
 btrfs2s3 only supports time spans (years, months, days, etc) that are
 "grid-aligned". That is, days last from midnight to midnight, never from noon
 to noon.
 
-In btrfs2s3, the retention schedule is significant when choosing parents
+In btrfs2s3, the preservation schedule is significant when choosing parents
 for incremental backups. If a policy keeps one monthly and one yearly
 backup, then we will store the yearly backup as a full backup. We will store the
 monthly backup as an incremental
 backup, having the yearly full backup as the parent.
 
-The time zone is significant when defining a retention schedule (for example,
+The time zone is significant when defining a preservation schedule (for example,
 "midnight" corresponds to a different unix timestamp depending on the time
-zone). A change to the time zone of a retention schedule can completely change
+zone). A change to the time zone of a preservation schedule can completely change
 the nominality of snapshots, which could lead to undesired deletion of data,
 longer-than-expected incremental backup chains, or heavily-duplicated full
 backups.
@@ -155,11 +155,12 @@ class Params:
 
     @classmethod
     def all(cls) -> Self:
-        """Returns a Params which retains ALL snapshots or backups.
+        """Returns a Params which preserves ALL snapshots or backups.
 
         This is mainly useful for testing.
 
-        It's also not currently correct, until we implement infinite retention.
+        It's also not currently correct, until we implement infinite
+        preservation.
         """
         kwargs = {t: 1 for t in TIMEFRAMES}
         # https://github.com/python/mypy/issues/10023
@@ -185,31 +186,31 @@ class Params:
         for element in desc.split():
             m = _ELEMENT_RE.match(element)
             if not m:
-                msg = f"invalid retention params: {desc}"
+                msg = f"invalid preservation params: {desc}"
                 raise ValueError(msg)
             kwargs[_KWARG_BY_ELEMENT_SUFFIX[m.group(2)]] = int(m.group(1))
         return cls(**kwargs)
 
 
 class Policy:
-    """A schedule-based policy for retaining snapshots.
+    """A schedule-based policy for preserving snapshots.
 
-    A Policy is a helper class which defines a schedule for retaining
+    A Policy is a helper class which defines a schedule for preserving
     snapshots (or backups) of data.
 
-    The retention schedule is defined by Params, which are only meaningful
+    The preservation schedule is defined by Params, which are only meaningful
     relative to the "current" time. For consistency, a Policy object fixes the
     current time when it is created (the value can be supplied in the
-    constructor). The return value of is_time_span_retained() is considered
+    constructor). The return value of should_preserve_for_time_span() is considered
     relative to this creation time, not the time the function is called.
     """
 
     @classmethod
     def all(cls, *, tzinfo: tzinfo | None = None, now: float | None = None) -> Self:
-        """Returns a Policy which retains ALL snapshots or backups.
+        """Returns a Policy which preserves ALL snapshots or backups.
 
         This is mainly useful for testing (and not currently correct, until we
-        implement infinite retention).
+        implement infinite preservation).
         """
         return cls(params=Params.all(), tzinfo=tzinfo, now=now)
 
@@ -223,12 +224,12 @@ class Policy:
         """Creates a Policy.
 
         When no args are supplied, the resulting Policy will not
-        retain anything. This can be useful to bypass schedule-based retention
-        logic.
+        preserve anything. This can be useful to bypass schedule-based
+        preservation logic.
 
         Args:
             params: The parameters which define the schedule of time spans for
-                which backups should be retained.
+                which backups should be preserved.
             tzinfo: The time zone in which to operate. This will change the
                 boundaries of all time spans. If None, defaults to UTC.
             now: A timestamp to use as the current time. If None, defaults to
@@ -247,7 +248,7 @@ class Policy:
 
         kwargs = {t: range(0, -getattr(params, t), -1) for t in TIMEFRAMES}
         # https://github.com/python/mypy/issues/10023
-        self._retained_time_spans = {
+        self._preserve_for_time_spans = {
             convert_span(span)
             for span in iter_time_spans(
                 arrow.get(now, tzinfo=self._tzinfo),
@@ -258,25 +259,25 @@ class Policy:
 
     @property
     def tzinfo(self) -> tzinfo:
-        """Returns the time zone object used by this RetentionPolicy."""
+        """Returns the time zone object used by this Policy."""
         return self._tzinfo
 
     @property
     def now(self) -> float:
-        """Returns the current time used by this RetentionPolicy."""
+        """Returns the current time used by this Policy."""
         return self._now
 
     def iter_time_spans(self, timestamp: float) -> Iterator[TS]:
         """Yields time spans which overlap with a given timestamp.
 
         This can be used to determine which time spans a snapshot falls into. A
-        caller can then call is_time_span_retained() to figure out whether the
+        caller can then call should_preserve_for_time_span() to figure out whether the
         snapshot should be retained.
 
         Note that this only yields time spans which overlap the argument
         timestamp AND may EVER be relevant to this policy (otherwise, this could
-        just be a top-level function). If this policy only retains yearly backups,
-        this function will only yield yearly time spans, and never monthly
+        just be a top-level function). If this policy only preserves monthly backups,
+        this function will only yield monthly time spans, and never yearly
         ones. This is significant for the function of btrfs2s3.
 
         btrfs2s3 (in resolver.py) will store backups as full or incremental
@@ -285,7 +286,7 @@ class Policy:
         backup. Otherwise, it will be stored as an incremental backup, and its
         parent will be the nominal backup of the next-earliest time span
         returned by this function for which the backup in question is NOT
-        nominal. For example, if a RetentionPolicy calls for yearly and monthly
+        nominal. For example, if a Policy calls for yearly and monthly
         backups, then the yearly backups will be full backups (because the
         yearly time spans are returned first by iter_time_spans()) and the
         monthly backups will be incremental backups with a yearly backup as
@@ -310,7 +311,7 @@ class Policy:
         ):
             yield convert_span(span)
 
-    def is_time_span_retained(self, time_span: TS) -> bool:
+    def should_preserve_for_time_span(self, time_span: TS) -> bool:
         """Returns whether we want to retain a snapshot for a time span.
 
         The return value is meaningful relative to the Policy's creation time
@@ -323,4 +324,4 @@ class Policy:
             Whether this policy calls for a snapshot to be retained for the
                 given time span.
         """
-        return time_span in self._retained_time_spans
+        return time_span in self._preserve_for_time_spans

@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING
 import arrow
 from btrfs2s3._internal.util import backup_of_snapshot
 from btrfs2s3._internal.util import mksubvol
+from btrfs2s3.preservation import Params
+from btrfs2s3.preservation import Policy
 from btrfs2s3.resolver import _Resolver
 from btrfs2s3.resolver import Flags
 from btrfs2s3.resolver import KeepBackup
@@ -15,8 +17,6 @@ from btrfs2s3.resolver import KeepMeta
 from btrfs2s3.resolver import KeepSnapshot
 from btrfs2s3.resolver import Reasons
 from btrfs2s3.resolver import Result
-from btrfs2s3.retention import Params
-from btrfs2s3.retention import Policy
 import pytest
 
 if TYPE_CHECKING:
@@ -48,7 +48,7 @@ def mksnap(parent_uuid: bytes) -> MkSnap:
 def test_noop() -> None:
     resolver = _Resolver(snapshots=(), backups=(), policy=Policy())
 
-    resolver.keep_snapshots_and_backups_for_retained_time_spans()
+    resolver.keep_snapshots_and_backups_for_preserved_time_spans()
 
     assert resolver.get_result() == Result(keep_snapshots={}, keep_backups={})
 
@@ -68,7 +68,7 @@ def test_one_snapshot_multiple_time_spans(mksnap: MkSnap) -> None:
         ),
     )
 
-    resolver.keep_snapshots_and_backups_for_retained_time_spans()
+    resolver.keep_snapshots_and_backups_for_preserved_time_spans()
 
     expected_backup = backup_of_snapshot(snapshot, send_parent=None)
     assert resolver.get_result() == Result(
@@ -76,7 +76,7 @@ def test_one_snapshot_multiple_time_spans(mksnap: MkSnap) -> None:
             snapshot.uuid: KeepSnapshot(
                 snapshot,
                 KeepMeta(
-                    reasons=Reasons.Retained,
+                    reasons=Reasons.Preserved,
                     time_spans={
                         (_t("2006-01-01"), _t("2007-01-01")),
                         (_t("2006-01-01"), _t("2006-02-01")),
@@ -88,7 +88,7 @@ def test_one_snapshot_multiple_time_spans(mksnap: MkSnap) -> None:
             expected_backup.uuid: KeepBackup(
                 expected_backup,
                 KeepMeta(
-                    reasons=Reasons.Retained,
+                    reasons=Reasons.Preserved,
                     flags=Flags.New,
                     time_spans={
                         (_t("2006-01-01"), _t("2007-01-01")),
@@ -110,14 +110,14 @@ def test_one_snapshot_with_existing_backup(mksnap: MkSnap) -> None:
         policy=Policy(now=arrow.get("2006-01-01").timestamp(), params=Params(years=1)),
     )
 
-    resolver.keep_snapshots_and_backups_for_retained_time_spans()
+    resolver.keep_snapshots_and_backups_for_preserved_time_spans()
 
     assert resolver.get_result() == Result(
         keep_snapshots={
             snapshot.uuid: KeepSnapshot(
                 snapshot,
                 KeepMeta(
-                    reasons=Reasons.Retained,
+                    reasons=Reasons.Preserved,
                     time_spans={(_t("2006-01-01"), _t("2007-01-01"))},
                 ),
             )
@@ -126,7 +126,7 @@ def test_one_snapshot_with_existing_backup(mksnap: MkSnap) -> None:
             backup.uuid: KeepBackup(
                 backup,
                 KeepMeta(
-                    reasons=Reasons.Retained,
+                    reasons=Reasons.Preserved,
                     time_spans={(_t("2006-01-01"), _t("2007-01-01"))},
                 ),
             )
@@ -145,7 +145,7 @@ def test_one_existing_backup_and_no_snapshot(mksnap: MkSnap) -> None:
         policy=Policy(now=arrow.get("2006-01-01").timestamp(), params=Params(years=1)),
     )
 
-    resolver.keep_snapshots_and_backups_for_retained_time_spans()
+    resolver.keep_snapshots_and_backups_for_preserved_time_spans()
 
     assert resolver.get_result() == Result(
         keep_snapshots={},
@@ -153,7 +153,7 @@ def test_one_existing_backup_and_no_snapshot(mksnap: MkSnap) -> None:
             backup.uuid: KeepBackup(
                 backup,
                 KeepMeta(
-                    reasons=Reasons.Retained,
+                    reasons=Reasons.Preserved,
                     flags=Flags.NoSnapshot,
                     time_spans={(_t("2006-01-01"), _t("2007-01-01"))},
                 ),
@@ -175,7 +175,7 @@ def test_one_existing_backup_and_newer_snapshot(mksnap: MkSnap) -> None:
         policy=Policy(now=arrow.get("2006-01-01").timestamp(), params=Params(years=1)),
     )
 
-    resolver.keep_snapshots_and_backups_for_retained_time_spans()
+    resolver.keep_snapshots_and_backups_for_preserved_time_spans()
 
     # Note that keep_most_recent_snapshot() would add a backup of the newer
     # snapshot
@@ -184,7 +184,7 @@ def test_one_existing_backup_and_newer_snapshot(mksnap: MkSnap) -> None:
             snapshot2.uuid: KeepSnapshot(
                 snapshot2,
                 KeepMeta(
-                    reasons=Reasons.Retained,
+                    reasons=Reasons.Preserved,
                     time_spans={(_t("2006-01-01"), _t("2007-01-01"))},
                 ),
             )
@@ -193,7 +193,7 @@ def test_one_existing_backup_and_newer_snapshot(mksnap: MkSnap) -> None:
             backup1.uuid: KeepBackup(
                 backup1,
                 KeepMeta(
-                    reasons=Reasons.Retained,
+                    reasons=Reasons.Preserved,
                     flags=Flags.SnapshotIsNewer,
                     time_spans={(_t("2006-01-01"), _t("2007-01-01"))},
                 ),
@@ -214,7 +214,7 @@ def test_one_existing_backup_and_older_snapshot(mksnap: MkSnap) -> None:
         policy=Policy(now=arrow.get("2006-01-01").timestamp(), params=Params(years=1)),
     )
 
-    resolver.keep_snapshots_and_backups_for_retained_time_spans()
+    resolver.keep_snapshots_and_backups_for_preserved_time_spans()
 
     # Note that keep_most_recent_snapshot() would add a backup of the newer
     # snapshot
@@ -224,7 +224,7 @@ def test_one_existing_backup_and_older_snapshot(mksnap: MkSnap) -> None:
             snapshot1.uuid: KeepSnapshot(
                 snapshot1,
                 KeepMeta(
-                    reasons=Reasons.Retained,
+                    reasons=Reasons.Preserved,
                     time_spans={(_t("2006-01-01"), _t("2007-01-01"))},
                 ),
             )
@@ -233,7 +233,7 @@ def test_one_existing_backup_and_older_snapshot(mksnap: MkSnap) -> None:
             expected_backup.uuid: KeepBackup(
                 expected_backup,
                 KeepMeta(
-                    reasons=Reasons.Retained,
+                    reasons=Reasons.Preserved,
                     flags=Flags.New | Flags.ReplacingNewer,
                     time_spans={(_t("2006-01-01"), _t("2007-01-01"))},
                 ),

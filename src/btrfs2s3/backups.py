@@ -63,8 +63,8 @@ class BackupInfo:
                 ctime will be output as an ISO 8601 string which always
                 includes the time zone, so any value may be specified and the
                 round-trip decoding won't be affected. For human readability,
-                it's best to use the same time zone used for assigning retained
-                time spans.
+                it's best to use the same time zone used for defining our
+                preservation schedule.
 
         Returns:
             A sequence of suffix strings.
