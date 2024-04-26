@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING
 
 import arrow
 from btrfs2s3._internal.util import backup_of_snapshot
-from btrfs2s3._internal.util import mkretained
 from btrfs2s3._internal.util import mksubvol
 from btrfs2s3.resolver import _Resolver
 from btrfs2s3.resolver import Flags
@@ -16,6 +15,8 @@ from btrfs2s3.resolver import KeepMeta
 from btrfs2s3.resolver import KeepSnapshot
 from btrfs2s3.resolver import Reasons
 from btrfs2s3.resolver import Result
+from btrfs2s3.retention import Params
+from btrfs2s3.retention import Policy
 import pytest
 
 if TYPE_CHECKING:
@@ -45,12 +46,9 @@ def mksnap(parent_uuid: bytes) -> MkSnap:
 
 
 def test_noop() -> None:
-    iter_time_spans, _ = mkretained(0, years=(0,))
-    resolver = _Resolver(snapshots=(), backups=(), iter_time_spans=iter_time_spans)
+    resolver = _Resolver(snapshots=(), backups=(), policy=Policy())
 
-    resolver.keep_snapshots_and_backups_for_retained_time_spans(
-        lambda _: True  # pragma: no cover
-    )
+    resolver.keep_snapshots_and_backups_for_retained_time_spans()
 
     assert resolver.get_result() == Result(keep_snapshots={}, keep_backups={})
 
@@ -62,15 +60,15 @@ def _t(t: str) -> float:
 def test_one_snapshot_multiple_time_spans(mksnap: MkSnap) -> None:
     # One snapshot on Jan 1st
     snapshot = mksnap(t="2006-01-01")
-    # Retain one yearly and one monthly backup. Current day is Jan 1st.
-    iter_time_spans, is_time_span_retained = mkretained(
-        "2006-01-01", years=(0,), months=(0,)
-    )
     resolver = _Resolver(
-        snapshots=(snapshot,), backups=(), iter_time_spans=iter_time_spans
+        snapshots=(snapshot,),
+        backups=(),
+        policy=Policy(
+            now=arrow.get("2006-01-01").timestamp(), params=Params(years=1, months=1)
+        ),
     )
 
-    resolver.keep_snapshots_and_backups_for_retained_time_spans(is_time_span_retained)
+    resolver.keep_snapshots_and_backups_for_retained_time_spans()
 
     expected_backup = backup_of_snapshot(snapshot, send_parent=None)
     assert resolver.get_result() == Result(
@@ -106,13 +104,13 @@ def test_one_snapshot_with_existing_backup(mksnap: MkSnap) -> None:
     # One snapshot on Jan 1st
     snapshot = mksnap(t="2006-01-01")
     backup = backup_of_snapshot(snapshot, send_parent=None)
-    # Retain one yearly backup. Current day is Jan 1st.
-    iter_time_spans, is_time_span_retained = mkretained("2006-01-01", years=(0,))
     resolver = _Resolver(
-        snapshots=(snapshot,), backups=(backup,), iter_time_spans=iter_time_spans
+        snapshots=(snapshot,),
+        backups=(backup,),
+        policy=Policy(now=arrow.get("2006-01-01").timestamp(), params=Params(years=1)),
     )
 
-    resolver.keep_snapshots_and_backups_for_retained_time_spans(is_time_span_retained)
+    resolver.keep_snapshots_and_backups_for_retained_time_spans()
 
     assert resolver.get_result() == Result(
         keep_snapshots={
@@ -140,14 +138,14 @@ def test_one_existing_backup_and_no_snapshot(mksnap: MkSnap) -> None:
     # One snapshot on Jan 1st
     snapshot = mksnap(t="2006-01-01")
     backup = backup_of_snapshot(snapshot, send_parent=None)
-    # Retain one yearly backup. Current day is Jan 1st.
-    iter_time_spans, is_time_span_retained = mkretained("2006-01-01", years=(0,))
     # Don't include the snapshot
     resolver = _Resolver(
-        snapshots=(), backups=(backup,), iter_time_spans=iter_time_spans
+        snapshots=(),
+        backups=(backup,),
+        policy=Policy(now=arrow.get("2006-01-01").timestamp(), params=Params(years=1)),
     )
 
-    resolver.keep_snapshots_and_backups_for_retained_time_spans(is_time_span_retained)
+    resolver.keep_snapshots_and_backups_for_retained_time_spans()
 
     assert resolver.get_result() == Result(
         keep_snapshots={},
@@ -170,14 +168,14 @@ def test_one_existing_backup_and_newer_snapshot(mksnap: MkSnap) -> None:
     snapshot2 = mksnap(t="2006-01-01", i=2)
     # One backup of the earlier snapshot
     backup1 = backup_of_snapshot(snapshot1, send_parent=None)
-    # Retain one yearly backup. Current day is Jan 1st.
-    iter_time_spans, is_time_span_retained = mkretained("2006-01-01", years=(0,))
     # Don't include the older snapshot
     resolver = _Resolver(
-        snapshots=(snapshot2,), backups=(backup1,), iter_time_spans=iter_time_spans
+        snapshots=(snapshot2,),
+        backups=(backup1,),
+        policy=Policy(now=arrow.get("2006-01-01").timestamp(), params=Params(years=1)),
     )
 
-    resolver.keep_snapshots_and_backups_for_retained_time_spans(is_time_span_retained)
+    resolver.keep_snapshots_and_backups_for_retained_time_spans()
 
     # Note that keep_most_recent_snapshot() would add a backup of the newer
     # snapshot
@@ -210,15 +208,13 @@ def test_one_existing_backup_and_older_snapshot(mksnap: MkSnap) -> None:
     snapshot2 = mksnap(t="2006-01-01", i=2)
     # One backup of the newer snapshot
     backup2 = backup_of_snapshot(snapshot2, send_parent=None)
-    # Retain one yearly backup. Current day is Jan 1st.
-    iter_time_spans, is_time_span_retained = mkretained("2006-01-01", years=(0,))
     resolver = _Resolver(
         snapshots=(snapshot1, snapshot2),
         backups=(backup2,),
-        iter_time_spans=iter_time_spans,
+        policy=Policy(now=arrow.get("2006-01-01").timestamp(), params=Params(years=1)),
     )
 
-    resolver.keep_snapshots_and_backups_for_retained_time_spans(is_time_span_retained)
+    resolver.keep_snapshots_and_backups_for_retained_time_spans()
 
     # Note that keep_most_recent_snapshot() would add a backup of the newer
     # snapshot

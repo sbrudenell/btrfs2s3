@@ -11,6 +11,7 @@ from typing import Collection
 from typing import Generic
 from typing import Iterator
 from typing import Protocol
+from typing import TYPE_CHECKING
 from typing import TypeAlias
 import uuid
 import warnings
@@ -20,12 +21,11 @@ from typing_extensions import Self
 from typing_extensions import TypeVar
 
 from btrfs2s3._internal.util import backup_of_snapshot
-from btrfs2s3._internal.util import (
-    IsTimeSpanRetained as IsTimeSpanRetained,  # noqa: PLC0414
-)
-from btrfs2s3._internal.util import IterTimeSpans as IterTimeSpans  # noqa: PLC0414
-from btrfs2s3._internal.util import TS
 from btrfs2s3.backups import BackupInfo
+
+if TYPE_CHECKING:
+    from btrfs2s3.retention import Policy
+    from btrfs2s3.retention import TS
 
 
 class _Info(Protocol):
@@ -41,16 +41,13 @@ _I = TypeVar("_I", bound=_Info)
 
 
 class _Index(Generic[_I]):
-    def __init__(
-        self, *, items: Collection[_I], iter_time_spans: IterTimeSpans
-    ) -> None:
-        self.iter_time_spans = iter_time_spans
+    def __init__(self, *, items: Collection[_I], policy: Policy) -> None:
         self._item_by_uuid = {}
         self._items_by_time_span = collections.defaultdict(list)
 
         for item in items:
             self._item_by_uuid[item.uuid] = item
-            for time_span in self.iter_time_spans(item.ctime):
+            for time_span in policy.iter_time_spans(item.ctime):
                 self._items_by_time_span[time_span].append(item)
 
     def get_nominal(self, time_span: TS) -> _I | None:
@@ -173,10 +170,11 @@ class _Resolver:
         *,
         snapshots: Collection[SubvolumeInfo],
         backups: Collection[BackupInfo],
-        iter_time_spans: IterTimeSpans,
+        policy: Policy,
     ) -> None:
-        self._snapshots = _Index(items=snapshots, iter_time_spans=iter_time_spans)
-        self._backups = _Index(items=backups, iter_time_spans=iter_time_spans)
+        self._snapshots = _Index(items=snapshots, policy=policy)
+        self._backups = _Index(items=backups, policy=policy)
+        self._policy = policy
 
         self._keep_snapshots: _Marker[SubvolumeInfo] = _Marker()
         self._keep_backups: _Marker[BackupInfo] = _Marker()
@@ -218,7 +216,7 @@ class _Resolver:
             flags |= Flags.New
             # Determine send-parent for a new backup
             send_parent: SubvolumeInfo | None = None
-            for snapshot_time_span in self._snapshots.iter_time_spans(snapshot.ctime):
+            for snapshot_time_span in self._policy.iter_time_spans(snapshot.ctime):
                 nominal_snapshot = self._snapshots.get_nominal(snapshot_time_span)
                 if nominal_snapshot is None:
                     raise AssertionError
@@ -255,15 +253,13 @@ class _Resolver:
             elif nominal_backup.ctransid == nominal_snapshot.ctransid:
                 self._keep_backups.mark(nominal_backup)
 
-    def keep_snapshots_and_backups_for_retained_time_spans(
-        self, is_time_span_retained: IsTimeSpanRetained
-    ) -> None:
+    def keep_snapshots_and_backups_for_retained_time_spans(self) -> None:
         with self._with_reasons(Reasons.Retained):
             all_time_spans = set(self._snapshots.get_all_time_spans()) | set(
                 self._backups.get_all_time_spans()
             )
             for time_span in all_time_spans:
-                if not is_time_span_retained(time_span):
+                if not self._policy.is_time_span_retained(time_span):
                     continue
                 with self._with_time_span(time_span):
                     self._keep_snapshot_and_backup_for_time_span(time_span)
@@ -320,13 +316,10 @@ def resolve(
     *,
     snapshots: Collection[SubvolumeInfo],
     backups: Collection[BackupInfo],
-    iter_time_spans: IterTimeSpans,
-    is_time_span_retained: IsTimeSpanRetained,
+    policy: Policy,
 ) -> Result:
-    resolver = _Resolver(
-        snapshots=snapshots, backups=backups, iter_time_spans=iter_time_spans
-    )
-    resolver.keep_snapshots_and_backups_for_retained_time_spans(is_time_span_retained)
+    resolver = _Resolver(snapshots=snapshots, backups=backups, policy=policy)
+    resolver.keep_snapshots_and_backups_for_retained_time_spans()
 
     resolver.keep_most_recent_snapshot()
 

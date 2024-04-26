@@ -107,3 +107,8 @@ def iter_time_spans(
         yield a.shift(minutes=m).span("minute", bounds=bounds)
     for s in seconds:
         yield a.shift(seconds=s).span("second", bounds=bounds)
+
+
+def convert_span(time_span: tuple[Arrow, Arrow]) -> tuple[float, float]:
+    start, end = time_span
+    return start.timestamp(), end.timestamp()

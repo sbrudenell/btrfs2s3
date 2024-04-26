@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING
 
 import arrow
 from btrfs2s3._internal.util import backup_of_snapshot
-from btrfs2s3._internal.util import iter_all_time_spans
 from btrfs2s3._internal.util import mksubvol
 from btrfs2s3.resolver import _Resolver
 from btrfs2s3.resolver import Flags
@@ -15,6 +14,7 @@ from btrfs2s3.resolver import KeepBackup
 from btrfs2s3.resolver import KeepMeta
 from btrfs2s3.resolver import Reasons
 from btrfs2s3.resolver import Result
+from btrfs2s3.retention import Policy
 import pytest
 
 if TYPE_CHECKING:
@@ -44,7 +44,7 @@ def mksnap(parent_uuid: bytes) -> MkSnap:
 
 
 def test_noop() -> None:
-    resolver = _Resolver(snapshots=(), backups=(), iter_time_spans=iter_all_time_spans)
+    resolver = _Resolver(snapshots=(), backups=(), policy=Policy())
 
     resolver.keep_send_ancestors_of_backups()
 
@@ -54,9 +54,7 @@ def test_noop() -> None:
 def test_backup_with_no_parent(mksnap: MkSnap) -> None:
     snapshot1 = mksnap()
     backup1 = backup_of_snapshot(snapshot1, send_parent=None)
-    resolver = _Resolver(
-        snapshots=(), backups=(backup1,), iter_time_spans=iter_all_time_spans
-    )
+    resolver = _Resolver(snapshots=(), backups=(backup1,), policy=Policy())
     with resolver._keep_backups.with_reasons(Reasons.Retained):
         resolver._keep_backups.mark(backup1)
 
@@ -78,9 +76,7 @@ def test_send_ancestors_already_kept(mksnap: MkSnap) -> None:
     backup2 = backup_of_snapshot(snapshot2, send_parent=snapshot1)
     backup3 = backup_of_snapshot(snapshot3, send_parent=snapshot2)
     resolver = _Resolver(
-        snapshots=(),
-        backups=(backup1, backup2, backup3),
-        iter_time_spans=iter_all_time_spans,
+        snapshots=(), backups=(backup1, backup2, backup3), policy=Policy()
     )
     with resolver._keep_backups.with_reasons(Reasons.Retained):
         resolver._keep_backups.mark(backup1)
@@ -109,7 +105,7 @@ def test_send_ancestors_created_but_not_yet_kept(mksnap: MkSnap) -> None:
     resolver = _Resolver(
         snapshots=(snapshot1, snapshot2, snapshot3),
         backups=(backup1, backup2, backup3),
-        iter_time_spans=iter_all_time_spans,
+        policy=Policy(),
     )
     with resolver._keep_backups.with_reasons(Reasons.Retained):
         resolver._keep_backups.mark(backup3)
@@ -140,7 +136,7 @@ def test_send_ancestors_not_yet_created(mksnap: MkSnap) -> None:
     resolver = _Resolver(
         snapshots=(snapshot1, snapshot2, snapshot3),
         backups=(backup3,),
-        iter_time_spans=iter_all_time_spans,
+        policy=Policy.all(),
     )
     with resolver._keep_backups.with_reasons(Reasons.Retained):
         resolver._keep_backups.mark(backup3)
@@ -177,9 +173,7 @@ def test_backup_chain_broken(mksnap: MkSnap) -> None:
     snapshot1 = mksnap()
     snapshot2 = mksnap()
     backup2 = backup_of_snapshot(snapshot2, send_parent=snapshot1)
-    resolver = _Resolver(
-        snapshots=(), backups=(backup2,), iter_time_spans=iter_all_time_spans
-    )
+    resolver = _Resolver(snapshots=(), backups=(backup2,), policy=Policy())
     with resolver._keep_backups.with_reasons(Reasons.Retained):
         resolver._keep_backups.mark(backup2)
 

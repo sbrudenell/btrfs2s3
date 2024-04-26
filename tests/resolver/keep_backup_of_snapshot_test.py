@@ -7,13 +7,13 @@ from typing import TYPE_CHECKING
 
 import arrow
 from btrfs2s3._internal.util import backup_of_snapshot
-from btrfs2s3._internal.util import iter_all_time_spans
 from btrfs2s3._internal.util import mksubvol
 from btrfs2s3.resolver import _Resolver
 from btrfs2s3.resolver import Flags
 from btrfs2s3.resolver import KeepBackup
 from btrfs2s3.resolver import KeepMeta
 from btrfs2s3.resolver import Reasons
+from btrfs2s3.retention import Policy
 import pytest
 
 if TYPE_CHECKING:
@@ -44,9 +44,7 @@ def mksnap(parent_uuid: bytes) -> MkSnap:
 
 def test_simple_backup_of_snapshot(mksnap: MkSnap) -> None:
     snapshot = mksnap()
-    resolver = _Resolver(
-        snapshots=(snapshot,), backups=(), iter_time_spans=iter_all_time_spans
-    )
+    resolver = _Resolver(snapshots=(snapshot,), backups=(), policy=Policy())
 
     with resolver._with_reasons(Reasons.Retained):
         got = resolver._keep_backup_of_snapshot(snapshot)
@@ -61,9 +59,7 @@ def test_simple_backup_of_snapshot(mksnap: MkSnap) -> None:
 
 def test_backup_done_twice(mksnap: MkSnap) -> None:
     snapshot = mksnap()
-    resolver = _Resolver(
-        snapshots=(snapshot,), backups=(), iter_time_spans=iter_all_time_spans
-    )
+    resolver = _Resolver(snapshots=(snapshot,), backups=(), policy=Policy())
 
     with resolver._with_reasons(Reasons.Retained):
         got1 = resolver._keep_backup_of_snapshot(snapshot)
@@ -85,7 +81,7 @@ def test_choose_correct_parents(mksnap: MkSnap) -> None:
     resolver = _Resolver(
         snapshots=(snapshot1, snapshot2, snapshot3, snapshot4),
         backups=(),
-        iter_time_spans=iter_all_time_spans,
+        policy=Policy.all(),
     )
 
     with resolver._with_reasons(Reasons.Retained):
@@ -128,9 +124,7 @@ def test_existing_backup(mksnap: MkSnap) -> None:
     # existing backup if we need to backup the snapshot
     backup2 = backup_of_snapshot(snapshot2, send_parent=None)
     resolver = _Resolver(
-        snapshots=(snapshot1, snapshot2),
-        backups=(backup1, backup2),
-        iter_time_spans=iter_all_time_spans,
+        snapshots=(snapshot1, snapshot2), backups=(backup1, backup2), policy=Policy()
     )
 
     with resolver._with_reasons(Reasons.Retained):

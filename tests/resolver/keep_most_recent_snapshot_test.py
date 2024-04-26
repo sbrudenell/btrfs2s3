@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING
 
 import arrow
 from btrfs2s3._internal.util import backup_of_snapshot
-from btrfs2s3._internal.util import iter_all_time_spans
 from btrfs2s3._internal.util import mksubvol
 from btrfs2s3.resolver import _Resolver
 from btrfs2s3.resolver import Flags
@@ -16,6 +15,7 @@ from btrfs2s3.resolver import KeepMeta
 from btrfs2s3.resolver import KeepSnapshot
 from btrfs2s3.resolver import Reasons
 from btrfs2s3.resolver import Result
+from btrfs2s3.retention import Policy
 import pytest
 
 if TYPE_CHECKING:
@@ -45,7 +45,7 @@ def mksnap(parent_uuid: bytes) -> MkSnap:
 
 
 def test_noop() -> None:
-    resolver = _Resolver(snapshots=(), backups=(), iter_time_spans=iter_all_time_spans)
+    resolver = _Resolver(snapshots=(), backups=(), policy=Policy())
 
     resolver.keep_most_recent_snapshot()
 
@@ -54,9 +54,7 @@ def test_noop() -> None:
 
 def test_one_snapshot(mksnap: MkSnap) -> None:
     snapshot = mksnap()
-    resolver = _Resolver(
-        snapshots=(snapshot,), backups=(), iter_time_spans=iter_all_time_spans
-    )
+    resolver = _Resolver(snapshots=(snapshot,), backups=(), policy=Policy())
 
     resolver.keep_most_recent_snapshot()
 
@@ -78,9 +76,7 @@ def test_multiple_snapshots_keep_most_recent(mksnap: MkSnap) -> None:
     snapshot2 = mksnap(i=2)
     backup1 = backup_of_snapshot(snapshot1, send_parent=None)
     resolver = _Resolver(
-        snapshots=(snapshot1, snapshot2),
-        backups=(backup1,),
-        iter_time_spans=iter_all_time_spans,
+        snapshots=(snapshot1, snapshot2), backups=(backup1,), policy=Policy.all()
     )
 
     resolver.keep_most_recent_snapshot()

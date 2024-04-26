@@ -1,16 +1,9 @@
 from __future__ import annotations
 
 from enum import IntFlag
-import functools
-from typing import Callable
-from typing import Iterable
-from typing import Iterator
-from typing import TypeAlias
 
-import arrow
 from btrfsutil import SubvolumeInfo
 
-from btrfs2s3._internal import arrowutil
 from btrfs2s3.backups import BackupInfo
 
 NULL_UUID = b"\0" * 16
@@ -66,66 +59,6 @@ def backup_of_snapshot(
         ctransid=snapshot.ctransid,
         ctime=snapshot.ctime,
     )
-
-
-TS: TypeAlias = tuple[float, float]
-
-IterTimeSpans: TypeAlias = Callable[[float], Iterable[TS]]
-
-IsTimeSpanRetained: TypeAlias = Callable[[TS], bool]
-
-
-def mkretained(
-    now: str | float,
-    years: Iterable[int] = (),
-    quarters: Iterable[int] = (),
-    months: Iterable[int] = (),
-    weeks: Iterable[int] = (),
-    days: Iterable[int] = (),
-    hours: Iterable[int] = (),
-    minutes: Iterable[int] = (),
-    seconds: Iterable[int] = (),
-) -> tuple[IterTimeSpans, IsTimeSpanRetained]:
-    constrained_iter_time_spans = functools.partial(
-        arrowutil.iter_time_spans,
-        bounds="[]",
-        years=(0,) if years else (),
-        quarters=(0,) if quarters else (),
-        months=(0,) if months else (),
-        weeks=(0,) if weeks else (),
-        days=(0,) if days else (),
-        hours=(0,) if hours else (),
-        minutes=(0,) if minutes else (),
-        seconds=(0,) if seconds else (),
-    )
-
-    def iter_time_spans(timestamp: float) -> Iterable[TS]:
-        for start, end in constrained_iter_time_spans(arrow.get(timestamp)):
-            yield start.timestamp(), end.timestamp()
-
-    retained_time_spans = [
-        (start.timestamp(), end.timestamp())
-        for start, end in arrowutil.iter_time_spans(
-            arrow.get(now),
-            bounds="[]",
-            years=years,
-            quarters=quarters,
-            months=months,
-            weeks=weeks,
-            days=days,
-            hours=hours,
-            minutes=minutes,
-            seconds=seconds,
-        )
-    ]
-    return iter_time_spans, retained_time_spans.__contains__
-
-
-def iter_all_time_spans(timestamp: float) -> Iterator[TS]:
-    for start, end in arrowutil.iter_intersecting_time_spans(
-        arrow.get(timestamp), bounds="[]"
-    ):
-        yield start.timestamp(), end.timestamp()
 
 
 class SubvolumeFlags(IntFlag):

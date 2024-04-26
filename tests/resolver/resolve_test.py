@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING
 
 import arrow
 from btrfs2s3._internal.util import backup_of_snapshot
-from btrfs2s3._internal.util import mkretained
 from btrfs2s3._internal.util import mksubvol
 from btrfs2s3.resolver import Flags
 from btrfs2s3.resolver import KeepBackup
@@ -16,6 +15,8 @@ from btrfs2s3.resolver import KeepSnapshot
 from btrfs2s3.resolver import Reasons
 from btrfs2s3.resolver import resolve
 from btrfs2s3.resolver import Result
+from btrfs2s3.retention import Params
+from btrfs2s3.retention import Policy
 import pytest
 
 if TYPE_CHECKING:
@@ -49,25 +50,17 @@ def _t(t: str) -> float:
 
 
 def test_noop() -> None:
-    iter_time_spans, is_time_span_retained = mkretained(now="2006-01-01", years=(0,))
-    result = resolve(
-        snapshots=(),
-        backups=(),
-        iter_time_spans=iter_time_spans,
-        is_time_span_retained=is_time_span_retained,
-    )
+    result = resolve(snapshots=(), backups=(), policy=Policy())
 
     assert result == Result(keep_snapshots={}, keep_backups={})
 
 
 def test_one_snapshot_retained(mksnap: MkSnap) -> None:
-    iter_time_spans, is_time_span_retained = mkretained(now="2006-01-01", years=(0,))
     snapshot = mksnap(t="2006-01-01", i=1)
     result = resolve(
         snapshots=(snapshot,),
         backups=(),
-        iter_time_spans=iter_time_spans,
-        is_time_span_retained=is_time_span_retained,
+        policy=Policy(now=arrow.get("2006-01-01").timestamp(), params=Params(years=1)),
     )
 
     expected_backup = backup_of_snapshot(snapshot, send_parent=None)
@@ -95,17 +88,15 @@ def test_one_snapshot_retained(mksnap: MkSnap) -> None:
 
 
 def test_multiple_snapshots_and_time_spans(mksnap: MkSnap) -> None:
-    iter_time_spans, is_time_span_retained = mkretained(
-        now="2006-01-02", years=(0,), months=(0,)
-    )
     snapshot1 = mksnap(t="2006-01-01", i=1)
     snapshot2 = mksnap(t="2006-01-02", i=2)
     snapshot3 = mksnap(t="2006-01-02", i=3)
     result = resolve(
         snapshots=(snapshot1, snapshot2, snapshot3),
         backups=(),
-        iter_time_spans=iter_time_spans,
-        is_time_span_retained=is_time_span_retained,
+        policy=Policy(
+            now=arrow.get("2006-01-02").timestamp(), params=Params(years=1, months=1)
+        ),
     )
 
     expected_backup1 = backup_of_snapshot(snapshot1, send_parent=None)
@@ -146,9 +137,6 @@ def test_multiple_snapshots_and_time_spans(mksnap: MkSnap) -> None:
 
 
 def test_keep_send_ancestor_on_year_change(mksnap: MkSnap) -> None:
-    iter_time_spans, is_time_span_retained = mkretained(
-        now="2007-01-01", years=(0,), months=(-1, 0)
-    )
     snapshot1 = mksnap(t="2006-01-01", i=1)
     snapshot2 = mksnap(t="2006-12-01", i=2)
     snapshot3 = mksnap(t="2007-01-01", i=3)
@@ -157,8 +145,9 @@ def test_keep_send_ancestor_on_year_change(mksnap: MkSnap) -> None:
     result = resolve(
         snapshots=(snapshot1, snapshot2, snapshot3),
         backups=(backup1, backup2),
-        iter_time_spans=iter_time_spans,
-        is_time_span_retained=is_time_span_retained,
+        policy=Policy(
+            now=arrow.get("2007-01-01").timestamp(), params=Params(years=1, months=2)
+        ),
     )
 
     expected_backup3 = backup_of_snapshot(snapshot3, send_parent=None)
@@ -210,7 +199,6 @@ def test_keep_send_ancestor_on_year_change(mksnap: MkSnap) -> None:
 
 
 def test_backup_chain_broken(mksnap: MkSnap) -> None:
-    iter_time_spans, is_time_span_retained = mkretained(now="2006-01-01", years=(0,))
     snapshot1 = mksnap(t="2005-01-01", i=1)
     snapshot2 = mksnap(t="2006-01-01", i=2)
     backup2 = backup_of_snapshot(snapshot2, send_parent=snapshot1)
@@ -219,8 +207,9 @@ def test_backup_chain_broken(mksnap: MkSnap) -> None:
         result = resolve(
             snapshots=(),
             backups=(backup2,),
-            iter_time_spans=iter_time_spans,
-            is_time_span_retained=is_time_span_retained,
+            policy=Policy(
+                now=arrow.get("2006-01-01").timestamp(), params=Params(years=1)
+            ),
         )
 
     assert result == Result(

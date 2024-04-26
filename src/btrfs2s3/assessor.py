@@ -16,8 +16,6 @@ from btrfsutil import SubvolumeInfo
 from btrfs2s3._internal.util import mksubvol
 from btrfs2s3._internal.util import SubvolumeFlags
 from btrfs2s3.resolver import Flags
-from btrfs2s3.resolver import IsTimeSpanRetained
-from btrfs2s3.resolver import IterTimeSpans
 from btrfs2s3.resolver import KeepMeta
 from btrfs2s3.resolver import resolve
 from btrfs2s3.s3 import iter_backups
@@ -25,7 +23,6 @@ from btrfs2s3.thunk import Thunk
 from btrfs2s3.thunk import ThunkArg
 
 if TYPE_CHECKING:
-    from datetime import tzinfo
     from pathlib import Path
 
     from mypy_boto3_s3.client import S3Client
@@ -33,6 +30,7 @@ if TYPE_CHECKING:
     from btrfs2s3 import resolver
     from btrfs2s3.action import Actions
     from btrfs2s3.backups import BackupInfo
+    from btrfs2s3.retention import Policy
 
 
 @dataclass
@@ -128,22 +126,13 @@ def assessment_to_actions(assessment: Assessment, actions: Actions) -> None:
 
 
 @dataclass
-class _ResolveArgs:
-    iter_time_spans: IterTimeSpans
-    is_time_span_retained: IsTimeSpanRetained
-
-
-@dataclass
 class _SourceAssessor:
     assessment: SourceAssessment
     snapshot_dir: Path
-    resolve_args: _ResolveArgs
-    tzinfo: tzinfo | str | None
+    policy: Policy
 
     def _make_snapshot_path(self, info: SubvolumeInfo) -> Path:
-        ctime = arrow.get(
-            info.ctime, tzinfo="UTC" if self.tzinfo is None else self.tzinfo
-        )
+        ctime = arrow.get(info.ctime, tzinfo=self.policy.tzinfo)
         ctime_str = ctime.isoformat(timespec="seconds")
         name = f"{self.assessment.path.name}.{ctime_str}.{info.ctransid}"
         return self.snapshot_dir / name
@@ -152,7 +141,7 @@ class _SourceAssessor:
         return self.snapshot_dir / f"{self.assessment.path.name}.NEW.{os.getpid()}"
 
     def _make_backup_key(self, backup: BackupInfo) -> str:
-        suffixes = backup.get_path_suffixes(tzinfo=self.tzinfo)
+        suffixes = backup.get_path_suffixes(tzinfo=self.policy.tzinfo)
         return f"{self.assessment.path.name}{''.join(suffixes)}"
 
     def _is_new_snapshot_needed(self) -> bool:
@@ -209,12 +198,7 @@ class _SourceAssessor:
             if not b.backup.is_tbd()
         ]
 
-        return resolve(
-            snapshots=snapshots,
-            backups=backups,
-            is_time_span_retained=self.resolve_args.is_time_span_retained,
-            iter_time_spans=self.resolve_args.iter_time_spans,
-        )
+        return resolve(snapshots=snapshots, backups=backups, policy=self.policy)
 
     def _resolve(self) -> None:
         # Run resolve including proposed snapshots.
@@ -268,8 +252,7 @@ class _SourceAssessor:
 class _Assessor:
     snapshot_dir: Path
     sources: Sequence[Path]
-    resolve_args: _ResolveArgs
-    tzinfo: tzinfo | str | None
+    policy: Policy
 
     _assessment: Assessment = field(init=False, default_factory=Assessment)
 
@@ -320,10 +303,7 @@ class _Assessor:
     def _assess_for_all_sources(self) -> None:
         for source in self._assessment.sources.values():
             assessor = _SourceAssessor(
-                assessment=source,
-                snapshot_dir=self.snapshot_dir,
-                resolve_args=self.resolve_args,
-                tzinfo=self.tzinfo,
+                assessment=source, snapshot_dir=self.snapshot_dir, policy=self.policy
             )
             assessor.assess()
 
@@ -337,23 +317,14 @@ class _Assessor:
         return self._assessment
 
 
-def assess(  # noqa: PLR0913
+def assess(
     *,
     snapshot_dir: Path,
     sources: Sequence[Path],
     s3: S3Client,
     bucket: str,
-    iter_time_spans: IterTimeSpans,
-    is_time_span_retained: IsTimeSpanRetained,
-    tzinfo: tzinfo | str | None = None,
+    policy: Policy,
 ) -> Assessment:
-    assessor = _Assessor(
-        snapshot_dir=snapshot_dir,
-        sources=sources,
-        resolve_args=_ResolveArgs(
-            iter_time_spans=iter_time_spans, is_time_span_retained=is_time_span_retained
-        ),
-        tzinfo=tzinfo,
-    )
+    assessor = _Assessor(snapshot_dir=snapshot_dir, sources=sources, policy=policy)
     assessor.assess(s3, bucket)
     return assessor.get_assessment()

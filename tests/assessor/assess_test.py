@@ -6,7 +6,6 @@ from uuid import uuid4
 
 from botocore.exceptions import ClientError
 from btrfs2s3._internal.util import backup_of_snapshot
-from btrfs2s3._internal.util import mkretained
 from btrfs2s3._internal.util import NULL_UUID
 from btrfs2s3._internal.util import SubvolumeFlags
 from btrfs2s3.action import Actions
@@ -16,6 +15,8 @@ from btrfs2s3.backups import BackupInfo
 from btrfs2s3.resolver import Flags
 from btrfs2s3.resolver import KeepMeta
 from btrfs2s3.resolver import Reasons
+from btrfs2s3.retention import Params
+from btrfs2s3.retention import Policy
 from btrfs2s3.s3 import iter_backups
 import btrfsutil
 import pytest
@@ -44,14 +45,12 @@ def test_create_and_backup_new_snapshot(
     (source / "dummy-file").write_bytes(b"dummy")
     btrfsutil.sync(source)
 
-    # No retention, just keep most recent snapshot and backup
     assessment = assess(
         snapshot_dir=snapshot_dir,
         sources=(source,),
         s3=s3,
         bucket=bucket,
-        iter_time_spans=lambda _: iter(()),
-        is_time_span_retained=lambda _: False,
+        policy=Policy(),
     )
 
     (source_asmt,) = list(assessment.sources.values())
@@ -126,15 +125,14 @@ def test_create_and_backup_with_parent(
     # This isn't guaranteed to work at year boundaries. Can't think of a better
     # way to do it right now.
     now = time.time()
-    iter_time_spans, is_time_span_retained = mkretained(now=now, years=(0,))
-    expected_time_span = next(iter(iter_time_spans(now)))
+    policy = Policy(now=now, params=Params(years=1))
+    expected_time_span = next(policy.iter_time_spans(now))
     assessment = assess(
         snapshot_dir=snapshot_dir,
         sources=(source,),
         s3=s3,
         bucket=bucket,
-        iter_time_spans=iter_time_spans,
-        is_time_span_retained=is_time_span_retained,
+        policy=policy,
     )
 
     (source_asmt,) = list(assessment.sources.values())
@@ -211,14 +209,12 @@ def test_rename_snapshot(
     btrfsutil.create_snapshot(source, snapshot, read_only=True)
     btrfsutil.sync(source)
 
-    # No retention, just keep most recent snapshot and backup
     assessment = assess(
         snapshot_dir=snapshot_dir,
         sources=(source,),
         s3=s3,
         bucket=bucket,
-        iter_time_spans=lambda _: iter(()),
-        is_time_span_retained=lambda _: False,
+        policy=Policy(),
     )
 
     (source_asmt,) = list(assessment.sources.values())
@@ -285,14 +281,12 @@ def test_delete_only_snapshot_because_proposed_would_be_newer(
     (source / "dummy-file").write_bytes(b"dummy2")
     btrfsutil.sync(source)
 
-    # No retention, just keep most recent snapshot and backup
     assessment = assess(
         snapshot_dir=snapshot_dir,
         sources=(source,),
         s3=s3,
         bucket=bucket,
-        iter_time_spans=lambda _: iter(()),
-        is_time_span_retained=lambda _: False,
+        policy=Policy(),
     )
 
     (source_asmt,) = list(assessment.sources.values())
@@ -364,14 +358,12 @@ def test_ignore_read_write_snapshot(
     btrfsutil.create_snapshot(source, initial_snapshot)
     btrfsutil.sync(source)
 
-    # No retention, just keep most recent snapshot and backup
     assessment = assess(
         snapshot_dir=snapshot_dir,
         sources=(source,),
         s3=s3,
         bucket=bucket,
-        iter_time_spans=lambda _: iter(()),
-        is_time_span_retained=lambda _: False,
+        policy=Policy(),
     )
     actions = Actions()
     assessment_to_actions(assessment, actions)
@@ -387,14 +379,12 @@ def test_fail_if_snapshot_dir_not_on_btrfs(
     btrfs_mountpoint: Path, ext4_mountpoint: Path, s3: S3Client, bucket: str
 ) -> None:
     with pytest.raises(RuntimeError):
-        # No retention, just keep most recent snapshot and backup
         assess(
             snapshot_dir=ext4_mountpoint,
             sources=(btrfs_mountpoint,),
             s3=s3,
             bucket=bucket,
-            iter_time_spans=lambda _: iter(()),  # pragma: no cover
-            is_time_span_retained=lambda _: False,  # pragma: no cover
+            policy=Policy(),
         )
 
 
@@ -417,14 +407,12 @@ def test_ignore_snapshots_from_unrelated_sources(
     btrfsutil.create_snapshot(source2, ignore_snapshot, read_only=True)
     btrfsutil.sync(btrfs_mountpoint)
 
-    # No retention, just keep most recent snapshot and backup
     assessment = assess(
         snapshot_dir=snapshot_dir,
         sources=(source1,),
         s3=s3,
         bucket=bucket,
-        iter_time_spans=lambda _: iter(()),
-        is_time_span_retained=lambda _: False,
+        policy=Policy(),
     )
     actions = Actions()
     assessment_to_actions(assessment, actions)
@@ -442,14 +430,12 @@ def test_ignore_unrelated_s3_objects(
     key = "not-a-backup-name"
     s3.put_object(Bucket=bucket, Key=key, Body=b"dummy")
 
-    # No retention, just keep most recent snapshot and backup
     assessment = assess(
         snapshot_dir=btrfs_mountpoint,
         sources=(btrfs_mountpoint,),
         s3=s3,
         bucket=bucket,
-        iter_time_spans=lambda _: iter(()),
-        is_time_span_retained=lambda _: False,
+        policy=Policy(),
     )
     actions = Actions()
     assessment_to_actions(assessment, actions)
@@ -471,14 +457,12 @@ def test_ignore_unrelated_backups(
     key = f"base{''.join(info.get_path_suffixes())}"
     s3.put_object(Bucket=bucket, Key=key, Body=b"dummy")
 
-    # No retention, just keep most recent snapshot and backup
     assessment = assess(
         snapshot_dir=btrfs_mountpoint,
         sources=(btrfs_mountpoint,),
         s3=s3,
         bucket=bucket,
-        iter_time_spans=lambda _: iter(()),
-        is_time_span_retained=lambda _: False,
+        policy=Policy(),
     )
     actions = Actions()
     assessment_to_actions(assessment, actions)
@@ -505,14 +489,12 @@ def test_delete_old_backups(btrfs_mountpoint: Path, s3: S3Client, bucket: str) -
     (source / "dummy-file").write_bytes(b"dummy")
     btrfsutil.sync(btrfs_mountpoint)
 
-    # No retention, just keep most recent snapshot and backup
     assessment = assess(
         snapshot_dir=snapshot_dir,
         sources=(source,),
         s3=s3,
         bucket=bucket,
-        iter_time_spans=lambda _: iter(()),
-        is_time_span_retained=lambda _: False,
+        policy=Policy(),
     )
     actions = Actions()
     assessment_to_actions(assessment, actions)
@@ -536,14 +518,12 @@ def test_second_run_is_a_no_op(
     (source / "dummy-file").write_bytes(b"dummy")
     btrfsutil.sync(btrfs_mountpoint)
 
-    # No retention, just keep most recent snapshot and backup
     assessment = assess(
         snapshot_dir=snapshot_dir,
         sources=(source,),
         s3=s3,
         bucket=bucket,
-        iter_time_spans=lambda _: iter(()),
-        is_time_span_retained=lambda _: False,
+        policy=Policy(),
     )
     actions = Actions()
     assessment_to_actions(assessment, actions)
@@ -551,14 +531,12 @@ def test_second_run_is_a_no_op(
 
     # Second run
 
-    # No retention, just keep most recent snapshot and backup
     assessment = assess(
         snapshot_dir=snapshot_dir,
         sources=(source,),
         s3=s3,
         bucket=bucket,
-        iter_time_spans=lambda _: iter(()),
-        is_time_span_retained=lambda _: False,
+        policy=Policy(),
     )
     actions = Actions()
     assessment_to_actions(assessment, actions)
