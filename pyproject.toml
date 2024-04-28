@@ -28,7 +28,6 @@ dependencies = [
   "boto3[crt]",
   "typing_extensions>=4.4",
 ]
-
 [project.scripts]
 btrfs2s3 = "btrfs2s3.main:main"
 
