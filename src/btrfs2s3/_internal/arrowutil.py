@@ -112,3 +112,24 @@ def iter_time_spans(
 def convert_span(time_span: tuple[Arrow, Arrow]) -> tuple[float, float]:
     start, end = time_span
     return start.timestamp(), end.timestamp()
+
+
+def humanize_span(time_span: tuple[Arrow, Arrow], bounds: _Bounds = "[)") -> str:
+    a, b = time_span
+    if (a, b) == a.span("year", bounds=bounds):
+        return a.format("YYYY") + "/P1Y"
+    if (a, b) == a.span("quarter", bounds=bounds):
+        return f"{a.year:04d}-Q{a.quarter}/P1Q"
+    if (a, b) == a.span("month", bounds=bounds):
+        return a.format("YYYY-MM") + "/P1M"
+    if (a, b) == a.span("week", bounds=bounds):
+        return f"{a.year:04d}-W{a.week:02d}/P1W"
+    if (a, b) == a.span("day", bounds=bounds):
+        return a.format("YYYY-MM-DD") + "/P1D"
+    if (a, b) == a.span("hour", bounds=bounds):
+        return a.format("YYYY-MM-DDTHH") + "/PT1H"
+    if (a, b) == a.span("minute", bounds=bounds):
+        return a.format("YYYY-MM-DDTHH:mm") + "/PT1M"
+    if (a, b) == a.span("second", bounds=bounds):
+        return a.format("YYYY-MM-DDTHH:mm:ss") + "/PT1S"
+    return a.format("YYYY-MM-DDTHH:mm:ss") + "/" + b.format("YYYY-MM-DDTHH:mm:ss")

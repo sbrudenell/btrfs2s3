@@ -34,6 +34,9 @@ class _SupportsLT(Protocol[_T_contra]):
 class _TbdType(enum.Enum):
     TBD = enum.auto()
 
+    def __str__(self) -> str:
+        return "TBD"
+
 
 TBD = _TbdType.TBD
 """A sentinel value, meaning the real value hasn't been determined yet."""

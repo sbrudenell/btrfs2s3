@@ -19,6 +19,11 @@ if TYPE_CHECKING:
     from tests.conftest import DownloadAndPipe
 
 
+def test_empty() -> None:
+    actions = Actions()
+    assert actions.empty()
+
+
 def test_create_and_rename(btrfs_mountpoint: Path, s3: S3Client, bucket: str) -> None:
     source = btrfs_mountpoint / "source"
     btrfsutil.create_subvolume(source)
@@ -38,6 +43,7 @@ def test_create_and_rename(btrfs_mountpoint: Path, s3: S3Client, bucket: str) ->
 
     actions.create_snapshot(source=source, path=initial_path)
     actions.rename_snapshot(source=initial_path, target=get_target_path)
+    assert not actions.empty()
 
     actions.execute(s3, bucket)
 
@@ -87,6 +93,7 @@ def test_create_rename_backup(
         send_parent=get_send_parent,
         key=get_key,
     )
+    assert not actions.empty()
 
     actions.execute(s3, bucket)
 
@@ -133,6 +140,7 @@ def test_other_actions(
     delete_me_key = "delete-me-key"
     s3.put_object(Bucket=bucket, Key=delete_me_key, Body=b"dummy")
     actions.delete_backup(delete_me_key)
+    assert not actions.empty()
 
     actions.execute(s3, bucket)
 

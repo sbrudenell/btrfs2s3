@@ -201,6 +201,16 @@ class Actions:
         self._create_backups: list[CreateBackup] = []
         self._delete_backups: list[DeleteBackup] = []
 
+    def empty(self) -> bool:
+        """Returns True if there are no intended actions."""
+        return not (
+            self._create_snapshots
+            or self._delete_snapshots
+            or self._rename_snapshots
+            or self._create_backups
+            or self._delete_backups
+        )
+
     def create_snapshot(self, *, source: ThunkArg[Path], path: ThunkArg[Path]) -> None:
         """Add an intent to create a read-only snapshot of a subvolume.
 

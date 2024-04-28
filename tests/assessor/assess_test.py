@@ -540,8 +540,4 @@ def test_second_run_is_a_no_op(
     )
     actions = Actions()
     assessment_to_actions(assessment, actions)
-    assert list(actions.iter_create_snapshot_intents()) == []
-    assert list(actions.iter_delete_snapshot_intents()) == []
-    assert list(actions.iter_rename_snapshot_intents()) == []
-    assert list(actions.iter_create_backup_intents()) == []
-    assert list(actions.iter_delete_backup_intents()) == []
+    assert actions.empty()

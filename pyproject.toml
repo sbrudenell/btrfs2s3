@@ -62,6 +62,9 @@ order-by-type = false
 "src/btrfs2s3/assessor.py" = [
   "D",
 ]
+"src/btrfs2s3/commands/*" = [
+  "T",
+]
 "typeshed/*" = [
   "A",
 ]
