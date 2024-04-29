@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+import shlex
 import sys
 from typing import Iterable
 from typing import TYPE_CHECKING
@@ -132,6 +133,7 @@ def add_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--bucket", required=True)
     parser.add_argument("--timezone", type=zoneinfo.ZoneInfo, required=True)
     parser.add_argument("--preserve", type=Params.parse, required=True)
+    parser.add_argument("--pipe-through", action="append", type=shlex.split, default=[])
 
 
 def command(args: argparse.Namespace) -> int:
@@ -166,6 +168,6 @@ def command(args: argparse.Namespace) -> int:
     if not args.force and input("continue? (Y/n)") != "Y":
         return 1  # pragma: no cover
 
-    actions.execute(s3, args.bucket)
+    actions.execute(s3, args.bucket, pipe_through=args.pipe_through)
 
     return 0

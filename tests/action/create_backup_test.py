@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+from base64 import b64decode
+import gzip
+import subprocess
 from typing import TYPE_CHECKING
 
+from botocore.exceptions import ClientError
 from btrfs2s3.action import create_backup
 import btrfsutil
 import pytest
@@ -108,10 +112,120 @@ def test_raise_error_on_send_failure(
     snapshot = tmp_path / "not-a-btrfs-subvolume"
     key = "test-backup"
 
-    with pytest.raises(RuntimeError, match="'btrfs send' exited with code "):
+    with pytest.raises(RuntimeError, match="exited with code "):
         create_backup(
             s3=s3, bucket=bucket, snapshot=snapshot, send_parent=None, key=key
         )
     out, err = capfd.readouterr()
     assert out == ""
     assert err != ""
+
+    # Check delete
+    with pytest.raises(ClientError):
+        s3.head_object(Bucket=bucket, Key=key)
+
+
+def test_pipe_success(btrfs_mountpoint: Path, s3: S3Client, bucket: str) -> None:
+    source = btrfs_mountpoint / "source"
+    btrfsutil.create_subvolume(source)
+
+    snapshot = btrfs_mountpoint / "snapshot"
+    btrfsutil.create_snapshot(source, snapshot, read_only=True)
+
+    key = "test-backup"
+
+    create_backup(
+        s3=s3,
+        bucket=bucket,
+        key=key,
+        snapshot=snapshot,
+        send_parent=None,
+        pipe_through=[["gzip"], ["base64"]],
+    )
+
+    # Just check the archive is valid
+    compressed_encoded_data = s3.get_object(Bucket=bucket, Key=key)["Body"].read()
+    data = gzip.decompress(b64decode(compressed_encoded_data))
+    subprocess.run(["btrfs", "receive", "--dump"], input=data, check=True)
+
+
+def test_end_of_pipe_fails(
+    btrfs_mountpoint: Path, s3: S3Client, bucket: str, capfd: pytest.CaptureFixture[str]
+) -> None:
+    source = btrfs_mountpoint / "source"
+    btrfsutil.create_subvolume(source)
+
+    snapshot = btrfs_mountpoint / "snapshot"
+    btrfsutil.create_snapshot(source, snapshot, read_only=True)
+
+    key = "test-backup"
+
+    with pytest.raises(RuntimeError, match="exited with code "):
+        create_backup(
+            s3=s3,
+            bucket=bucket,
+            snapshot=snapshot,
+            send_parent=None,
+            key=key,
+            pipe_through=[["gzip"], ["base64", "--bad-option"]],
+        )
+    out, err = capfd.readouterr()
+    assert out == ""
+    assert err != ""
+
+    # Check delete
+    with pytest.raises(ClientError):
+        s3.head_object(Bucket=bucket, Key=key)
+
+
+def test_middle_of_pipe_fails(
+    btrfs_mountpoint: Path, s3: S3Client, bucket: str, capfd: pytest.CaptureFixture[str]
+) -> None:
+    source = btrfs_mountpoint / "source"
+    btrfsutil.create_subvolume(source)
+
+    snapshot = btrfs_mountpoint / "snapshot"
+    btrfsutil.create_snapshot(source, snapshot, read_only=True)
+
+    key = "test-backup"
+
+    with pytest.raises(RuntimeError, match="exited with code "):
+        create_backup(
+            s3=s3,
+            bucket=bucket,
+            snapshot=snapshot,
+            send_parent=None,
+            key=key,
+            pipe_through=[["gzip", "--bad-option"], ["base64"]],
+        )
+    out, err = capfd.readouterr()
+    assert out == ""
+    assert err != ""
+
+    # Check delete
+    with pytest.raises(ClientError):
+        s3.head_object(Bucket=bucket, Key=key)
+
+
+def test_start_of_pipe_fails(
+    tmp_path: Path, s3: S3Client, bucket: str, capfd: pytest.CaptureFixture[str]
+) -> None:
+    snapshot = tmp_path / "not-a-btrfs-subvolume"
+    key = "test-backup"
+
+    with pytest.raises(RuntimeError, match="exited with code "):
+        create_backup(
+            s3=s3,
+            bucket=bucket,
+            snapshot=snapshot,
+            send_parent=None,
+            key=key,
+            pipe_through=[["gzip"], ["base64"]],
+        )
+    out, err = capfd.readouterr()
+    assert out == ""
+    assert err != ""
+
+    # Check delete
+    with pytest.raises(ClientError):
+        s3.head_object(Bucket=bucket, Key=key)

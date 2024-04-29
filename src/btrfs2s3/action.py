@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import dataclasses
+from itertools import chain
 import logging
 from subprocess import PIPE
 from subprocess import Popen
 from typing import Iterator
+from typing import Sequence
 from typing import TYPE_CHECKING
 
 import btrfsutil
@@ -72,8 +74,14 @@ def rename_snapshot(*, source: Path, target: Path) -> None:
     source.rename(target)
 
 
-def create_backup(
-    *, s3: S3Client, bucket: str, snapshot: Path, send_parent: Path | None, key: str
+def create_backup(  # noqa: PLR0913
+    *,
+    s3: S3Client,
+    bucket: str,
+    snapshot: Path,
+    send_parent: Path | None,
+    key: str,
+    pipe_through: Sequence[Sequence[str]] = (),
 ) -> None:
     """Stores a btrfs archive in S3.
 
@@ -87,6 +95,8 @@ def create_backup(
         send_parent: The parent snapshot for delta backups. When not None, this
             will be supplied to "btrfs send -p".
         key: The S3 object key.
+        pipe_through: A sequence of shell commands through which the archive
+            should be piped before uploading.
     """
     _LOG.info(
         "creating backup of %s (%s)",
@@ -97,15 +107,33 @@ def create_backup(
     if send_parent is not None:
         send_args += ["-p", send_parent]
     send_args += [snapshot]
-    send_process = Popen(send_args, stdout=PIPE)  # noqa: S603
+
+    pipeline: list[Popen[bytes]] = []
+    for args in chain((send_args,), pipe_through):
+        prev_stdout = pipeline[-1].stdout if pipeline else None
+        pipeline.append(Popen(args, stdin=prev_stdout, stdout=PIPE))  # noqa: S603
+        # https://docs.python.org/3/library/subprocess.html#replacing-shell-pipeline
+        if prev_stdout:
+            prev_stdout.close()
+
+    pipeline_stdout = pipeline[-1].stdout
     # https://github.com/python/typeshed/issues/3831
-    assert send_process.stdout is not None  # noqa: S101
+    assert pipeline_stdout is not None  # noqa: S101
+    try:
+        s3.upload_fileobj(pipeline_stdout, bucket, key)
+    finally:
+        # Allow the pipeline to fail if the upload fails
+        pipeline_stdout.close()
 
-    s3.upload_fileobj(send_process.stdout, bucket, key)
-
-    if send_process.wait() != 0:
-        msg = f"'btrfs send' exited with code {send_process.returncode}"
-        raise RuntimeError(msg)
+    # reverse order to match the semantics of pipefail
+    for process in reversed(pipeline):
+        if process.wait() != 0:
+            msg = f"{process.args!r}: exited with code {process.returncode}"
+            try:
+                raise RuntimeError(msg)
+            finally:
+                # Assume the backup is corrupted
+                delete_backups(s3, bucket, key)
 
 
 def delete_backups(s3: S3Client, bucket: str, *keys: str) -> None:
@@ -307,7 +335,9 @@ class Actions:
         """Iterates all the DeleteBackup intents."""
         yield from sorted(self._delete_backups)
 
-    def execute(self, s3: S3Client, bucket: str) -> None:
+    def execute(
+        self, s3: S3Client, bucket: str, pipe_through: Sequence[Sequence[str]] = ()
+    ) -> None:
         """Executes the intended actions.
 
         This performs all the side effects described in the various intent
@@ -330,6 +360,8 @@ class Actions:
         Args:
             s3: The S3 client object to use to manipulate S3 objects.
             bucket: The name of the bucket where backups are stored.
+            pipe_through: A sequence of shell commands through which backup
+                archives should be piped before uploading.
         """
         for create_snapshot_intent in self.iter_create_snapshot_intents():
             create_snapshot(
@@ -350,6 +382,7 @@ class Actions:
                 snapshot=create_backup_intent.snapshot(),
                 send_parent=create_backup_intent.send_parent(),
                 key=create_backup_intent.key(),
+                pipe_through=pipe_through,
             )
 
         for delete_snapshot_intent in self.iter_delete_snapshot_intents():
