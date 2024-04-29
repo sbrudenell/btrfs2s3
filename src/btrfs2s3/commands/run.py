@@ -127,7 +127,7 @@ def add_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--region")
     parser.add_argument("--profile")
     parser.add_argument("--endpoint-url")
-    parser.add_argument("--no-verify", action="store_false")
+    parser.add_argument("--no-verify", action="store_false", dest="verify")
     parser.add_argument("--source", action="append", type=Path, required=True)
     parser.add_argument("--snapshot-dir", type=Path, required=True)
     parser.add_argument("--bucket", required=True)
@@ -143,7 +143,7 @@ def command(args: argparse.Namespace) -> int:
         return 1
 
     session = Session(region_name=args.region, profile_name=args.profile)
-    s3 = session.client("s3", verify=not args.no_verify, endpoint_url=args.endpoint_url)
+    s3 = session.client("s3", verify=args.verify, endpoint_url=args.endpoint_url)
     policy = Policy(tzinfo=args.timezone, params=args.preserve)
     asmt = assess(
         snapshot_dir=args.snapshot_dir,
