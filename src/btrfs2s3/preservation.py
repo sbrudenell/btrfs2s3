@@ -94,7 +94,7 @@ class TimeframeArgs(TypedDict, Generic[_T], total=False):
     seconds: _T
 
 
-_ELEMENT_RE = re.compile(r"(\d)([sMhdwmqy])")
+_ELEMENT_RE = re.compile(r"(\d+)([sMhdwmqy])")
 _KWARG_BY_ELEMENT_SUFFIX: Mapping[str, Timeframe] = {
     "s": "seconds",
     "M": "minutes",
