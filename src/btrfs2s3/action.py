@@ -7,8 +7,6 @@ from itertools import chain
 import logging
 from subprocess import PIPE
 from subprocess import Popen
-from typing import Iterator
-from typing import Sequence
 from typing import TYPE_CHECKING
 
 import btrfsutil
@@ -19,6 +17,8 @@ from btrfs2s3.thunk import Thunk
 from btrfs2s3.thunk import ThunkArg
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+    from collections.abc import Sequence
     from pathlib import Path
 
     from mypy_boto3_s3.client import S3Client

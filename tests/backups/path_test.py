@@ -1,5 +1,5 @@
+from collections.abc import Sequence
 import itertools
-from typing import Sequence
 from uuid import UUID
 
 import arrow

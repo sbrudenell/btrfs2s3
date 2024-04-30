@@ -5,7 +5,6 @@ from dataclasses import field
 from functools import partial
 import os
 import time
-from typing import Sequence
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
@@ -23,6 +22,7 @@ from btrfs2s3.thunk import Thunk
 from btrfs2s3.thunk import ThunkArg
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
     from pathlib import Path
 
     from mypy_boto3_s3.client import S3Client

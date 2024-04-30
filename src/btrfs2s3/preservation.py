@@ -49,18 +49,21 @@ from datetime import timezone
 from datetime import tzinfo
 import re
 from typing import Generic
-from typing import Iterator
 from typing import Literal
-from typing import Mapping
-from typing import TypeAlias
+from typing import TYPE_CHECKING
 from typing import TypeVar
 
 import arrow
 from typing_extensions import Self
+from typing_extensions import TypeAlias
 from typing_extensions import TypedDict
 
 from btrfs2s3._internal.arrowutil import convert_span
 from btrfs2s3._internal.arrowutil import iter_time_spans
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+    from collections.abc import Mapping
 
 TS: TypeAlias = tuple[float, float]
 """An alias for tuple[float, float] which is used as a time span type.

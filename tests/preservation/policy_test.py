@@ -3,6 +3,7 @@ from __future__ import annotations
 from random import uniform
 import time
 from typing import cast
+from zoneinfo import ZoneInfo
 
 import arrow
 from btrfs2s3._internal.arrowutil import convert_span
@@ -11,7 +12,6 @@ from btrfs2s3.preservation import Policy
 from btrfs2s3.preservation import Timeframe
 from btrfs2s3.preservation import TIMEFRAMES
 import pytest
-from zoneinfo import ZoneInfo
 
 
 def _random_timestamp() -> float:

@@ -10,8 +10,10 @@ from typing import Literal
 from typing import overload
 from typing import Protocol
 from typing import runtime_checkable
-from typing import TypeAlias
-from typing import TypeVar
+from typing import Union
+
+from typing_extensions import TypeAlias
+from typing_extensions import TypeVar
 
 
 class Error(Exception):
@@ -167,5 +169,5 @@ class Thunk(Generic[_T]):
         return id(self) < id(other)
 
 
-ThunkArg: TypeAlias = Thunk[_T] | _T | Callable[[], _T]
+ThunkArg: TypeAlias = Union[Thunk[_T], _T, Callable[[], _T]]
 """An alias to allowed types for the argument to Thunk()."""

@@ -11,10 +11,9 @@ description = "Snapshot btrfs volumes and back them up to s3"
 authors = [
   {name = "Steven Brudenell", email = "steven.brudenell@gmail.com"}
 ]
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 classifiers = [
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.8",
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
@@ -27,6 +26,7 @@ dependencies = [
   "arrow>=1",
   "boto3[crt]",
   "typing_extensions>=4.4",
+  "tzdata",
 ]
 [project.scripts]
 btrfs2s3 = "btrfs2s3.main:main"
@@ -75,6 +75,11 @@ order-by-type = false
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
+
+[tool.pytest.ini_options]
+markers = [
+  "root",
+]
 
 [tool.mypy]
 mypy_path = "typeshed"

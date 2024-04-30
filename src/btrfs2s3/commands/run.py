@@ -6,12 +6,11 @@ import logging
 from pathlib import Path
 import shlex
 import sys
-from typing import Iterable
 from typing import TYPE_CHECKING
+import zoneinfo
 
 import arrow
 from boto3.session import Session
-import zoneinfo
 
 from btrfs2s3._internal.arrowutil import humanize_span
 from btrfs2s3.action import Actions
@@ -27,6 +26,7 @@ from btrfs2s3.thunk import TBD
 
 if TYPE_CHECKING:
     import argparse
+    from collections.abc import Iterable
     from datetime import tzinfo
 
     from btrfs2s3.resolver import Reasons

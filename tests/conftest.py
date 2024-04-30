@@ -7,9 +7,7 @@ from subprocess import DEVNULL
 from subprocess import PIPE
 from subprocess import Popen
 import tempfile
-from typing import Iterator
 from typing import Protocol
-from typing import Sequence
 from typing import TYPE_CHECKING
 
 import boto3
@@ -17,6 +15,9 @@ from moto import mock_aws
 import pytest
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+    from collections.abc import Sequence
+
     from mypy_boto3_s3.client import S3Client
 
 
@@ -90,3 +91,9 @@ def download_and_pipe(s3: S3Client, bucket: str) -> DownloadAndPipe:
         return process.wait()
 
     return inner
+
+
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    for item in items:
+        if "btrfs_mountpoint" in item.fixturenames:  # type: ignore[attr-defined]
+            item.add_marker("root")

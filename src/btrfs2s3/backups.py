@@ -6,7 +6,6 @@ from contextlib import suppress
 import dataclasses
 from math import floor
 import pathlib
-from typing import Sequence
 from typing import TYPE_CHECKING
 from uuid import UUID
 
@@ -15,6 +14,7 @@ from arrow import Arrow
 from typing_extensions import Self
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
     from datetime import tzinfo
 
 
@@ -121,22 +121,23 @@ class BackupInfo:
         for suffix in suffixes:
             if suffix == ".full":
                 is_full = True
-            match suffix[1], suffix[2:]:
-                case "p", rest:
-                    with suppress(ValueError):
-                        parent_uuid = UUID(rest)
-                case "t", rest:
-                    with suppress(arrow.ParserError):
-                        ctime = arrow.get(rest)
-                case "i", rest:
-                    with suppress(ValueError):
-                        ctransid = int(rest)
-                case "u", rest:
-                    with suppress(ValueError):
-                        uuid = UUID(rest)
-                case "s", rest:
-                    with suppress(ValueError):
-                        send_parent_uuid = UUID(rest)
+            code, rest = suffix[1], suffix[2:]
+            if code == "p":
+                with suppress(ValueError):
+                    parent_uuid = UUID(rest)
+            elif code == "t":
+                with suppress(arrow.ParserError):
+                    ctime = arrow.get(rest)
+            elif code == "i":
+                with suppress(ValueError):
+                    ctransid = int(rest)
+            elif code == "u":
+                with suppress(ValueError):
+                    uuid = UUID(rest)
+            elif code == "s":
+                with suppress(ValueError):
+                    send_parent_uuid = UUID(rest)
+
         if (
             uuid is None
             or parent_uuid is None

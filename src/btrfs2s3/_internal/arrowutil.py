@@ -7,12 +7,14 @@ human-friendly backup schedules.
 
 from __future__ import annotations
 
-from typing import Iterable
 from typing import Literal
 from typing import TYPE_CHECKING
-from typing import TypeAlias
+
+from typing_extensions import TypeAlias
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from arrow import Arrow
 
     _Bounds: TypeAlias = Literal["[)", "()", "(]", "[]"]

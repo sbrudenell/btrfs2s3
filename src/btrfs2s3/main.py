@@ -5,9 +5,12 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
-from typing import Sequence
+from typing import TYPE_CHECKING
 
 from btrfs2s3.commands import run
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 
 def main(argv: Sequence[str] | None = None) -> int:
