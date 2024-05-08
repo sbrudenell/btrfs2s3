@@ -12,9 +12,11 @@ repos:
   - id: debug-statements
   - id: detect-private-key
   - id: end-of-file-fixer
+    exclude: '.*\.golden$'
   - id: mixed-line-ending
   - id: name-tests-test
   - id: trailing-whitespace
+    exclude: '.*\.golden$'
 - repo: https://github.com/tox-dev/pyproject-fmt
   rev: 1.8.0
   hooks:
@@ -41,5 +43,5 @@ repos:
   rev: v1.10.0
   hooks:
   - id: mypy
-    additional_dependencies: [types-all, arrow>=1, "boto3-stubs[boto3,s3]", "moto[s3]", pytest, typing_extensions>=4.4]
+    additional_dependencies: [types-all, arrow>=1, "boto3-stubs[boto3,s3]", "moto[s3]", pytest, rich, typing_extensions>=4.4]
     args: []

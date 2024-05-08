@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from unittest.mock import patch
 
+from btrfs2s3.console import THEME
 from btrfs2s3.main import main
 from btrfs2s3.s3 import iter_backups
 import btrfsutil
+from rich.console import Console
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -28,6 +31,7 @@ def test_pretend(
     (source / "dummy-file").write_bytes(b"dummy")
     btrfsutil.sync(source)
 
+    console = Console(force_terminal=True, theme=THEME, width=88, height=30)
     argv = [
         "run",
         "--pretend",
@@ -42,11 +46,11 @@ def test_pretend(
         "--preserve",
         "1y",
     ]
-    assert main(argv) == 0
+    assert main(console=console, argv=argv) == 0
 
     (out, err) = capsys.readouterr()
     # No idea how to stabilize this for golden testing
-    assert "Assessments:" in out
+    assert "assessment and proposed new state" in out
     assert err == ""
 
 
@@ -67,6 +71,7 @@ def test_force(
     (source / "dummy-file").write_bytes(b"dummy")
     btrfsutil.sync(source)
 
+    console = Console(force_terminal=True, theme=THEME, width=88, height=30)
     argv = [
         "run",
         "--force",
@@ -81,11 +86,11 @@ def test_force(
         "--preserve",
         "1y",
     ]
-    assert main(argv) == 0
+    assert main(console=console, argv=argv) == 0
 
     (out, err) = capsys.readouterr()
     # No idea how to stabilize this for golden testing
-    assert "Assessments:" in out
+    assert "assessment and proposed new state" in out
     assert err == ""
 
     (snapshot,) = snapshot_dir.iterdir()
@@ -97,14 +102,14 @@ def test_force(
     download_and_pipe(obj["Key"], ["btrfs", "receive", "--dump"])
 
     # Second run should be no-op
-    assert main(argv) == 0
+    assert main(argv=argv) == 0
 
     (out, err) = capsys.readouterr()
     assert "nothing to be done" in out
 
 
 def test_refuse_to_run_unattended_without_pretend_or_force(
-    capsys: pytest.CaptureFixture[str],
+    goldifyconsole: Console,
 ) -> None:
     # This shouldn't get to the point of verifying arguments
     argv = [
@@ -120,8 +125,47 @@ def test_refuse_to_run_unattended_without_pretend_or_force(
         "--preserve",
         "1y",
     ]
-    assert main(argv) == 1
+    assert main(argv=argv, console=goldifyconsole) == 1
+
+
+def test_reject_continue_prompt(
+    btrfs_mountpoint: Path,
+    bucket: str,
+    capsys: pytest.CaptureFixture[str],
+    s3: S3Client,
+) -> None:
+    # Create a subvolume
+    source = btrfs_mountpoint / "source"
+    btrfsutil.create_subvolume(source)
+    # Snapshot dir, but no snapshots
+    snapshot_dir = btrfs_mountpoint / "snapshots"
+    snapshot_dir.mkdir()
+    # Modify some data in the source
+    (source / "dummy-file").write_bytes(b"dummy")
+    btrfsutil.sync(source)
+
+    console = Console(force_terminal=True, theme=THEME, width=88, height=30)
+    argv = [
+        "run",
+        "--source",
+        str(source),
+        "--snapshot-dir",
+        str(snapshot_dir),
+        "--bucket",
+        bucket,
+        "--timezone",
+        "UTC",
+        "--preserve",
+        "1y",
+    ]
+    with patch("rich.console.input", return_value="n"):
+        assert main(console=console, argv=argv) == 0
 
     (out, err) = capsys.readouterr()
-    assert out == ""
+    # No idea how to stabilize this for golden testing
+    assert "continue?" in out
     assert err == ""
+
+    # Ensure there were no side effects
+    assert list(snapshot_dir.iterdir()) == []
+    assert s3.list_objects_v2(Bucket=bucket).get("Contents", []) == []

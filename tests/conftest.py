@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from io import StringIO
 import os
 from pathlib import Path
 import subprocess
@@ -9,14 +10,18 @@ from subprocess import Popen
 import tempfile
 from typing import Protocol
 from typing import TYPE_CHECKING
+from warnings import warn
 
 import boto3
+from btrfs2s3.console import THEME
 from moto import mock_aws
 import pytest
+from rich.console import Console
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
     from collections.abc import Sequence
+    from typing import IO
 
     from mypy_boto3_s3.client import S3Client
 
@@ -97,3 +102,73 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     for item in items:
         if "btrfs_mountpoint" in item.fixturenames:  # type: ignore[attr-defined]
             item.add_marker("root")
+
+
+def pytest_addoption(parser: pytest.Parser) -> None:
+    parser.addoption("--update-golden", action="store_true")
+    parser.addoption("--remove-stale-golden", action="store_true")
+
+
+@pytest.fixture(scope="session")
+def touched_golden(request: pytest.FixtureRequest) -> Iterator[set[Path]]:
+    touched: set[Path] = set()
+    yield touched
+    found = set()
+    for root, _, files in os.walk("tests"):
+        for file in files:
+            path = Path(root) / file
+            if path.suffix == ".golden":
+                found.add(path)
+    stale = found - touched
+    if stale:  # pragma: no cover
+        if request.config.getoption("--remove-stale-golden"):
+            for path in stale:
+                path.unlink()
+        else:
+            warn(
+                "possible stale golden files, re-run with "
+                f"--remove-stale-golden: {stale}",
+                stacklevel=1,
+            )
+
+
+class Goldify(Protocol):
+    def __call__(self, value: str) -> None: ...
+
+
+@pytest.fixture()
+def goldify(request: pytest.FixtureRequest, touched_golden: set[Path]) -> Goldify:
+    path = Path(request.node.nodeid + ".golden")
+    touched_golden.add(path)
+
+    def inner(value: str) -> None:
+        if request.config.getoption("--update-golden"):
+            path.write_text(value)  # pragma: no cover
+        else:
+            assert value == path.read_text()
+
+    return inner
+
+
+class ConsoleFactory(Protocol):
+    def __call__(self, file: IO[str] | None = None) -> Console: ...
+
+
+@pytest.fixture()
+def console_factory() -> ConsoleFactory:
+    def inner(file: IO[str] | None = None) -> Console:
+        return Console(
+            file=file, theme=THEME, width=88, height=30, color_system="truecolor"
+        )
+
+    return inner
+
+
+@pytest.fixture()
+def goldifyconsole(
+    console_factory: ConsoleFactory, goldify: Goldify
+) -> Iterator[Console]:
+    file = StringIO()
+    console = console_factory(file=file)
+    yield console
+    goldify(file.getvalue())

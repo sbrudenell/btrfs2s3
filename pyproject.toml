@@ -25,6 +25,7 @@ dynamic = [
 dependencies = [
   "arrow>=1",
   "boto3[crt]",
+  "rich",
   "typing_extensions>=4.4",
   "tzdata",
 ]

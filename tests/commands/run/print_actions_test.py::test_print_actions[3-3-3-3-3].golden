@@ -1,0 +1,21 @@
+[92m───────────────────────────────── [0mactions to be taken[92m ──────────────────────────────────[0m
+[32m [0m[32m📸 create snapshot:[0m[32m [0m[32m [0m[32m/path/to/source0[0m[32m [0m[32m [0m[32m->[0m[32m [0m[32m [0m[32m/path/to/snapshot0[0m[32m [0m
+[2;32m [0m[2;32m📸 create snapshot:[0m[2;32m [0m[2;32m [0m[2;32m/path/to/source1[0m[2;32m [0m[2;32m [0m[2;32m->[0m[2;32m [0m[2;32m [0m[2;32m/path/to/snapshot1[0m[2;32m [0m
+[32m [0m[32m📸 create snapshot:[0m[32m [0m[32m [0m[32m/path/to/source2[0m[32m [0m[32m [0m[32m->[0m[32m [0m[32m [0m[32m/path/to/snapshot2[0m[32m [0m
+
+[32m [0m[32m📝️ rename snapshot:[0m[32m [0m[32m [0m[32m/path/to/source0[0m[32m [0m[32m [0m[32m->[0m[32m [0m[32m [0m[32m/path/to/target0[0m[32m [0m
+[2;32m [0m[2;32m📝️ rename snapshot:[0m[2;32m [0m[2;32m [0m[2;32m/path/to/source1[0m[2;32m [0m[2;32m [0m[2;32m->[0m[2;32m [0m[2;32m [0m[2;32m/path/to/target1[0m[2;32m [0m
+[32m [0m[32m📝️ rename snapshot:[0m[32m [0m[32m [0m[32m/path/to/source2[0m[32m [0m[32m [0m[32m->[0m[32m [0m[32m [0m[32m/path/to/target2[0m[32m [0m
+
+[32m [0m[32m☁️ upload backup:[0m[32m [0m[32m [0m[32m/path/to/snapshot0[0m[32m [0m
+[2;32m [0m[2;32m☁️ upload backup:[0m[2;32m [0m[2;32m [0m[2;32m/path/to/snapshot1[0m[2;32m [0m
+[32m [0m[32m☁️ upload backup:[0m[32m [0m[32m [0m[32m/path/to/snapshot2[0m[32m [0m
+
+[31m [0m[31m💀 delete snapshot:[0m[31m [0m[31m [0m[31m/path/to/snapshot0[0m[31m [0m
+[2;31m [0m[2;31m💀 delete snapshot:[0m[2;31m [0m[2;31m [0m[2;31m/path/to/snapshot1[0m[2;31m [0m
+[31m [0m[31m💀 delete snapshot:[0m[31m [0m[31m [0m[31m/path/to/snapshot2[0m[31m [0m
+
+[31m [0m[31m💀 delete backup: [0m[31m [0m[31m [0m[31mkey0[0m[31m [0m
+[2;31m [0m[2;31m💀 delete backup: [0m[2;31m [0m[2;31m [0m[2;31mkey1[0m[2;31m [0m
+[31m [0m[31m💀 delete backup: [0m[31m [0m[31m [0m[31mkey2[0m[31m [0m
+

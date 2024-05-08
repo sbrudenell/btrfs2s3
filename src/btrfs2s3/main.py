@@ -7,18 +7,22 @@ import logging
 import sys
 from typing import TYPE_CHECKING
 
+from rich.logging import RichHandler
+
 from btrfs2s3.commands import run
+from btrfs2s3.console import CONSOLE
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from rich.console import Console
 
-def main(argv: Sequence[str] | None = None) -> int:
+
+def main(*, console: Console | None = None, argv: Sequence[str] | None = None) -> int:
     """Main function for btrfs2s3."""
+    console = console if console else CONSOLE
     argv = argv if argv is not None else sys.argv[1:]
     parser = argparse.ArgumentParser()
-
-    parser.add_argument("-v", "--verbose", action="store_true")
 
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -27,11 +31,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     logging.basicConfig(
-        stream=sys.stderr, level=logging.DEBUG if args.verbose else logging.INFO
+        level="NOTSET",
+        format="%(message)s",
+        datefmt="[%X]",
+        handlers=[RichHandler(console=console)],
     )
 
     if args.command == run.NAME:
-        return run.command(args)
+        return run.command(console=console, args=args)
     raise NotImplementedError
 
 
