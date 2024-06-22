@@ -98,12 +98,6 @@ def download_and_pipe(s3: S3Client, bucket: str) -> DownloadAndPipe:
     return inner
 
 
-def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
-    for item in items:
-        if "btrfs_mountpoint" in item.fixturenames:  # type: ignore[attr-defined]
-            item.add_marker("root")
-
-
 def pytest_addoption(parser: pytest.Parser) -> None:
     parser.addoption("--update-golden", action="store_true")
     parser.addoption("--remove-stale-golden", action="store_true")
