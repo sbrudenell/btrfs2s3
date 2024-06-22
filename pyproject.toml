@@ -27,6 +27,7 @@ dependencies = [
   "arrow>=1,<2",
   "backports-zoneinfo; python_version<'3.9'",
   "boto3[crt]>=1,<2",
+  "cfgv>=3,<4",
   "rich>=13,<14",
   "typing-extensions>=4.4,<5",
   "tzdata",
