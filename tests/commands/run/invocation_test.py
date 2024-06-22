@@ -19,7 +19,10 @@ if TYPE_CHECKING:
 
 
 def test_pretend(
-    btrfs_mountpoint: Path, bucket: str, capsys: pytest.CaptureFixture[str]
+    tmp_path: Path,
+    btrfs_mountpoint: Path,
+    bucket: str,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     # Create a subvolume
     source = btrfs_mountpoint / "source"
@@ -32,21 +35,21 @@ def test_pretend(
     btrfsutil.sync(source)
 
     console = Console(force_terminal=True, theme=THEME, width=88, height=30)
-    argv = [
-        "run",
-        "--pretend",
-        "--source",
-        str(source),
-        "--snapshot-dir",
-        str(snapshot_dir),
-        "--bucket",
-        bucket,
-        "--timezone",
-        "UTC",
-        "--preserve",
-        "1y",
-    ]
-    assert main(console=console, argv=argv) == 0
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(f"""
+      timezone: UTC
+      sources:
+      - path: {source}
+        snapshots: {snapshot_dir}
+        upload_to_remotes:
+        - id: aws
+          preserve: 1y
+      remotes:
+      - id: aws
+        s3:
+          bucket: {bucket}
+    """)
+    assert main(console=console, argv=["run", "--pretend", str(config_path)]) == 0
 
     (out, err) = capsys.readouterr()
     # No idea how to stabilize this for golden testing
@@ -55,6 +58,7 @@ def test_pretend(
 
 
 def test_force(
+    tmp_path: Path,
     btrfs_mountpoint: Path,
     s3: S3Client,
     bucket: str,
@@ -72,20 +76,21 @@ def test_force(
     btrfsutil.sync(source)
 
     console = Console(force_terminal=True, theme=THEME, width=88, height=30)
-    argv = [
-        "run",
-        "--force",
-        "--source",
-        str(source),
-        "--snapshot-dir",
-        str(snapshot_dir),
-        "--bucket",
-        bucket,
-        "--timezone",
-        "UTC",
-        "--preserve",
-        "1y",
-    ]
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(f"""
+      timezone: UTC
+      sources:
+      - path: {source}
+        snapshots: {snapshot_dir}
+        upload_to_remotes:
+        - id: aws
+          preserve: 1y
+      remotes:
+      - id: aws
+        s3:
+          bucket: {bucket}
+    """)
+    argv = ["run", "--force", str(config_path)]
     assert main(console=console, argv=argv) == 0
 
     (out, err) = capsys.readouterr()
@@ -109,26 +114,28 @@ def test_force(
 
 
 def test_refuse_to_run_unattended_without_pretend_or_force(
-    goldifyconsole: Console,
+    tmp_path: Path, goldifyconsole: Console
 ) -> None:
     # This shouldn't get to the point of verifying arguments
-    argv = [
-        "run",
-        "--source",
-        "dummy_source",
-        "--snapshot-dir",
-        "dummy_snapshot_dir",
-        "--bucket",
-        "dummy_bucket",
-        "--timezone",
-        "UTC",
-        "--preserve",
-        "1y",
-    ]
-    assert main(argv=argv, console=goldifyconsole) == 1
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text("""
+      timezone: UTC
+      sources:
+      - path: dummy_source
+        snapshots: dummy_snapshot_dir
+        upload_to_remotes:
+        - id: aws
+          preserve: 1y
+      remotes:
+      - id: aws
+        s3:
+          bucket: dummy_bucket
+    """)
+    assert main(argv=["run", str(config_path)], console=goldifyconsole) == 1
 
 
 def test_reject_continue_prompt(
+    tmp_path: Path,
     btrfs_mountpoint: Path,
     bucket: str,
     capsys: pytest.CaptureFixture[str],
@@ -145,21 +152,22 @@ def test_reject_continue_prompt(
     btrfsutil.sync(source)
 
     console = Console(force_terminal=True, theme=THEME, width=88, height=30)
-    argv = [
-        "run",
-        "--source",
-        str(source),
-        "--snapshot-dir",
-        str(snapshot_dir),
-        "--bucket",
-        bucket,
-        "--timezone",
-        "UTC",
-        "--preserve",
-        "1y",
-    ]
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(f"""
+      timezone: UTC
+      sources:
+      - path: {source}
+        snapshots: {snapshot_dir}
+        upload_to_remotes:
+        - id: aws
+          preserve: 1y
+      remotes:
+      - id: aws
+        s3:
+          bucket: {bucket}
+    """)
     with patch("rich.console.input", return_value="n"):
-        assert main(console=console, argv=argv) == 0
+        assert main(console=console, argv=["run", str(config_path)]) == 0
 
     (out, err) = capsys.readouterr()
     # No idea how to stabilize this for golden testing

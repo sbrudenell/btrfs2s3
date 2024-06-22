@@ -27,6 +27,8 @@ dependencies = [
   "arrow>=1,<2",
   "backports-zoneinfo; python_version<'3.9'",
   "boto3[crt]>=1,<2",
+  "cfgv>=3,<4",
+  "pyyaml>=6,<7",
   "rich>=13,<14",
   "typing-extensions>=4.4,<5",
   "tzdata",
@@ -103,3 +105,7 @@ legacy_tox_ini = """
 [tool.mypy]
 mypy_path = "typeshed"
 strict = true
+
+[[tool.mypy.overrides]]
+module = "cfgv"
+ignore_missing_imports = true

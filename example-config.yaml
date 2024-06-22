@@ -1,0 +1,15 @@
+timezone: America/Los_Angeles
+sources:
+- path: /foo
+  snapshots: /snapshots
+  preserve: 1y 3m 30d 24h 60M 60s
+  backups:
+    s3:
+      bucket: btrfs2s3-test
+      endpoint: https://foo
+      region:
+      profile:
+      verify:
+    pipe_through:
+    - zstd -T0 -12
+    - gpg --encrypt -r 0xFE592029B2CB9D04 --trust-model always

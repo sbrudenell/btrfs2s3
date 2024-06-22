@@ -44,6 +44,8 @@ repos:
     - arrow>=1,<2
     - backports-zoneinfo; python_version<'3.9'
     - boto3-stubs[boto3,s3]>=1,<2
+    - cfgv>=3,<4
+    - types-pyyaml>=6,<7
     - rich>=13,<14
     - typing-extensions>=4.4,<5
     # test dependencies (corresponds to test-requirements.txt)

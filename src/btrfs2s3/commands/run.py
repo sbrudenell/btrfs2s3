@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from pathlib import Path
-import shlex
+from typing import cast
 from typing import TYPE_CHECKING
 
 import arrow
@@ -26,6 +26,8 @@ from btrfs2s3.assessor import Assessment
 from btrfs2s3.assessor import assessment_to_actions
 from btrfs2s3.assessor import BackupAssessment
 from btrfs2s3.assessor import SourceAssessment
+from btrfs2s3.config import Config
+from btrfs2s3.config import load_from_path
 from btrfs2s3.preservation import Params
 from btrfs2s3.preservation import Policy
 from btrfs2s3.preservation import TS
@@ -335,18 +337,9 @@ NAME = "run"
 
 def add_args(parser: argparse.ArgumentParser) -> None:
     """Add args for "btrfs2s3 run" to an ArgumentParser."""
+    parser.add_argument("config_file", type=load_from_path)
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--pretend", action="store_true")
-    parser.add_argument("--region")
-    parser.add_argument("--profile")
-    parser.add_argument("--endpoint-url")
-    parser.add_argument("--no-verify", action="store_false", dest="verify")
-    parser.add_argument("--source", action="append", type=Path, required=True)
-    parser.add_argument("--snapshot-dir", type=Path, required=True)
-    parser.add_argument("--bucket", required=True)
-    parser.add_argument("--timezone", type=get_zoneinfo, required=True)
-    parser.add_argument("--preserve", type=Params.parse, required=True)
-    parser.add_argument("--pipe-through", action="append", type=shlex.split, default=[])
 
 
 def command(*, console: Console, args: argparse.Namespace) -> int:
@@ -355,14 +348,63 @@ def command(*, console: Console, args: argparse.Namespace) -> int:
         console.print("to run in unattended mode, use --force")
         return 1
 
-    session = Session(region_name=args.region, profile_name=args.profile)
-    s3 = session.client("s3", verify=args.verify, endpoint_url=args.endpoint_url)
-    policy = Policy(tzinfo=args.timezone, params=args.preserve)
+    config = cast(Config, args.config_file)
+    tzinfo = get_zoneinfo(config["timezone"])
+    assert len(config["remotes"]) == 1  # noqa: S101
+    s3_remote = config["remotes"][0]["s3"]
+    s3_endpoint = s3_remote.get("endpoint", {})
+
+    sources = config["sources"]
+    assert len({source["snapshots"] for source in sources}) == 1  # noqa: S101
+    assert (  # noqa: S101
+        len(
+            {
+                upload["id"]
+                for source in sources
+                for upload in source["upload_to_remotes"]
+            }
+        )
+        == 1
+    )
+    assert (  # noqa: S101
+        len(
+            {
+                upload["preserve"]
+                for source in sources
+                for upload in source["upload_to_remotes"]
+            }
+        )
+        == 1
+    )
+    assert (  # noqa: S101
+        len(
+            {
+                tuple(tuple(cmd) for cmd in upload.get("pipe_through", []))
+                for source in sources
+                for upload in source["upload_to_remotes"]
+            }
+        )
+        == 1
+    )
+
+    session = Session(
+        region_name=s3_endpoint.get("region_name"),
+        profile_name=s3_endpoint.get("profile_name"),
+    )
+    s3 = session.client(
+        "s3",
+        verify=s3_endpoint.get("verify"),
+        endpoint_url=s3_endpoint.get("endpoint_url"),
+    )
+    policy = Policy(
+        tzinfo=tzinfo,
+        params=Params.parse(sources[0]["upload_to_remotes"][0]["preserve"]),
+    )
     asmt = assess(
-        snapshot_dir=args.snapshot_dir,
-        sources=args.source,
+        snapshot_dir=Path(sources[0]["snapshots"]),
+        sources=[Path(source["path"]) for source in sources],
         s3=s3,
-        bucket=args.bucket,
+        bucket=s3_remote["bucket"],
         policy=policy,
     )
     actions = Actions()
@@ -372,9 +414,9 @@ def command(*, console: Console, args: argparse.Namespace) -> int:
         print_assessment(
             console=console,
             asmt=asmt,
-            tzinfo=args.timezone,
-            snapshot_dir=args.snapshot_dir,
-            bucket=args.bucket,
+            tzinfo=tzinfo,
+            snapshot_dir=Path(sources[0]["snapshots"]),
+            bucket=s3_remote["bucket"],
         )
         print_actions(console=console, actions=actions)
 
@@ -386,6 +428,10 @@ def command(*, console: Console, args: argparse.Namespace) -> int:
         return 0
 
     if args.force or Confirm(console=console).ask("continue?"):
-        actions.execute(s3, args.bucket, pipe_through=args.pipe_through)
+        actions.execute(
+            s3,
+            s3_remote["bucket"],
+            pipe_through=sources[0]["upload_to_remotes"][0].get("pipe_through", []),
+        )
 
     return 0
