@@ -2,14 +2,14 @@
 build-backend = "setuptools.build_meta"
 requires = [
   "setuptools>=64",
-  "setuptools_scm>=8",
+  "setuptools-scm>=8",
 ]
 
 [project]
 name = "btrfs2s3"
 description = "Snapshot btrfs volumes and back them up to s3"
 authors = [
-  {name = "Steven Brudenell", email = "steven.brudenell@gmail.com"}
+  { name = "Steven Brudenell", email = "steven.brudenell@gmail.com" },
 ]
 requires-python = ">=3.9"
 classifiers = [
@@ -26,56 +26,49 @@ dependencies = [
   "arrow>=1",
   "boto3[crt]",
   "rich",
-  "typing_extensions>=4.4",
+  "typing-extensions>=4.4",
   "tzdata",
 ]
-[project.scripts]
-btrfs2s3 = "btrfs2s3.main:main"
+scripts.btrfs2s3 = "btrfs2s3.main:main"
 
 [tool.setuptools_scm]
 
-[tool.ruff.format]
-skip-magic-trailing-comma = true
-
-[tool.ruff.lint]
-ignore = [
+[tool.ruff]
+format.skip-magic-trailing-comma = true
+lint.select = [
+  "ALL",
+]
+lint.ignore = [
   "ANN101",
   "ANN102",
-  "ISC001",
   "COM812",
+  "ISC001",
 ]
-select = ["ALL"]
-
-[tool.ruff.lint.isort]
-force-single-line = true
-force-sort-within-sections = true
-order-by-type = false
-
-[tool.ruff.lint.per-file-ignores]
-"tests/*" = [
+lint.per-file-ignores."src/btrfs2s3/_internal/*" = [
+  "PLR",
+]
+lint.per-file-ignores."src/btrfs2s3/assessor.py" = [
+  "D",
+]
+lint.per-file-ignores."src/btrfs2s3/commands/*" = [
+  "T",
+]
+lint.per-file-ignores."src/btrfs2s3/resolver.py" = [
+  "D",
+]
+lint.per-file-ignores."tests/*" = [
   "D",
   "PLR",
   "S",
   "SLF",
 ]
-"src/btrfs2s3/_internal/*" = [
-  "PLR",
-]
-"src/btrfs2s3/resolver.py" = [
-  "D",
-]
-"src/btrfs2s3/assessor.py" = [
-  "D",
-]
-"src/btrfs2s3/commands/*" = [
-  "T",
-]
-"typeshed/*" = [
+lint.per-file-ignores."typeshed/*" = [
   "A",
 ]
-
-[tool.ruff.lint.pydocstyle]
-convention = "google"
+lint.isort.force-single-line = true
+lint.isort.force-sort-within-sections = true
+lint.isort.order-by-type = false
+lint.pydocstyle.convention = "google"
 
 [tool.mypy]
 mypy_path = "typeshed"
