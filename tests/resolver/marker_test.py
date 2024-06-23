@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-import functools
-import random
-
 from btrfs2s3._internal.util import mksubvol
 from btrfs2s3.resolver import _MarkedItem
 from btrfs2s3.resolver import _Marker
@@ -10,8 +7,6 @@ from btrfs2s3.resolver import Flags
 from btrfs2s3.resolver import KeepMeta
 from btrfs2s3.resolver import Reasons
 from btrfsutil import SubvolumeInfo
-
-mkuuid = functools.partial(random.randbytes, 16)
 
 
 def test_empty() -> None:

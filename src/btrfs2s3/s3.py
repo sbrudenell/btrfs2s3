@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from btrfs2s3.backups import BackupInfo
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from typing import Iterator
 
     from mypy_boto3_s3.client import S3Client
     from mypy_boto3_s3.type_defs import ListObjectsV2RequestRequestTypeDef

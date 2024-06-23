@@ -13,7 +13,7 @@ from btrfs2s3.commands import run
 from btrfs2s3.console import CONSOLE
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from typing import Sequence
 
     from rich.console import Console
 

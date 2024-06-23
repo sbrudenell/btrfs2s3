@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-import functools
-import random
 from typing import Protocol
 from typing import TYPE_CHECKING
+from uuid import uuid4
 
 import arrow
 from btrfs2s3._internal.util import backup_of_snapshot
@@ -21,12 +20,10 @@ import pytest
 if TYPE_CHECKING:
     from btrfsutil import SubvolumeInfo
 
-mkuuid = functools.partial(random.randbytes, 16)
-
 
 @pytest.fixture()
 def parent_uuid() -> bytes:
-    return mkuuid()
+    return uuid4().bytes
 
 
 class MkSnap(Protocol):
@@ -38,7 +35,7 @@ def mksnap(parent_uuid: bytes) -> MkSnap:
     def inner(*, t: str | None = None, i: int = 0) -> SubvolumeInfo:
         a = arrow.get() if t is None else arrow.get(t)
         return mksubvol(
-            uuid=mkuuid(), parent_uuid=parent_uuid, ctime=a.timestamp(), ctransid=i
+            uuid=uuid4().bytes, parent_uuid=parent_uuid, ctime=a.timestamp(), ctransid=i
         )
 
     return inner

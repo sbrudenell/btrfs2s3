@@ -33,7 +33,7 @@ def test_create_and_rename(btrfs_mountpoint: Path, s3: S3Client, bucket: str) ->
 
     initial_path = btrfs_mountpoint / "snapshot"
 
-    @functools.cache
+    @functools.lru_cache
     def get_info() -> SubvolumeInfo:
         return btrfsutil.subvolume_info(initial_path)
 
@@ -68,7 +68,7 @@ def test_create_rename_backup(
 
     initial_path = btrfs_mountpoint / "snapshot2"
 
-    @functools.cache
+    @functools.lru_cache
     def get_info() -> SubvolumeInfo:
         return btrfsutil.subvolume_info(initial_path)
 

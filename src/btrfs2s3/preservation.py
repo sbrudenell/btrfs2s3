@@ -50,6 +50,7 @@ from datetime import tzinfo
 import re
 from typing import Generic
 from typing import Literal
+from typing import Tuple
 from typing import TYPE_CHECKING
 from typing import TypeVar
 
@@ -62,10 +63,10 @@ from btrfs2s3._internal.arrowutil import convert_span
 from btrfs2s3._internal.arrowutil import iter_time_spans
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
-    from collections.abc import Mapping
+    from typing import Iterator
+    from typing import Mapping
 
-TS: TypeAlias = tuple[float, float]
+TS: TypeAlias = Tuple[float, float]
 """An alias for tuple[float, float] which is used as a time span type.
 
 This is just provided because it's frequently used, and shorter than

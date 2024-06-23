@@ -1,11 +1,16 @@
 from __future__ import annotations
 
-from zoneinfo import ZoneInfo
+import sys
 
 import arrow
 from btrfs2s3.commands.run import describe_time_span
 import pytest
 from rich.text import Span
+
+if sys.version_info >= (3, 9):  # pragma: >=3.9 cover
+    from zoneinfo import ZoneInfo
+else:  # pragma: <3.9 cover
+    from backports.zoneinfo import ZoneInfo
 
 
 @pytest.mark.parametrize(

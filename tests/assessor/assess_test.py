@@ -79,7 +79,7 @@ def test_create_and_backup_new_snapshot(
 
     (create_snapshot_intent,) = list(actions.iter_create_snapshot_intents())
     assert create_snapshot_intent.source.peek() == source
-    assert create_snapshot_intent.path().is_relative_to(snapshot_dir)
+    assert snapshot_dir in create_snapshot_intent.path().parents
     assert create_snapshot_intent.path().name.startswith(source.name)
     (rename_snapshot_intent,) = list(actions.iter_rename_snapshot_intents())
     assert rename_snapshot_intent.source.peek() == create_snapshot_intent.path.peek()
@@ -318,7 +318,7 @@ def test_delete_only_snapshot_because_proposed_would_be_newer(
 
     (create_snapshot_intent,) = list(actions.iter_create_snapshot_intents())
     assert create_snapshot_intent.source.peek() == source
-    assert create_snapshot_intent.path().is_relative_to(snapshot_dir)
+    assert snapshot_dir in create_snapshot_intent.path().parents
     assert create_snapshot_intent.path().name.startswith(source.name)
     (rename_snapshot_intent,) = list(actions.iter_rename_snapshot_intents())
     assert rename_snapshot_intent.source.peek() == create_snapshot_intent.path.peek()

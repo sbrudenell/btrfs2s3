@@ -1,10 +1,15 @@
-from collections.abc import Sequence
+from __future__ import annotations
+
 import itertools
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 import arrow
 from btrfs2s3.backups import BackupInfo
 import pytest
+
+if TYPE_CHECKING:
+    from typing import Sequence
 
 
 def test_get_path_suffixes_with_real_timezone() -> None:

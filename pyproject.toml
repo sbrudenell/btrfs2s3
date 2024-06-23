@@ -11,9 +11,10 @@ description = "Snapshot btrfs volumes and back them up to s3"
 authors = [
   { name = "Steven Brudenell", email = "steven.brudenell@gmail.com" },
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.8"
 classifiers = [
   "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.8",
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
@@ -24,6 +25,7 @@ dynamic = [
 ]
 dependencies = [
   "arrow>=1",
+  "backports-zoneinfo; python_version<'3.9'",
   "boto3[crt]",
   "rich",
   "typing-extensions>=4.4",
@@ -94,6 +96,18 @@ legacy_tox_ini = """
       coverage
       moto[s3]
       pytest
+  # btrfs2s3 requires --system-site-packages. This means we can generally end
+  # up pulling in weird package versions in configurations that don't exist any
+  # other way. In particular on Ubuntu 20.04, we can end up with
+  # system-provided python3-openssl (version 19.0.0), but will end up
+  # installing a newer version of cryptography. The old pyopenssl breaks with
+  # the newer cryptography. This would resolve itself if pyopenssl had a proper
+  # dependency like "cryptography>=X,<Y", but this was only introduced in newer
+  # pyopenssl.
+      pyopenssl>=22.1
+  # similarly: we pull markupsafe>=2, which breaks jinja2<3, but moto depends
+  # only on jinja2>=2.10.1
+      jinja2>=3
   commands =
       coverage erase
       coverage run -m pytest {posargs}

@@ -22,8 +22,8 @@ from btrfs2s3.thunk import Thunk
 from btrfs2s3.thunk import ThunkArg
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
     from pathlib import Path
+    from typing import Sequence
 
     from mypy_boto3_s3.client import S3Client
 
@@ -277,7 +277,7 @@ class _Assessor:
             raise RuntimeError(msg)
         for name, info in btrfsutil.SubvolumeIterator(search_base, info=True):
             path = search_base / name
-            if not path.is_relative_to(self.snapshot_dir):
+            if self.snapshot_dir not in path.parents:
                 continue
             if info.parent_uuid not in self._assessment.sources:
                 continue

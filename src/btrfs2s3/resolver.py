@@ -22,8 +22,8 @@ from btrfs2s3._internal.util import backup_of_snapshot
 from btrfs2s3.backups import BackupInfo
 
 if TYPE_CHECKING:
-    from collections.abc import Collection
-    from collections.abc import Iterator
+    from typing import Collection
+    from typing import Iterator
 
     from btrfs2s3.preservation import Policy
     from btrfs2s3.preservation import TS
@@ -182,19 +182,15 @@ class _Resolver:
 
     @contextlib.contextmanager
     def _with_time_span(self, time_span: TS) -> Iterator[None]:
-        with (
-            self._keep_snapshots.with_time_span(time_span),
-            self._keep_backups.with_time_span(time_span),
-        ):
-            yield
+        with self._keep_snapshots.with_time_span(time_span):  # noqa: SIM117
+            with self._keep_backups.with_time_span(time_span):
+                yield
 
     @contextlib.contextmanager
     def _with_reasons(self, reasons: Reasons) -> Iterator[None]:
-        with (
-            self._keep_snapshots.with_reasons(reasons),
-            self._keep_backups.with_reasons(reasons),
-        ):
-            yield
+        with self._keep_snapshots.with_reasons(reasons):  # noqa: SIM117
+            with self._keep_backups.with_reasons(reasons):
+                yield
 
     def get_result(self) -> Result:
         return Result(
