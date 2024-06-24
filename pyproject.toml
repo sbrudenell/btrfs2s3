@@ -70,6 +70,36 @@ lint.isort.force-sort-within-sections = true
 lint.isort.order-by-type = false
 lint.pydocstyle.convention = "google"
 
+[tool.coverage.run]
+plugins = [
+  "covdefaults",
+]
+source = [
+  "btrfs2s3",
+  "tests",
+]
+
+[tool.tox]
+legacy_tox_ini = """
+  [tox]
+  requires =
+      tox>=4.2
+  env_list =
+      py
+
+  [testenv]
+  system_site_packages = true
+  deps =
+      covdefaults
+      coverage
+      moto[s3]
+      pytest
+  commands =
+      coverage erase
+      coverage run -m pytest {posargs}
+      coverage report
+"""
+
 [tool.mypy]
 mypy_path = "typeshed"
 strict = true
