@@ -103,7 +103,7 @@ def create_backup(  # noqa: PLR0913
         snapshot,
         f"delta from {send_parent}" if send_parent else "full",
     )
-    send_args: list[str | Path] = ["btrfs", "-q", "send"]
+    send_args: list[str | Path] = ["btrfs", "send", "-q"]
     if send_parent is not None:
         send_args += ["-p", send_parent]
     send_args += [snapshot]
