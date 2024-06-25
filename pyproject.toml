@@ -1,8 +1,8 @@
 [build-system]
 build-backend = "setuptools.build_meta"
 requires = [
-  "setuptools>=64",
-  "setuptools-scm>=8",
+  "setuptools>=70,<71",
+  "setuptools-scm>=8,<9",
 ]
 
 [project]
@@ -24,11 +24,11 @@ dynamic = [
   "version",
 ]
 dependencies = [
-  "arrow>=1",
+  "arrow>=1,<2",
   "backports-zoneinfo; python_version<'3.9'",
-  "boto3[crt]",
-  "rich",
-  "typing-extensions>=4.4",
+  "boto3[crt]>=1,<2",
+  "rich>=13,<14",
+  "typing-extensions>=4.4,<5",
   "tzdata",
 ]
 scripts.btrfs2s3 = "btrfs2s3.main:main"
@@ -86,16 +86,17 @@ legacy_tox_ini = """
   [tox]
   requires =
       tox>=4.2
+      tox<5
   env_list =
       py
 
   [testenv]
   system_site_packages = true
   deps =
-      covdefaults
-      coverage
-      moto[s3]
-      pytest
+      covdefaults>=2,<3
+      coverage>=7,<8
+      moto[s3]>=5,<6
+      pytest>=8,<9
   # btrfs2s3 requires --system-site-packages. This means we can generally end
   # up pulling in weird package versions in configurations that don't exist any
   # other way. In particular on Ubuntu 20.04, we can end up with
