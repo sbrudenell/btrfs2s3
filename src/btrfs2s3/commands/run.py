@@ -5,7 +5,6 @@ from __future__ import annotations
 from collections import defaultdict
 from pathlib import Path
 import shlex
-import sys
 from typing import TYPE_CHECKING
 
 import arrow
@@ -34,12 +33,7 @@ from btrfs2s3.resolver import Flags
 from btrfs2s3.resolver import KeepMeta
 from btrfs2s3.resolver import Reasons
 from btrfs2s3.thunk import TBD
-
-if sys.version_info >= (3, 9):  # pragma: >=3.9 cover
-    from zoneinfo import ZoneInfo
-else:  # pragma: <3.9 cover
-    from backports.zoneinfo import ZoneInfo
-
+from btrfs2s3.zoneinfo import get_zoneinfo
 
 if TYPE_CHECKING:
     import argparse
@@ -350,7 +344,7 @@ def add_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--source", action="append", type=Path, required=True)
     parser.add_argument("--snapshot-dir", type=Path, required=True)
     parser.add_argument("--bucket", required=True)
-    parser.add_argument("--timezone", type=ZoneInfo, required=True)
+    parser.add_argument("--timezone", type=get_zoneinfo, required=True)
     parser.add_argument("--preserve", type=Params.parse, required=True)
     parser.add_argument("--pipe-through", action="append", type=shlex.split, default=[])
 

@@ -39,5 +39,14 @@ repos:
   rev: v1.10.0
   hooks:
   - id: mypy
-    additional_dependencies: [types-all, arrow>=1, "boto3-stubs[boto3,s3]", "moto[s3]", pytest, rich, typing_extensions>=4.4]
+    additional_dependencies:
+    # primary dependencies (corresponds to pyproject.toml)
+    - arrow>=1,<2
+    - backports-zoneinfo; python_version<'3.9'
+    - boto3-stubs[boto3,s3]>=1,<2
+    - rich>=13,<14
+    - typing-extensions>=4.4,<5
+    # test dependencies (corresponds to test-requirements.txt)
+    - moto[s3]>=5,<6
+    - pytest>=8,<9
     args: []

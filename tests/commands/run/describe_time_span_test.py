@@ -1,16 +1,10 @@
 from __future__ import annotations
 
-import sys
-
 import arrow
 from btrfs2s3.commands.run import describe_time_span
+from btrfs2s3.zoneinfo import get_zoneinfo
 import pytest
 from rich.text import Span
-
-if sys.version_info >= (3, 9):  # pragma: >=3.9 cover
-    from zoneinfo import ZoneInfo
-else:  # pragma: <3.9 cover
-    from backports.zoneinfo import ZoneInfo
 
 
 @pytest.mark.parametrize(
@@ -69,7 +63,7 @@ else:  # pragma: <3.9 cover
 def test_describe_time_span(
     a_str: str, b_str: str, expected_plain: str, expected_spans: set[Span], tzname: str
 ) -> None:
-    tzinfo = ZoneInfo(tzname)
+    tzinfo = get_zoneinfo(tzname)
     a = arrow.get(a_str, tzinfo=tzinfo)
     b = arrow.get(b_str, tzinfo=tzinfo)
     got = describe_time_span((a.timestamp(), b.timestamp()), tzinfo, bounds="[]")

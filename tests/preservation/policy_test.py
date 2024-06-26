@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from random import uniform
-import sys
 import time
 from typing import cast
 
@@ -11,12 +10,8 @@ from btrfs2s3.preservation import Params
 from btrfs2s3.preservation import Policy
 from btrfs2s3.preservation import Timeframe
 from btrfs2s3.preservation import TIMEFRAMES
+from btrfs2s3.zoneinfo import get_zoneinfo
 import pytest
-
-if sys.version_info >= (3, 9):  # pragma: >=3.9 cover
-    from zoneinfo import ZoneInfo
-else:  # pragma: <3.9 cover
-    from backports.zoneinfo import ZoneInfo
 
 
 def _random_timestamp() -> float:
@@ -75,7 +70,7 @@ def test_alternate_now() -> None:
 
 
 def test_alternate_timezone() -> None:
-    tzinfo = ZoneInfo("America/Los_Angeles")
+    tzinfo = get_zoneinfo("America/Los_Angeles")
     policy = Policy(params=Params(years=1), tzinfo=tzinfo)
     time_span = convert_span(arrow.get(tzinfo=tzinfo).span("year", bounds="[]"))
 
