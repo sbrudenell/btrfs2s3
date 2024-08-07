@@ -1,4 +1,4 @@
-"""Code for "btrfs2s3 run"."""
+"""Code for "btrfs2s3 update"."""
 
 from __future__ import annotations
 
@@ -332,18 +332,18 @@ def print_actions(*, console: Console, actions: Actions) -> None:
             console.print()
 
 
-NAME = "run"
+NAME = "update"
 
 
 def add_args(parser: argparse.ArgumentParser) -> None:
-    """Add args for "btrfs2s3 run" to an ArgumentParser."""
+    """Add args for "btrfs2s3 update" to an ArgumentParser."""
     parser.add_argument("config_file", type=load_from_path)
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--pretend", action="store_true")
 
 
 def command(*, console: Console, args: argparse.Namespace) -> int:
-    """Implements "btrfs2s3 run"."""
+    """Implements "btrfs2s3 update"."""
     if not console.is_terminal and not (args.force or args.pretend):
         console.print("to run in unattended mode, use --force")
         return 1

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import arrow
-from btrfs2s3.commands.run import describe_time_span
+from btrfs2s3.commands.update import describe_time_span
 from btrfs2s3.zoneinfo import get_zoneinfo
 import pytest
 from rich.text import Span

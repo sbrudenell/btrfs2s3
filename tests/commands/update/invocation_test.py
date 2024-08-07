@@ -49,7 +49,7 @@ def test_pretend(
         s3:
           bucket: {bucket}
     """)
-    assert main(console=console, argv=["run", "--pretend", str(config_path)]) == 0
+    assert main(console=console, argv=["update", "--pretend", str(config_path)]) == 0
 
     (out, err) = capsys.readouterr()
     # No idea how to stabilize this for golden testing
@@ -90,7 +90,7 @@ def test_force(
         s3:
           bucket: {bucket}
     """)
-    argv = ["run", "--force", str(config_path)]
+    argv = ["update", "--force", str(config_path)]
     assert main(console=console, argv=argv) == 0
 
     (out, err) = capsys.readouterr()
@@ -131,7 +131,7 @@ def test_refuse_to_run_unattended_without_pretend_or_force(
         s3:
           bucket: dummy_bucket
     """)
-    assert main(argv=["run", str(config_path)], console=goldifyconsole) == 1
+    assert main(argv=["update", str(config_path)], console=goldifyconsole) == 1
 
 
 def test_reject_continue_prompt(
@@ -167,7 +167,7 @@ def test_reject_continue_prompt(
           bucket: {bucket}
     """)
     with patch("rich.console.input", return_value="n"):
-        assert main(console=console, argv=["run", str(config_path)]) == 0
+        assert main(console=console, argv=["update", str(config_path)]) == 0
 
     (out, err) = capsys.readouterr()
     # No idea how to stabilize this for golden testing

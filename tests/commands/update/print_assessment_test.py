@@ -13,7 +13,7 @@ from btrfs2s3.assessor import Assessment
 from btrfs2s3.assessor import BackupAssessment
 from btrfs2s3.assessor import SnapshotAssessment
 from btrfs2s3.assessor import SourceAssessment
-from btrfs2s3.commands.run import print_assessment
+from btrfs2s3.commands.update import print_assessment
 from btrfs2s3.resolver import Flags
 from btrfs2s3.resolver import KeepMeta
 from btrfs2s3.resolver import Reasons

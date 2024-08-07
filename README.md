@@ -259,7 +259,7 @@ commit interval (the `-o commit=` mount option). This defaults to 30 seconds.
 # Usage
 
 ```
-btrfs2s3 run [options] config.yaml
+btrfs2s3 update [options] config.yaml
 ```
 
 Perform a one-time update of snapshots and backups.
@@ -272,15 +272,15 @@ For each configured source subvolume, this does the following *once*:
 - Delete expired read-only snapshots.
 - Delete expired backups.
 
-By default, `btrfs2s3 run` will print a preview of what actions would be done, and
+By default, `btrfs2s3 update` will print a preview of what actions would be done, and
 prompt for confirmation. It will refuse to run in a non-interactive terminal, unless
 `--force` is supplied.
 
-Currently, the main way to use `btrfs2s3` is to set up `btrfs2s3 run` to run in a
-crontab. Note that `btrfs2s3 run` may be long-running or not, depending on whether it's
-uploading a new full backup, so you may need some protection in your crontab
-configuration to ensure only one copy of of `btrfs2s3 run` will run at one time.
-`btrfs2s3 run` does not guarantee this on its own.
+Currently, the main way to use `btrfs2s3` is to set up `btrfs2s3 update` to run in a
+crontab. Note that `btrfs2s3 update` may be long-running or not, depending on whether
+it's uploading a new full backup, so you may need some protection in your crontab
+configuration to ensure only one copy of of `btrfs2s3 update` will run at one time.
+`btrfs2s3 update` does not guarantee this on its own.
 
 `--pretend`: Instead of performing actions, *only* print the preview of what actions
 would be performed, then exit.

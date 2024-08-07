@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from btrfs2s3.action import Actions
-from btrfs2s3.commands.run import print_actions
+from btrfs2s3.commands.update import print_actions
 import pytest
 
 if TYPE_CHECKING:
