@@ -18,15 +18,26 @@ if TYPE_CHECKING:
     from rich.console import Console
 
 
+_DESCRIPTION = """
+btrfs2s3 maintains a tree of incremental backups in cloud storage.
+"""
+
+_EPILOG = """
+For detailed docs and usage, see https://github.com/sbrudenell/btrfs2s3
+"""
+
+
 def main(*, console: Console | None = None, argv: Sequence[str] | None = None) -> int:
     """Main function for btrfs2s3."""
     console = console if console else CONSOLE
     argv = argv if argv is not None else sys.argv[1:]
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description=_DESCRIPTION, epilog=_EPILOG)
 
-    subparsers = parser.add_subparsers(dest="command", required=True)
+    subparsers = parser.add_subparsers(
+        dest="command", required=True, help="subcommand (required)"
+    )
 
-    update.add_args(subparsers.add_parser(update.NAME))
+    update.add_args(subparsers.add_parser(update.NAME, **update.ARGS))
 
     args = parser.parse_args(argv)
 

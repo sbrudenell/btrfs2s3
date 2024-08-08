@@ -43,6 +43,7 @@ if TYPE_CHECKING:
     from typing import Iterable
     from typing import Literal
     from typing import Sequence
+    from typing import TypedDict
 
     from typing_extensions import TypeAlias
 
@@ -335,11 +336,34 @@ def print_actions(*, console: Console, actions: Actions) -> None:
 NAME = "update"
 
 
+if TYPE_CHECKING:
+
+    class _Args(TypedDict, total=False):
+        help: str
+        description: str
+        epilog: str
+
+
+ARGS: _Args = {
+    # shown in top-level help
+    "help": "one-time update of snapshots and backups",
+    # shown in subcommand help
+    "description": "One-time update of snapshots and backups.",
+    "epilog": "For detailed docs and usage, see https://github.com/sbrudenell/btrfs2s3",
+}
+
+
 def add_args(parser: argparse.ArgumentParser) -> None:
     """Add args for "btrfs2s3 update" to an ArgumentParser."""
     parser.add_argument("config_file", type=load_from_path)
-    parser.add_argument("--force", action="store_true")
-    parser.add_argument("--pretend", action="store_true")
+    parser.add_argument(
+        "--force", action="store_true", help="perform actions without prompting"
+    )
+    parser.add_argument(
+        "--pretend",
+        action="store_true",
+        help="do not perform actions, just print a preview and exit",
+    )
 
 
 def command(*, console: Console, args: argparse.Namespace) -> int:
