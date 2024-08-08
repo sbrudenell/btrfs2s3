@@ -38,3 +38,8 @@ def test_parse() -> None:
 def test_parse_fail() -> None:
     with pytest.raises(ValueError, match="invalid preservation params"):
         Params.parse("invalid")
+
+
+def test_parse_fail_wrong_format() -> None:
+    with pytest.raises(ValueError, match="invalid preservation params"):
+        Params.parse("1m 1y")

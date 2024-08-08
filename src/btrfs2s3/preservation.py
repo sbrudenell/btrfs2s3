@@ -64,7 +64,6 @@ from btrfs2s3._internal.arrowutil import iter_time_spans
 
 if TYPE_CHECKING:
     from typing import Iterator
-    from typing import Mapping
 
 TS: TypeAlias = Tuple[float, float]
 """An alias for tuple[float, float] which is used as a time span type.
@@ -98,17 +97,16 @@ class TimeframeArgs(TypedDict, Generic[_T], total=False):
     seconds: _T
 
 
-_ELEMENT_RE = re.compile(r"(\d+)([sMhdwmqy])")
-_KWARG_BY_ELEMENT_SUFFIX: Mapping[str, Timeframe] = {
-    "s": "seconds",
-    "M": "minutes",
-    "h": "hours",
-    "d": "days",
-    "w": "weeks",
-    "m": "months",
-    "q": "quarters",
-    "y": "years",
-}
+_REGEX = re.compile(
+    r"^(\b(?P<years>\d+)y\b)? ??"
+    r"(\b(?P<quarters>\d+)q\b)? ??"
+    r"(\b(?P<months>\d+)m\b)? ??"
+    r"(\b(?P<weeks>\d+)w\b)? ??"
+    r"(\b(?P<days>\d+)d\b)? ??"
+    r"(\b(?P<hours>\d+)h\b)? ??"
+    r"(\b(?P<minutes>\d+)M\b)? ??"
+    r"(\b(?P<seconds>\d+)s\b)? ??$"
+)
 
 
 @dataclasses.dataclass
@@ -180,19 +178,21 @@ class Params:
 
         The format is:
 
-            [<secondly>s] [<minutely>M] [<hourly>h] [<daily>d] [<weekly>w]
-            [<monthly>m] [<quarterly>q] [<yearly>y]
+            [<yearly>y] [<quarterly>q] [<monthly>m] [<weekly>w] [<daily>d]
+            [<hourly>h] [<minutely>M] [<secondly>s]
 
         Args:
             desc: The description string.
         """
+        m = _REGEX.match(desc)
+        if not m:
+            msg = f"invalid preservation params: {desc}"
+            raise ValueError(msg)
         kwargs = TimeframeArgs[int]()
-        for element in desc.split():
-            m = _ELEMENT_RE.match(element)
-            if not m:
-                msg = f"invalid preservation params: {desc}"
-                raise ValueError(msg)
-            kwargs[_KWARG_BY_ELEMENT_SUFFIX[m.group(2)]] = int(m.group(1))
+        for timeframe in TIMEFRAMES:
+            value = m.group(timeframe)
+            if value is not None:
+                kwargs[timeframe] = int(value)
         return cls(**kwargs)
 
 
