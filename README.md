@@ -278,9 +278,12 @@ prompt for confirmation. It will refuse to run in a non-interactive terminal, un
 
 Currently, the main way to use `btrfs2s3` is to set up `btrfs2s3 update` to run in a
 crontab. Note that `btrfs2s3 update` may be long-running or not, depending on whether
-it's uploading a new full backup, so you may need some protection in your crontab
-configuration to ensure only one copy of of `btrfs2s3 update` will run at one time.
-`btrfs2s3 update` does not guarantee this on its own.
+it's uploading a new full backup. If running from cron, you may want to protect against
+multiple copies running at once, like this:
+
+```crontab
+* * * * * pgrep btrfs2s3 >/dev/null || btrfs2s3 update --force config.yaml
+```
 
 `--pretend`: Instead of performing actions, *only* print the preview of what actions
 would be performed, then exit.
