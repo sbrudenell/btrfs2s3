@@ -419,6 +419,8 @@ cloud-to-cloud copy mechanisms from there, but this is not planned yet.
 
 It requires Linux user permissions to *create and delete* snapshots.
 
+It requires `CAP_SYS_ADMIN` to perform `btrfs send`.
+
 It requires access to *create and delete* objects on S3.
 
 - `btrfs2s3 update`: requires `s3:ListBucket`, `s3:PutObject` and `s3:DeleteObject`.
@@ -426,11 +428,12 @@ It requires access to *create and delete* objects on S3.
 You can run `btrfs2s3` as a normal Linux user, rather than root. A few things to keep in
 mind:
 
-- [**bug**](https://github.com/sbrudenell/btrfs2s3/issues/38): Normal user operation is
-  currently broken.
+- Running as non-root isn't officially supported yet, as
+  [the test suite doesn't cover it](https://github.com/sbrudenell/btrfs2s3/issues/49).
 - The filesystem must be mounted with `-o user_subvol_rm_allowed`, to delete snapshots.
 - The `btrfs2s3` user must have write permission to the snapshot directory, and read
   permissions to the source subvolumes.
+- The `btrfs2s3` user must also have `CAP_SYS_ADMIN` to perform `btrfs send`.
 - The `btrfs2s3` user should presumably be separate from the subvolume owner. Otherwise,
   the subvolume owner could read S3 secrets from `btrfs2s3`'s config files, or modify
   the config to set `pipe_through` to something malicious.
