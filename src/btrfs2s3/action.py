@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
+import errno
 from itertools import chain
 import logging
 from subprocess import PIPE
@@ -60,7 +61,18 @@ def delete_snapshot(path: Path) -> None:
         msg = "target isn't a read-only snapshot"
         raise RuntimeError(msg)
     _LOG.info("deleting read-only snapshot %s", path)
-    btrfsutil.delete_subvolume(path)
+    try:
+        btrfsutil.delete_subvolume(path)
+    except OSError as ex:
+        if ex.errno == errno.EROFS:
+            # https://github.com/sbrudenell/btrfs2s3/issues/38
+            # If we set the subvolume read-write but fail to delete it, later
+            # runs will ignore it, creating a leak. To minimize this, only do
+            # it in the non-root case.
+            btrfsutil.set_subvolume_read_only(path, read_only=False)
+            btrfsutil.delete_subvolume(path)
+        else:
+            raise  # pragma: no cover
 
 
 def rename_snapshot(*, source: Path, target: Path) -> None:
