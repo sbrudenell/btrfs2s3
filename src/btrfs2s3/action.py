@@ -14,6 +14,7 @@ import btrfsutil
 
 from btrfs2s3._internal.util import NULL_UUID
 from btrfs2s3._internal.util import SubvolumeFlags
+from btrfs2s3.stream_uploader import upload_non_seekable_stream_via_tempfile
 from btrfs2s3.thunk import Thunk
 from btrfs2s3.thunk import ThunkArg
 
@@ -25,6 +26,8 @@ if TYPE_CHECKING:
     from mypy_boto3_s3.client import S3Client
 
 _LOG = logging.getLogger(__name__)
+
+DEFAULT_PART_SIZE = 5 * 2**30
 
 
 def create_snapshot(*, source: Path, path: Path) -> None:
@@ -94,11 +97,15 @@ def create_backup(  # noqa: PLR0913
     send_parent: Path | None,
     key: str,
     pipe_through: Sequence[Sequence[str]] = (),
+    part_size: int = DEFAULT_PART_SIZE,
 ) -> None:
     """Stores a btrfs archive in S3.
 
     This will spawn "btrfs -q send" as a subprocess, as there is currently no way
     to create a btrfs-send stream via pure python.
+
+    This will temporarily store the "btrfs send" stream on disk. A maximum of
+    part_size bytes will be stored at a time.
 
     Args:
         s3: An S3 client.
@@ -109,6 +116,9 @@ def create_backup(  # noqa: PLR0913
         key: The S3 object key.
         pipe_through: A sequence of shell commands through which the archive
             should be piped before uploading.
+        part_size: For multipart uploads, use this as the maximum part size.
+            Defaults to the well-known maximum part size for AWS, which is
+            currently 5 GiB.
     """
     _LOG.info(
         "creating backup of %s (%s)",
@@ -132,7 +142,13 @@ def create_backup(  # noqa: PLR0913
     # https://github.com/python/typeshed/issues/3831
     assert pipeline_stdout is not None  # noqa: S101
     try:
-        s3.upload_fileobj(pipeline_stdout, bucket, key)
+        upload_non_seekable_stream_via_tempfile(
+            client=s3,
+            bucket=bucket,
+            key=key,
+            stream=pipeline_stdout,
+            part_size=part_size,
+        )
     finally:
         # Allow the pipeline to fail if the upload fails
         pipeline_stdout.close()
