@@ -446,6 +446,12 @@ This can increase your cloud API usage costs. When running as a single user (roo
 otherwise), `btrfs2s3` can be configured to back up multiple sources to a single remote,
 and only call `ListObjectsV2` once per update of all sources.
 
+Another disadvantage of running multiple instances of `btrfs2s3` is that they may create
+a "thundering herd". If two instances are configured with similar preservation policies,
+they may both start uploading new full backups at the same time, creating congestion.
+They may also start using large amounts of temporary storage at the same time (see
+[quirks when uploading to S3](#quirks-when-uploading-to-s3)).
+
 # Immutable backups
 
 [**Upcoming feature**](https://github.com/sbrudenell/btrfs2s3/issues/31): `btrfs2s3`
@@ -469,6 +475,77 @@ pipe_through:
 `btrfs2s3` doesn't currently support "server-side encryption", nor is this planned. It
 appears to be access control with extra steps. If someone wants this feature, they will
 need to convince me it's meaningful.
+
+# Quirks when uploading to S3
+
+The data stream produced by `btrfs send` (with or without `pipe_through`) has
+unpredictable length and is not seekable. The S3 API is poorly-designed for this case.
+
+Currently, when uploading to S3, `btrfs2s3` will upload backups in 5 GiB chunks. Each
+chunk will be written to temporary disk storage before uploading.
+
+[**Known issue**](https://github.com/sbrudenell/btrfs2s3/issues/54): We will currently
+fail to upload backup streams larger than the provider's maximum object size (5 TiB for
+AWS).
+
+[**Known issue**](https://github.com/sbrudenell/btrfs2s3/issues/55): We will currently
+fail to upload zero-length backup streams. `btrfs send` does not produce these, but this
+may occur depending on `pipe_through`.
+
+[**Known issue**](https://github.com/sbrudenell/btrfs2s3/issues/52): Copying data to
+temporary storage is currently done in python, which is slow. We could use `sendfile()`
+/ `splice()` to speed it up.
+
+[**Upcoming feature**](https://github.com/sbrudenell/btrfs2s3/issues/53): We will have
+an option to change the temporary storage location (including `/dev/shm` for storing it
+in RAM).
+
+[**Upcoming feature**](https://github.com/sbrudenell/btrfs2s3/issues/62): In the future
+we'll only buffer the first 5 GiB part of a backup stream and directly stream the
+remaining data, rather than buffering the entire stream in chunks.
+
+For background:
+
+The S3 API provides two methods for uploading data:
+
+- `PutObject`, for "small" objects
+- `CreateMultipartUpload` / `UploadPart` / `CompleteMultipartUpload`, for "large"
+  objects
+
+The maximum length of data that can be uploaded with `PutObject` or `UploadPart` is 5
+GiB. The maximum size of an object is 5 TiB. The maximum number of parts in a multipart
+upload is 10000.
+
+As of writing, AWS charges money for each S3 API call, including each of `PutObject`,
+`CreateMultipartUpload`, `UploadPart` and `CompleteMultipartUpload`. Multipart uploads
+thus incur higher costs per object than a `PutObject` call. Multipart uploads with
+smaller parts (anything under the maximum of 5 GiB) further increase costs. Some cloud
+storage providers do not charge money for these calls (Backblaze B2, as of writing).
+
+It would be simple to always use multipart uploads. However, `btrfs2s3` is designed for
+frequent uploads of small, short-lived backups, so this strategy would incur extra API
+usage costs in the common case. This amounts to paying extra money to AWS as thanks for
+their failure to design a coherent API, which is obviously abhorrent.
+
+It would also be simple to always use `PutObject`, and split large (> 5 GiB) backup
+streams across multiple objects (we must do this anyway for streams larger than the
+maximum object size of 5 TiB). However we also want to minimize the number of total
+objects in a bucket, to minimize calls to `ListObjectsV2`. Therefore we want to maximize
+the size of each object and minimize splitting.
+
+`PutObject` and `UploadPart` are HTTP PUT requests under the hood, where the request
+body is the object data, thus they *can* accommodate unbounded data streams without
+temporary storage. However there is no way to start with a `PutObject` call and append
+data to an object (this would especially not make sense with immutable objects). If we
+want to upload an unbounded stream *and* minimize API calls, we must choose the correct
+call before beginning the upload of the first 5 GiB part.
+
+Thus: if we want to upload an unbounded, non-seekable stream to S3 while minimizing API
+usage costs, we must buffer the first 5 GiB of data. This is awkward, but it is
+financially incentivized by AWS.
+
+`btrfs2s3` buffers to disk by default. As of writing, a program using 5 GiB of RAM for
+temporary storage would be considered unfriendly to users.
 
 # Could this work with zfs?
 
