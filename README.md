@@ -111,6 +111,15 @@ and less tested. Python developers are not good at specifying versions of their
 dependencies for some reason, so these version mixtures often break things. The simplest
 fix for this is to use `pip install --ignore-installed`.
 
+# Versioning
+
+`btrfs2s3` adheres to [Semantic Versioning v2.0.0](https://semver.org/spec/v2.0.0.html).
+Any breaking changes will result in a major version bump.
+
+I have not yet released v0.1.0.
+
+I have not yet finalized plans for a public API.
+
 # Config
 
 Minimal example:
