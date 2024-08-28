@@ -72,7 +72,7 @@ class BackupInfo:
         uuid = UUID(bytes=self.uuid)
         parent_uuid = UUID(bytes=self.parent_uuid)
         send_parent_uuid = (
-            UUID(bytes=self.send_parent_uuid) if self.send_parent_uuid else None
+            UUID(bytes=self.send_parent_uuid) if self.send_parent_uuid else UUID(int=0)
         )
         # arrow.get(float, tzinfo=None) raises an error, so we explicitly
         # default to UTC
@@ -82,10 +82,7 @@ class BackupInfo:
             f".i{self.ctransid}",
             f".u{uuid}",
         ]
-        if send_parent_uuid is None:
-            suffixes.append(".full")
-        else:
-            suffixes.append(f".s{send_parent_uuid}")
+        suffixes.append(f".s{send_parent_uuid}")
         suffixes.append(f".p{parent_uuid}")
         return suffixes
 
@@ -113,14 +110,11 @@ class BackupInfo:
         uuid: UUID | None = None
         parent_uuid: UUID | None = None
         send_parent_uuid: UUID | None = None
-        is_full = False
         ctransid: int | None = None
         ctime: Arrow | None = None
 
         suffixes = pathlib.PurePath(path).suffixes
         for suffix in suffixes:
-            if suffix == ".full":
-                is_full = True
             code, rest = suffix[1], suffix[2:]
             if code == "p":
                 with suppress(ValueError):
@@ -143,7 +137,7 @@ class BackupInfo:
             or parent_uuid is None
             or ctransid is None
             or ctime is None
-            or (send_parent_uuid is None and not is_full)
+            or send_parent_uuid is None
         ):
             msg = "missing or incomplete parameters for backup name"
             raise ValueError(msg)
@@ -152,5 +146,5 @@ class BackupInfo:
             parent_uuid=parent_uuid.bytes,
             ctransid=ctransid,
             ctime=ctime.timestamp(),
-            send_parent_uuid=send_parent_uuid.bytes if send_parent_uuid else None,
+            send_parent_uuid=send_parent_uuid.bytes if send_parent_uuid.int else None,
         )

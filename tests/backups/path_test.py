@@ -69,7 +69,7 @@ def test_get_path_suffixes_with_full_backup() -> None:
         ".t2006-01-01T00:00:00+00:00",
         ".i12345",
         ".u3fd11d8e-8110-4cd0-b85c-bae3dda86a3d",
-        ".full",
+        ".s00000000-0000-0000-0000-000000000000",
         ".p9d9d3bcb-4b62-46a3-b6e2-678eeb24f54e",
     ]
     assert got == expected
