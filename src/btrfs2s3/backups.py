@@ -22,6 +22,9 @@ _CTID = "ctid"
 _UUID = "uuid"
 _SNDP = "sndp"
 _PRNT = "prnt"
+_MDVN = "mdvn"
+
+_METADATA_VERSION = 1
 
 
 @dataclasses.dataclass(frozen=True)
@@ -89,10 +92,11 @@ class BackupInfo:
             f".{_UUID}{uuid}",
             f".{_SNDP}{send_parent_uuid}",
             f".{_PRNT}{parent_uuid}",
+            f".{_MDVN}{_METADATA_VERSION}",
         ]
 
     @classmethod
-    def from_path(cls, path: str) -> Self:
+    def from_path(cls, path: str) -> Self:  # noqa: C901
         """Creates a BackupInfo from a backup filename or path.
 
         The path is expected to have a base name, and suffixes as returned by
@@ -117,6 +121,7 @@ class BackupInfo:
         send_parent_uuid: UUID | None = None
         ctransid: int | None = None
         ctime: Arrow | None = None
+        version: int | None = None
 
         suffixes = pathlib.PurePath(path).suffixes
         for suffix in suffixes:
@@ -136,7 +141,16 @@ class BackupInfo:
             elif code == _SNDP:
                 with suppress(ValueError):
                     send_parent_uuid = UUID(rest)
+            elif code == _MDVN:
+                with suppress(ValueError):
+                    version = int(rest)
 
+        if version is None:
+            msg = "backup name metadata version missing (not a backup?)"
+            raise ValueError(msg)
+        if version != _METADATA_VERSION:
+            msg = "unsupported backup name metadata version"
+            raise ValueError(msg)
         if (
             uuid is None
             or parent_uuid is None
