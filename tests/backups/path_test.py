@@ -22,11 +22,11 @@ def test_get_path_suffixes_with_real_timezone() -> None:
     )
     got = info.get_path_suffixes(tzinfo="US/Pacific")
     expected = [
-        ".t2006-01-01T00:00:00-08:00",
-        ".i12345",
-        ".u3fd11d8e-8110-4cd0-b85c-bae3dda86a3d",
-        ".s3ae01eae-d50d-4187-b67f-cef0ef973e1f",
-        ".p9d9d3bcb-4b62-46a3-b6e2-678eeb24f54e",
+        ".ctim2006-01-01T00:00:00-08:00",
+        ".ctid12345",
+        ".uuid3fd11d8e-8110-4cd0-b85c-bae3dda86a3d",
+        ".sndp3ae01eae-d50d-4187-b67f-cef0ef973e1f",
+        ".prnt9d9d3bcb-4b62-46a3-b6e2-678eeb24f54e",
     ]
     assert got == expected
 
@@ -44,11 +44,11 @@ def test_get_path_suffixes_default_to_utc() -> None:
     )
     got = info.get_path_suffixes()
     expected = [
-        ".t2006-01-01T00:00:00+00:00",
-        ".i12345",
-        ".u3fd11d8e-8110-4cd0-b85c-bae3dda86a3d",
-        ".s3ae01eae-d50d-4187-b67f-cef0ef973e1f",
-        ".p9d9d3bcb-4b62-46a3-b6e2-678eeb24f54e",
+        ".ctim2006-01-01T00:00:00+00:00",
+        ".ctid12345",
+        ".uuid3fd11d8e-8110-4cd0-b85c-bae3dda86a3d",
+        ".sndp3ae01eae-d50d-4187-b67f-cef0ef973e1f",
+        ".prnt9d9d3bcb-4b62-46a3-b6e2-678eeb24f54e",
     ]
     assert got == expected
 
@@ -66,11 +66,11 @@ def test_get_path_suffixes_with_full_backup() -> None:
     )
     got = info.get_path_suffixes()
     expected = [
-        ".t2006-01-01T00:00:00+00:00",
-        ".i12345",
-        ".u3fd11d8e-8110-4cd0-b85c-bae3dda86a3d",
-        ".s00000000-0000-0000-0000-000000000000",
-        ".p9d9d3bcb-4b62-46a3-b6e2-678eeb24f54e",
+        ".ctim2006-01-01T00:00:00+00:00",
+        ".ctid12345",
+        ".uuid3fd11d8e-8110-4cd0-b85c-bae3dda86a3d",
+        ".sndp00000000-0000-0000-0000-000000000000",
+        ".prnt9d9d3bcb-4b62-46a3-b6e2-678eeb24f54e",
     ]
     assert got == expected
 
@@ -82,11 +82,11 @@ def test_get_path_suffixes_with_full_backup() -> None:
     "suffixes",
     itertools.permutations(
         [
-            ".t2006-01-01T00:00:00-08:00",
-            ".i12345",
-            ".u3fd11d8e-8110-4cd0-b85c-bae3dda86a3d",
-            ".s3ae01eae-d50d-4187-b67f-cef0ef973e1f",
-            ".p9d9d3bcb-4b62-46a3-b6e2-678eeb24f54e",
+            ".ctim2006-01-01T00:00:00-08:00",
+            ".ctid12345",
+            ".uuid3fd11d8e-8110-4cd0-b85c-bae3dda86a3d",
+            ".sndp3ae01eae-d50d-4187-b67f-cef0ef973e1f",
+            ".prnt9d9d3bcb-4b62-46a3-b6e2-678eeb24f54e",
             ".gz",
         ]
     ),
@@ -109,16 +109,30 @@ def test_from_path_with_suffixes_in_any_order(suffixes: Sequence[str]) -> None:
     [
         "bad-path-no-suffixes",
         "bad.path.with.suffixes",
-        ".t20O6-01-01T00:00:00-08:00.i12345.u3fd11d8e-8110-4cd0-b85c-bae3dda86a3d"
-        ".s3ae01eae-d50d-4187-b67f-cef0ef973e1f.p9d9d3bcb-4b62-46a3-b6e2-678eeb24f54e",
-        ".t2006-01-01T00:00:00-08:00.i12345.u3fd11d8e-811O-4cd0-b85c-bae3dda86a3d"
-        ".s3ae01eae-d50d-4187-b67f-cef0ef973e1f.p9d9d3bcb-4b62-46a3-b6e2-678eeb24f54e",
-        ".t2006-01-01T00:00:00-08:00.il2345.u3fd11d8e-8110-4cd0-b85c-bae3dda86a3d"
-        ".s3ae01eae-d50d-4187-b67f-cef0ef973e1f.p9d9d3bcb-4b62-46a3-b6e2-678eeb24f54e",
-        ".t2006-01-01T00:00:00-08:00.i12345.u3fd11d8e-8110-4cd0-b85c-bae3dda86a3d"
-        ".s3ae01eae-d50d-4187-b67f-cef0ef973e1f.p9d9d3bcb-4b62-46a3-b6e2-678eeb24f54e",
-        ".t2006-01-01T00:00:00-08:00.i12345.u3fd11d8e-8110-4cd0-b85c-bae3dda86a3d"
-        ".s3ae01eae-d50d-4187-b67f-cef0ef973e1f.p9d9d3gcb-4b62-46a3-b6e2-678eeb24f54e",
+        ".ctim20O6-01-01T00:00:00-08:00"
+        ".ctid12345"
+        ".uuid3fd11d8e-8110-4cd0-b85c-bae3dda86a3d"
+        ".sndp3ae01eae-d50d-4187-b67f-cef0ef973e1f"
+        ".prnt9d9d3bcb-4b62-46a3-b6e2-678eeb24f54e",
+        ".ctim2006-01-01T00:00:00-08:00"
+        ".ctid12345"
+        ".uuid3fd11d8e-811O-4cd0-b85c-bae3dda86a3d"
+        ".sndp3ae01eae-d50d-4187-b67f-cef0ef973e1f"
+        ".prnt9d9d3bcb-4b62-46a3-b6e2-678eeb24f54e",
+        ".ctim2006-01-01T00:00:00-08:00"
+        ".ctidl2345.u3fd11d8e-8110-4cd0-b85c-bae3dda86a3d"
+        ".sndp3ae01eae-d50d-4187-b67f-cef0ef973e1f"
+        ".prnt9d9d3bcb-4b62-46a3-b6e2-678eeb24f54e",
+        ".ctim2006-01-01T00:00:00-08:00"
+        ".ctid12345"
+        ".uuid3fd11d8e-8110-4cd0-b85c-bae3dda86a3d"
+        ".sndp3ae01eae-d50d-4187-b67f-cef0ef973e1f"
+        ".prnt9d9d3bcb-4b62-46a3-b6e2-678eeb24f54e",
+        ".ctim2006-01-01T00:00:00-08:00"
+        ".ctid12345"
+        ".uuid3fd11d8e-8110-4cd0-b85c-bae3dda86a3d"
+        ".sndp3ae01eae-d50d-4187-b67f-cef0ef973e1f"
+        ".prnt9d9d3gcb-4b62-46a3-b6e2-678eeb24f54e",
     ],
 )
 def test_bad_paths(bad_path: str) -> None:

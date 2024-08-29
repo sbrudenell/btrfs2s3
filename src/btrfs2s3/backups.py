@@ -17,6 +17,12 @@ if TYPE_CHECKING:
     from datetime import tzinfo
     from typing import Sequence
 
+_CTIM = "ctim"
+_CTID = "ctid"
+_UUID = "uuid"
+_SNDP = "sndp"
+_PRNT = "prnt"
+
 
 @dataclasses.dataclass(frozen=True)
 class BackupInfo:
@@ -77,14 +83,13 @@ class BackupInfo:
         # arrow.get(float, tzinfo=None) raises an error, so we explicitly
         # default to UTC
         ctime = arrow.get(self.ctime, tzinfo="UTC" if tzinfo is None else tzinfo)
-        suffixes = [
-            f".t{ctime.isoformat(timespec='seconds')}",
-            f".i{self.ctransid}",
-            f".u{uuid}",
+        return [
+            f".{_CTIM}{ctime.isoformat(timespec='seconds')}",
+            f".{_CTID}{self.ctransid}",
+            f".{_UUID}{uuid}",
+            f".{_SNDP}{send_parent_uuid}",
+            f".{_PRNT}{parent_uuid}",
         ]
-        suffixes.append(f".s{send_parent_uuid}")
-        suffixes.append(f".p{parent_uuid}")
-        return suffixes
 
     @classmethod
     def from_path(cls, path: str) -> Self:
@@ -115,20 +120,20 @@ class BackupInfo:
 
         suffixes = pathlib.PurePath(path).suffixes
         for suffix in suffixes:
-            code, rest = suffix[1], suffix[2:]
-            if code == "p":
+            code, rest = suffix[1:5], suffix[5:]
+            if code == _PRNT:
                 with suppress(ValueError):
                     parent_uuid = UUID(rest)
-            elif code == "t":
+            elif code == _CTIM:
                 with suppress(arrow.ParserError):
                     ctime = arrow.get(rest)
-            elif code == "i":
+            elif code == _CTID:
                 with suppress(ValueError):
                     ctransid = int(rest)
-            elif code == "u":
+            elif code == _UUID:
                 with suppress(ValueError):
                     uuid = UUID(rest)
-            elif code == "s":
+            elif code == _SNDP:
                 with suppress(ValueError):
                     send_parent_uuid = UUID(rest)
 
