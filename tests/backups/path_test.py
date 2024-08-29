@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import itertools
+import random
 import re
 from typing import TYPE_CHECKING
 from uuid import UUID
@@ -11,6 +12,9 @@ import pytest
 
 if TYPE_CHECKING:
     from typing import Sequence
+    from typing import TypeVar
+
+    _T = TypeVar("_T")
 
 
 def test_get_path_suffixes_with_real_timezone() -> None:
@@ -29,6 +33,7 @@ def test_get_path_suffixes_with_real_timezone() -> None:
         ".sndp3ae01eae-d50d-4187-b67f-cef0ef973e1f",
         ".prnt9d9d3bcb-4b62-46a3-b6e2-678eeb24f54e",
         ".mdvn1",
+        ".seqn0",
     ]
     assert got == expected
 
@@ -52,6 +57,7 @@ def test_get_path_suffixes_default_to_utc() -> None:
         ".sndp3ae01eae-d50d-4187-b67f-cef0ef973e1f",
         ".prnt9d9d3bcb-4b62-46a3-b6e2-678eeb24f54e",
         ".mdvn1",
+        ".seqn0",
     ]
     assert got == expected
 
@@ -75,6 +81,7 @@ def test_get_path_suffixes_with_full_backup() -> None:
         ".sndp00000000-0000-0000-0000-000000000000",
         ".prnt9d9d3bcb-4b62-46a3-b6e2-678eeb24f54e",
         ".mdvn1",
+        ".seqn0",
     ]
     assert got == expected
 
@@ -82,18 +89,33 @@ def test_get_path_suffixes_with_full_backup() -> None:
     assert round_trip == info
 
 
+def _fixed_choices(population: Sequence[_T], seed: int, k: int) -> list[_T]:
+    state = random.getstate()
+    random.seed(seed)
+    result = random.choices(population, k=k)
+    random.setstate(state)
+    return result
+
+
 @pytest.mark.parametrize(
     "suffixes",
-    itertools.permutations(
-        [
-            ".ctim2006-01-01T00:00:00-08:00",
-            ".ctid12345",
-            ".uuid3fd11d8e-8110-4cd0-b85c-bae3dda86a3d",
-            ".sndp3ae01eae-d50d-4187-b67f-cef0ef973e1f",
-            ".prnt9d9d3bcb-4b62-46a3-b6e2-678eeb24f54e",
-            ".mdvn1",
-            ".gz",
-        ]
+    _fixed_choices(
+        list(
+            itertools.permutations(
+                [
+                    ".ctim2006-01-01T00:00:00-08:00",
+                    ".ctid12345",
+                    ".uuid3fd11d8e-8110-4cd0-b85c-bae3dda86a3d",
+                    ".sndp3ae01eae-d50d-4187-b67f-cef0ef973e1f",
+                    ".prnt9d9d3bcb-4b62-46a3-b6e2-678eeb24f54e",
+                    ".mdvn1",
+                    ".seqn0",
+                    ".gz",
+                ]
+            )
+        ),
+        0,
+        1000,
     ),
 )
 def test_from_path_with_suffixes_in_any_order(suffixes: Sequence[str]) -> None:
@@ -117,30 +139,35 @@ def test_from_path_with_suffixes_in_any_order(suffixes: Sequence[str]) -> None:
         ".uuid3fd11d8e-8110-4cd0-b85c-bae3dda86a3d"
         ".sndp3ae01eae-d50d-4187-b67f-cef0ef973e1f"
         ".prnt9d9d3bcb-4b62-46a3-b6e2-678eeb24f54e"
-        ".mdvn1",
+        ".mdvn1"
+        ".seqn0",
         ".ctim2006-01-01T00:00:00-08:00"
         ".ctid12345"
         ".uuid3fd11d8e-811O-4cd0-b85c-bae3dda86a3d"
         ".sndp3ae01eae-d50d-4187-b67f-cef0ef973e1f"
         ".prnt9d9d3bcb-4b62-46a3-b6e2-678eeb24f54e"
-        ".mdvn1",
+        ".mdvn1"
+        ".seqn0",
         ".ctim2006-01-01T00:00:00-08:00"
         ".ctidl2345.u3fd11d8e-8110-4cd0-b85c-bae3dda86a3d"
         ".sndp3ae01eae-d50d-4187-b67f-cef0ef973e1f"
         ".prnt9d9d3bcb-4b62-46a3-b6e2-678eeb24f54e"
-        ".mdvn1",
+        ".mdvn1"
+        ".seqn0",
         ".ctim2006-01-01T00:00:00-08:00"
         ".ctid12345"
         ".uuid3fd11d8e-8110-4cd0-b85c-bae3dda86a3d"
         ".sndp3ae01eae-d50d-4187-b67f-cef0ef973e1f"
         ".prnt9d9d3bcb-4b62-46a3-b6e2-678eeb24f54e"
-        ".mdvn1",
+        ".mdvn1"
+        ".seqn0",
         ".ctim2006-01-01T00:00:00-08:00"
         ".ctid12345"
         ".uuid3fd11d8e-8110-4cd0-b85c-bae3dda86a3d"
         ".sndp3ae01eae-d50d-4187-b67f-cef0ef973e1f"
         ".prnt9d9d3gcb-4b62-46a3-b6e2-678eeb24f54e"
-        ".mdvn1",
+        ".mdvn1"
+        ".seqn0",
     ],
 )
 def test_bad_paths(bad_path: str) -> None:
@@ -159,13 +186,15 @@ def test_bad_paths(bad_path: str) -> None:
         ".ctid12345"
         ".uuid3fd11d8e-8110-4cd0-b85c-bae3dda86a3d"
         ".sndp3ae01eae-d50d-4187-b67f-cef0ef973e1f"
-        ".prnt9d9d3bcb-4b62-46a3-b6e2-678eeb24f54e",
+        ".prnt9d9d3bcb-4b62-46a3-b6e2-678eeb24f54e"
+        ".seqn0",
         ".ctim2006-01-01T00:00:00-08:00"
         ".ctid12345"
         ".uuid3fd11d8e-8110-4cd0-b85c-bae3dda86a3d"
         ".sndp3ae01eae-d50d-4187-b67f-cef0ef973e1f"
         ".prnt9d9d3bcb-4b62-46a3-b6e2-678eeb24f54e"
-        ".mdvnI",
+        ".mdvnI"
+        ".seqn0",
     ],
 )
 def test_no_version(bad_path: str) -> None:
@@ -185,4 +214,18 @@ def test_bad_version() -> None:
             ".sndp3ae01eae-d50d-4187-b67f-cef0ef973e1f"
             ".prnt9d9d3bcb-4b62-46a3-b6e2-678eeb24f54e"
             ".mdvn1000"
+            ".seqn0"
+        )
+
+
+def test_bad_sequence_number() -> None:
+    with pytest.raises(ValueError, match="unsupported sequence number"):
+        BackupInfo.from_path(
+            ".ctim2006-01-01T00:00:00-08:00"
+            ".ctid12345"
+            ".uuid3fd11d8e-8110-4cd0-b85c-bae3dda86a3d"
+            ".sndp3ae01eae-d50d-4187-b67f-cef0ef973e1f"
+            ".prnt9d9d3bcb-4b62-46a3-b6e2-678eeb24f54e"
+            ".mdvn1"
+            ".seqn1"
         )

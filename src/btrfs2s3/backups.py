@@ -23,6 +23,7 @@ _UUID = "uuid"
 _SNDP = "sndp"
 _PRNT = "prnt"
 _MDVN = "mdvn"
+_SEQN = "seqn"
 
 _METADATA_VERSION = 1
 
@@ -93,6 +94,7 @@ class BackupInfo:
             f".{_SNDP}{send_parent_uuid}",
             f".{_PRNT}{parent_uuid}",
             f".{_MDVN}{_METADATA_VERSION}",
+            f".{_SEQN}0",
         ]
 
     @classmethod
@@ -122,6 +124,7 @@ class BackupInfo:
         ctransid: int | None = None
         ctime: Arrow | None = None
         version: int | None = None
+        sequence_number: int | None = None
 
         suffixes = pathlib.PurePath(path).suffixes
         for suffix in suffixes:
@@ -144,12 +147,18 @@ class BackupInfo:
             elif code == _MDVN:
                 with suppress(ValueError):
                     version = int(rest)
+            elif code == _SEQN:
+                with suppress(ValueError):
+                    sequence_number = int(rest)
 
         if version is None:
             msg = "backup name metadata version missing (not a backup?)"
             raise ValueError(msg)
         if version != _METADATA_VERSION:
             msg = "unsupported backup name metadata version"
+            raise ValueError(msg)
+        if sequence_number != 0:
+            msg = "unsupported sequence number"
             raise ValueError(msg)
         if (
             uuid is None
