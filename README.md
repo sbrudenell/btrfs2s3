@@ -116,9 +116,16 @@ fix for this is to use `pip install --ignore-installed`.
 `btrfs2s3` adheres to [Semantic Versioning v2.0.0](https://semver.org/spec/v2.0.0.html).
 Any breaking changes will result in a major version bump.
 
-I have not yet released v0.1.0.
+As of writing, the documented user-facing API surface consists of:
 
-I have not yet finalized plans for a public API.
+- The CLI
+- The backup object storage and metadata format
+
+There is no publicly-exposed programmatic interface / API as of writing. The
+programmatic interface should be considered **unstable** and subject to breaking change
+without a major version bump.
+
+The v0.x versions are experimental and should not be used.
 
 # Config
 
