@@ -300,9 +300,58 @@ would be performed, then exit.
 `--force`: Perform the actions without prompting. This is required when running in a
 non-interactive terminal.
 
-[**Upcoming feature**](https://github.com/sbrudenell/btrfs2s3/issues/15): in the future
-we'll have a "daemon mode" that runs in the background and performs these updates as
-needed.
+______________________________________________________________________
+
+[**Upcoming feature**](https://github.com/sbrudenell/btrfs2s3/issues/15):
+
+```
+btrfs2s3 daemon [options] config.yaml
+```
+
+Continuously update snapshots and backups. This will be equivalent to running
+`btrfs2s3 update` in cron, but will be more efficient in API usage due to caching data,
+and more efficient in local resources due to not reloading python.
+
+______________________________________________________________________
+
+[**Upcoming feature**](https://github.com/sbrudenell/btrfs2s3/issues/8):
+
+```
+btrfs2s3 restore [options] config.yaml local-path remote-id [target-uuid]
+```
+
+Restore backup(s) to a local btrfs filesystem with `btrfs receive`.
+
+`local-path` is a path to a btrfs filesystem. Any restored snapshots will be created as
+subdirectories of `local-path`.
+
+`remote-id` refers to the `id` field of the top-level `remotes` list in `config.yaml`.
+
+With no `target-uuid` argument, restore all backups found on the remote.
+
+If `target-uuid` is supplied, it is interpreted based on the data found in the remote.
+If it refers to a source UUID (aka parent UUID), all backups for that source will be
+restored. If it refers to a specific snapshot UUID, then that snapshot and its
+send-parents will be restored (that is, if the target is an incremental backup, then its
+ancestor full backup and any intermediate backups will be restored too).
+
+`--pipe-through`: A command string. Each backup will be passed through this command
+before being passed to `btrfs receive`. This should generally be the inverse of
+`pipe_through` from `config.yaml`: if `config.yaml` contains `pipe_through: [gzip]`, you
+should pass `btrfs2s3 restore --pipe-through=gunzip`. `--pipe-through` can be specified
+multiple times.
+
+______________________________________________________________________
+
+[**Upcoming feature**](https://github.com/sbrudenell/btrfs2s3/issues/57):
+
+```
+btrfs2s3 list-backups [options] config.yaml remote-id
+```
+
+List the backups in a bucket.
+
+`remote-id` refers to the `id` field of the top-level `remotes` list in `config.yaml`.
 
 # Design
 
