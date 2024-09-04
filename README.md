@@ -1,3 +1,5 @@
+![coverage: 100%](https://img.shields.io/badge/coverage-100%25-brightgreen)
+
 # What does it do?
 
 `btrfs2s3` maintains a *tree* of incremental backups in cloud object storage (anything
