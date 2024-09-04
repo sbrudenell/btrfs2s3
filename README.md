@@ -36,6 +36,33 @@ costs.
 `btrfs2s3` will keep one *snapshot* on disk for each *backup* in the cloud. This
 one-to-one correspondence is required for incremental backups.
 
+<!-- mdformat-toc start --slug=github --no-anchors --maxlevel=6 --minlevel=1 -->
+
+- [What does it do?](#what-does-it-do)
+- [Advantages](#advantages)
+- [Disadvantages](#disadvantages)
+- [Comparison with other tools](#comparison-with-other-tools)
+- [Installation](#installation)
+- [Versioning](#versioning)
+- [Config](#config)
+- [Preservation Policy](#preservation-policy)
+- [Usage](#usage)
+- [Design](#design)
+- [Object storage scheme](#object-storage-scheme)
+- [Cloud storage costs](#cloud-storage-costs)
+- [Cloud API usage costs](#cloud-api-usage-costs)
+- [Cloud-to-host costs](#cloud-to-host-costs)
+- [Host-to-cloud costs](#host-to-cloud-costs)
+- [Security](#security)
+- [Immutable backups](#immutable-backups)
+- [Encryption](#encryption)
+- [Quirks when uploading to S3](#quirks-when-uploading-to-s3)
+- [Could this work with zfs?](#could-this-work-with-zfs)
+- [Could this work with self-hosted object storage?](#could-this-work-with-self-hosted-object-storage)
+- [Timezones](#timezones)
+
+<!-- mdformat-toc end -->
+
 # Advantages
 
 - Atomic snapshot backups.

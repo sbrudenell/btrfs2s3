@@ -35,6 +35,7 @@ repos:
   - id: mdformat
     additional_dependencies:
     - mdformat-config
+    - mdformat-toc
 - repo: https://github.com/astral-sh/ruff-pre-commit
   rev: v0.5.7
   hooks:
