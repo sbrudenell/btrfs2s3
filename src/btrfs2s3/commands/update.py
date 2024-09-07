@@ -417,6 +417,9 @@ def command(*, console: Console, args: argparse.Namespace) -> int:
     )
     s3 = session.client(
         "s3",
+        # https://docs.aws.amazon.com/sdk-for-javascript/v2/developer-guide/locking-api-versions.html
+        # says that pinning api_version is a best practice
+        api_version="2006-03-01",
         verify=s3_endpoint.get("verify"),
         endpoint_url=s3_endpoint.get("endpoint_url"),
     )

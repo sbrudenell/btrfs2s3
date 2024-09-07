@@ -61,7 +61,6 @@ class S3EndpointConfig(TypedDict):
     aws_secret_access_key: NotRequired[str]
     region_name: NotRequired[str]
     profile_name: NotRequired[str]
-    api_version: NotRequired[str]
     verify: NotRequired[bool | str]
     endpoint_url: NotRequired[str]
 
@@ -73,7 +72,6 @@ _S3_ENDPOINT_SCHEMA = Map(
     OptionalNoDefault("aws_secret_access_key", check_string),
     OptionalNoDefault("region_name", check_string),
     OptionalNoDefault("profile_name", check_string),
-    OptionalNoDefault("api_version", check_string),
     OptionalNoDefault("verify", check_type((bool, str), typename="bool or path")),
     OptionalNoDefault("endpoint_url", check_string),
 )

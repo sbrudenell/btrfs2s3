@@ -228,11 +228,6 @@ remotes:
         aws_secret_access_key: ABCXYZ...
         # The S3 endpoint URL. Required if not specified in ~/.aws
         endpoint_url: https://s3.us-west-2.amazonaws.com
-        # https://docs.aws.amazon.com/sdk-for-javascript/v2/developer-guide/locking-api-versions.html
-        # says a best practice is to pin this version to avoid unexpected API
-        # changes. The latest S3 API version is "2006-03-01". Defaults to
-        # unset, which means to use the latest API version.
-        api_version: 2006-03-01
         # Whether to verify SSL certificates on the endpoint. This can be true
         # to verify against the default certificate store, or false to disable
         # certificate verification, or a path to a combined .pem file to

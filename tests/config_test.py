@@ -105,7 +105,6 @@ def test_s3_endpoint_config(path: Path) -> None:
               aws_secret_access_key: secret
               region_name: region
               profile_name: profile
-              api_version: version
               verify: true
               endpoint_url: https://example.com
     """)
@@ -116,7 +115,6 @@ def test_s3_endpoint_config(path: Path) -> None:
             "aws_secret_access_key": "secret",
             "region_name": "region",
             "profile_name": "profile",
-            "api_version": "version",
             "verify": True,
             "endpoint_url": "https://example.com",
         }
