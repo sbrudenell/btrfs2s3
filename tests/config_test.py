@@ -223,3 +223,24 @@ def test_invalid_upload_to_remote_id(path: Path) -> None:
     """)
     with pytest.raises(InvalidConfigError):
         load_from_path(path)
+
+
+def test_no_multiple_remotes(path: Path) -> None:
+    path.write_text("""
+        timezone: a
+        sources:
+        - path: b
+          snapshots: c
+          upload_to_remotes:
+          - id: aws
+            preserve: 1y 1m
+        remotes:
+        - id: aws
+          s3:
+            bucket: d
+        - id: b2
+          s3:
+            bucket: e
+    """)
+    with pytest.raises(InvalidConfigError):
+        load_from_path(path)

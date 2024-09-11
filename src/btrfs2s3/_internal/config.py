@@ -193,4 +193,9 @@ def load_from_path(path: str | PathLike[str]) -> Config:
                 )
                 raise InvalidConfigError(msg)
 
+    # https://github.com/sbrudenell/btrfs2s3/issues/29
+    if len(config["remotes"]) > 1:
+        msg = "multiple remotes not supported in this release"
+        raise InvalidConfigError(msg)
+
     return config

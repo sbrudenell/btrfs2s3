@@ -235,6 +235,9 @@ remotes:
         verify: false
 ```
 
+[**Upcoming feature**](https://github.com/sbrudenell/btrfs2s3/issues/29): Multiple
+remotes aren't supported currently.
+
 # Preservation Policy
 
 The preservation policy is modeled on

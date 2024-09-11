@@ -374,22 +374,11 @@ def command(*, console: Console, args: argparse.Namespace) -> int:
 
     config = cast(Config, args.config_file)
     tzinfo = get_zoneinfo(config["timezone"])
-    assert len(config["remotes"]) == 1  # noqa: S101
     s3_remote = config["remotes"][0]["s3"]
     s3_endpoint = s3_remote.get("endpoint", {})
 
     sources = config["sources"]
     assert len({source["snapshots"] for source in sources}) == 1  # noqa: S101
-    assert (  # noqa: S101
-        len(
-            {
-                upload["id"]
-                for source in sources
-                for upload in source["upload_to_remotes"]
-            }
-        )
-        == 1
-    )
     assert (  # noqa: S101
         len(
             {
