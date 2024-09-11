@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from btrfs2s3.config import Config
-from btrfs2s3.config import InvalidConfigError
-from btrfs2s3.config import load_from_path
-from btrfs2s3.config import RemoteConfig
-from btrfs2s3.config import S3EndpointConfig
-from btrfs2s3.config import S3RemoteConfig
-from btrfs2s3.config import SourceConfig
-from btrfs2s3.config import UploadToRemoteConfig
+from btrfs2s3._internal.config import Config
+from btrfs2s3._internal.config import InvalidConfigError
+from btrfs2s3._internal.config import load_from_path
+from btrfs2s3._internal.config import RemoteConfig
+from btrfs2s3._internal.config import S3EndpointConfig
+from btrfs2s3._internal.config import S3RemoteConfig
+from btrfs2s3._internal.config import SourceConfig
+from btrfs2s3._internal.config import UploadToRemoteConfig
 import pytest
 
 if TYPE_CHECKING:

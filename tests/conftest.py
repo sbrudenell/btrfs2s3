@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 from warnings import warn
 
 import boto3
-from btrfs2s3.console import THEME
+from btrfs2s3._internal.console import THEME
 from moto import mock_aws
 import pytest
 from rich.console import Console

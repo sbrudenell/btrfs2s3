@@ -1,7 +1,7 @@
 from pathlib import Path
 
+from btrfs2s3._internal.action import create_snapshot
 from btrfs2s3._internal.util import SubvolumeFlags
-from btrfs2s3.action import create_snapshot
 import btrfsutil
 
 

@@ -6,11 +6,11 @@ from typing import cast
 
 import arrow
 from btrfs2s3._internal.arrowutil import convert_span
-from btrfs2s3.preservation import Params
-from btrfs2s3.preservation import Policy
-from btrfs2s3.preservation import Timeframe
-from btrfs2s3.preservation import TIMEFRAMES
-from btrfs2s3.zoneinfo import get_zoneinfo
+from btrfs2s3._internal.preservation import Params
+from btrfs2s3._internal.preservation import Policy
+from btrfs2s3._internal.preservation import Timeframe
+from btrfs2s3._internal.preservation import TIMEFRAMES
+from btrfs2s3._internal.zoneinfo import get_zoneinfo
 import pytest
 
 

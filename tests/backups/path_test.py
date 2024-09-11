@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 import arrow
-from btrfs2s3.backups import BackupInfo
+from btrfs2s3._internal.backups import BackupInfo
 import pytest
 
 if TYPE_CHECKING:

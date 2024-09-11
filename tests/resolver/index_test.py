@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from uuid import uuid4
 
+from btrfs2s3._internal.backups import BackupInfo
+from btrfs2s3._internal.preservation import Policy
+from btrfs2s3._internal.resolver import _Index
 from btrfs2s3._internal.util import mksubvol
-from btrfs2s3.backups import BackupInfo
-from btrfs2s3.preservation import Policy
-from btrfs2s3.resolver import _Index
 
 
 def test_get_nominal_none() -> None:

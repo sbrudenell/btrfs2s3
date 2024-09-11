@@ -20,22 +20,22 @@ from rich.table import Table
 from rich.text import Text
 from rich.tree import Tree
 
-from btrfs2s3.action import Actions
-from btrfs2s3.assessor import assess
-from btrfs2s3.assessor import Assessment
-from btrfs2s3.assessor import assessment_to_actions
-from btrfs2s3.assessor import BackupAssessment
-from btrfs2s3.assessor import SourceAssessment
-from btrfs2s3.config import Config
-from btrfs2s3.config import load_from_path
-from btrfs2s3.preservation import Params
-from btrfs2s3.preservation import Policy
-from btrfs2s3.preservation import TS
-from btrfs2s3.resolver import Flags
-from btrfs2s3.resolver import KeepMeta
-from btrfs2s3.resolver import Reasons
-from btrfs2s3.thunk import TBD
-from btrfs2s3.zoneinfo import get_zoneinfo
+from btrfs2s3._internal.action import Actions
+from btrfs2s3._internal.assessor import assess
+from btrfs2s3._internal.assessor import Assessment
+from btrfs2s3._internal.assessor import assessment_to_actions
+from btrfs2s3._internal.assessor import BackupAssessment
+from btrfs2s3._internal.assessor import SourceAssessment
+from btrfs2s3._internal.config import Config
+from btrfs2s3._internal.config import load_from_path
+from btrfs2s3._internal.preservation import Params
+from btrfs2s3._internal.preservation import Policy
+from btrfs2s3._internal.preservation import TS
+from btrfs2s3._internal.resolver import Flags
+from btrfs2s3._internal.resolver import KeepMeta
+from btrfs2s3._internal.resolver import Reasons
+from btrfs2s3._internal.thunk import TBD
+from btrfs2s3._internal.zoneinfo import get_zoneinfo
 
 if TYPE_CHECKING:
     import argparse
@@ -63,7 +63,7 @@ def _describe_time_spans(time_spans: Iterable[TS], tzinfo: tzinfo) -> Text:
     )
 
 
-def describe_time_span(  # noqa: PLR0911
+def describe_time_span(
     time_span: TS, tzinfo: tzinfo, *, bounds: _Bounds = "[)"
 ) -> Text:
     """Returns a highlighted summary of a time span in context of preservation."""

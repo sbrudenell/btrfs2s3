@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from btrfs2s3.backups import BackupInfo
+from btrfs2s3._internal.backups import BackupInfo
 
 if TYPE_CHECKING:
     from typing import Iterator

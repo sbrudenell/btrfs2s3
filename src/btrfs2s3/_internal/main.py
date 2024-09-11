@@ -9,8 +9,8 @@ from typing import TYPE_CHECKING
 
 from rich.logging import RichHandler
 
-from btrfs2s3.commands import update
-from btrfs2s3.console import CONSOLE
+from btrfs2s3._internal.commands import update
+from btrfs2s3._internal.console import CONSOLE
 
 if TYPE_CHECKING:
     from typing import Sequence

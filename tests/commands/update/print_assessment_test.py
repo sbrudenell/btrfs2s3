@@ -6,18 +6,18 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import arrow
+from btrfs2s3._internal.assessor import Assessment
+from btrfs2s3._internal.assessor import BackupAssessment
+from btrfs2s3._internal.assessor import SnapshotAssessment
+from btrfs2s3._internal.assessor import SourceAssessment
+from btrfs2s3._internal.commands.update import print_assessment
+from btrfs2s3._internal.resolver import Flags
+from btrfs2s3._internal.resolver import KeepMeta
+from btrfs2s3._internal.resolver import Reasons
+from btrfs2s3._internal.thunk import Thunk
 from btrfs2s3._internal.util import backup_of_snapshot
 from btrfs2s3._internal.util import mksubvol
 from btrfs2s3._internal.util import SubvolumeFlags
-from btrfs2s3.assessor import Assessment
-from btrfs2s3.assessor import BackupAssessment
-from btrfs2s3.assessor import SnapshotAssessment
-from btrfs2s3.assessor import SourceAssessment
-from btrfs2s3.commands.update import print_assessment
-from btrfs2s3.resolver import Flags
-from btrfs2s3.resolver import KeepMeta
-from btrfs2s3.resolver import Reasons
-from btrfs2s3.thunk import Thunk
 import pytest
 
 if TYPE_CHECKING:

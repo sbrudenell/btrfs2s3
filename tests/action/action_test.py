@@ -5,8 +5,8 @@ from typing import TYPE_CHECKING
 
 import arrow
 from botocore.exceptions import ClientError
+from btrfs2s3._internal.action import Actions
 from btrfs2s3._internal.util import backup_of_snapshot
-from btrfs2s3.action import Actions
 import btrfsutil
 from btrfsutil import SubvolumeInfo
 import pytest

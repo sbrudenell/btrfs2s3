@@ -5,14 +5,14 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import arrow
+from btrfs2s3._internal.preservation import Policy
+from btrfs2s3._internal.resolver import _Resolver
+from btrfs2s3._internal.resolver import Flags
+from btrfs2s3._internal.resolver import KeepBackup
+from btrfs2s3._internal.resolver import KeepMeta
+from btrfs2s3._internal.resolver import Reasons
 from btrfs2s3._internal.util import backup_of_snapshot
 from btrfs2s3._internal.util import mksubvol
-from btrfs2s3.preservation import Policy
-from btrfs2s3.resolver import _Resolver
-from btrfs2s3.resolver import Flags
-from btrfs2s3.resolver import KeepBackup
-from btrfs2s3.resolver import KeepMeta
-from btrfs2s3.resolver import Reasons
 import pytest
 
 if TYPE_CHECKING:

@@ -1,4 +1,4 @@
-from btrfs2s3.preservation import Params
+from btrfs2s3._internal.preservation import Params
 import pytest
 
 

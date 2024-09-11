@@ -3,9 +3,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
-from btrfs2s3.console import THEME
-from btrfs2s3.main import main
-from btrfs2s3.s3 import iter_backups
+from btrfs2s3._internal.console import THEME
+from btrfs2s3._internal.main import main
+from btrfs2s3._internal.s3 import iter_backups
 import btrfsutil
 from rich.console import Console
 

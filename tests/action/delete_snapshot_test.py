@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 import subprocess
 
-from btrfs2s3.action import delete_snapshot
+from btrfs2s3._internal.action import delete_snapshot
 import btrfsutil
 import pytest
 

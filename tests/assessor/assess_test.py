@@ -5,19 +5,19 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from botocore.exceptions import ClientError
+from btrfs2s3._internal.action import Actions
+from btrfs2s3._internal.assessor import assess
+from btrfs2s3._internal.assessor import assessment_to_actions
+from btrfs2s3._internal.backups import BackupInfo
+from btrfs2s3._internal.preservation import Params
+from btrfs2s3._internal.preservation import Policy
+from btrfs2s3._internal.resolver import Flags
+from btrfs2s3._internal.resolver import KeepMeta
+from btrfs2s3._internal.resolver import Reasons
+from btrfs2s3._internal.s3 import iter_backups
 from btrfs2s3._internal.util import backup_of_snapshot
 from btrfs2s3._internal.util import NULL_UUID
 from btrfs2s3._internal.util import SubvolumeFlags
-from btrfs2s3.action import Actions
-from btrfs2s3.assessor import assess
-from btrfs2s3.assessor import assessment_to_actions
-from btrfs2s3.backups import BackupInfo
-from btrfs2s3.preservation import Params
-from btrfs2s3.preservation import Policy
-from btrfs2s3.resolver import Flags
-from btrfs2s3.resolver import KeepMeta
-from btrfs2s3.resolver import Reasons
-from btrfs2s3.s3 import iter_backups
 import btrfsutil
 import pytest
 

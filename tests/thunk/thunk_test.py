@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from btrfs2s3.thunk import StillTBDError
-from btrfs2s3.thunk import TBD
-from btrfs2s3.thunk import Thunk
+from btrfs2s3._internal.thunk import StillTBDError
+from btrfs2s3._internal.thunk import TBD
+from btrfs2s3._internal.thunk import Thunk
 import pytest
 from typing_extensions import assert_type
 

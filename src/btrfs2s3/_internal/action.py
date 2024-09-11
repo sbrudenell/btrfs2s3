@@ -12,11 +12,11 @@ from typing import TYPE_CHECKING
 
 import btrfsutil
 
+from btrfs2s3._internal.stream_uploader import upload_non_seekable_stream_via_tempfile
+from btrfs2s3._internal.thunk import Thunk
+from btrfs2s3._internal.thunk import ThunkArg
 from btrfs2s3._internal.util import NULL_UUID
 from btrfs2s3._internal.util import SubvolumeFlags
-from btrfs2s3.stream_uploader import upload_non_seekable_stream_via_tempfile
-from btrfs2s3.thunk import Thunk
-from btrfs2s3.thunk import ThunkArg
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -89,7 +89,7 @@ def rename_snapshot(*, source: Path, target: Path) -> None:
     source.rename(target)
 
 
-def create_backup(  # noqa: PLR0913
+def create_backup(
     *,
     s3: S3Client,
     bucket: str,

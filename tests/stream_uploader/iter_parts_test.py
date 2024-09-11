@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from btrfs2s3.stream_uploader import _iter_parts_via_tempfile
+from btrfs2s3._internal.stream_uploader import _iter_parts_via_tempfile
 
 if TYPE_CHECKING:
     from typing import IO

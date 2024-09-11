@@ -18,15 +18,15 @@ from typing_extensions import Self
 from typing_extensions import TypeAlias
 from typing_extensions import TypeVar
 
+from btrfs2s3._internal.backups import BackupInfo
 from btrfs2s3._internal.util import backup_of_snapshot
-from btrfs2s3.backups import BackupInfo
 
 if TYPE_CHECKING:
     from typing import Collection
     from typing import Iterator
 
-    from btrfs2s3.preservation import Policy
-    from btrfs2s3.preservation import TS
+    from btrfs2s3._internal.preservation import Policy
+    from btrfs2s3._internal.preservation import TS
 
 
 class _Info(Protocol):

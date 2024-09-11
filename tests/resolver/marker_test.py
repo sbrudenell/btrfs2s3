@@ -1,11 +1,11 @@
 from __future__ import annotations
 
+from btrfs2s3._internal.resolver import _MarkedItem
+from btrfs2s3._internal.resolver import _Marker
+from btrfs2s3._internal.resolver import Flags
+from btrfs2s3._internal.resolver import KeepMeta
+from btrfs2s3._internal.resolver import Reasons
 from btrfs2s3._internal.util import mksubvol
-from btrfs2s3.resolver import _MarkedItem
-from btrfs2s3.resolver import _Marker
-from btrfs2s3.resolver import Flags
-from btrfs2s3.resolver import KeepMeta
-from btrfs2s3.resolver import Reasons
 from btrfsutil import SubvolumeInfo
 
 

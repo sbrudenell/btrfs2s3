@@ -21,7 +21,7 @@ from cfgv import RequiredRecurse
 from typing_extensions import NotRequired
 from yaml import safe_load
 
-from btrfs2s3.preservation import Params
+from btrfs2s3._internal.preservation import Params
 
 if TYPE_CHECKING:
     from os import PathLike

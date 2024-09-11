@@ -33,7 +33,7 @@ dependencies = [
   "typing-extensions>=4.4,<5",
   "tzdata",
 ]
-scripts.btrfs2s3 = "btrfs2s3.main:main"
+scripts.btrfs2s3 = "btrfs2s3._internal.main:main"
 
 [tool.setuptools_scm]
 

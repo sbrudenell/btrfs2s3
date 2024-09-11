@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from btrfs2s3.action import delete_backups
+from btrfs2s3._internal.action import delete_backups
 
 if TYPE_CHECKING:
     from mypy_boto3_s3.client import S3Client

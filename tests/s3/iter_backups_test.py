@@ -5,8 +5,8 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import arrow
-from btrfs2s3.backups import BackupInfo
-from btrfs2s3.s3 import iter_backups
+from btrfs2s3._internal.backups import BackupInfo
+from btrfs2s3._internal.s3 import iter_backups
 
 if TYPE_CHECKING:
     from mypy_boto3_s3.client import S3Client

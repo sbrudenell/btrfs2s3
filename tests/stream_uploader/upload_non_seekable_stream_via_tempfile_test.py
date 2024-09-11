@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
-from btrfs2s3.stream_uploader import upload_non_seekable_stream_via_tempfile
+from btrfs2s3._internal.stream_uploader import upload_non_seekable_stream_via_tempfile
 import pytest
 
 if TYPE_CHECKING:

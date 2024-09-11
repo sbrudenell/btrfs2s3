@@ -4,7 +4,7 @@ from enum import IntFlag
 
 from btrfsutil import SubvolumeInfo
 
-from btrfs2s3.backups import BackupInfo
+from btrfs2s3._internal.backups import BackupInfo
 
 NULL_UUID = b"\0" * 16
 
