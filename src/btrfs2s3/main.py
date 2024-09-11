@@ -33,6 +33,10 @@ def main(*, console: Console | None = None, argv: Sequence[str] | None = None) -
     argv = argv if argv is not None else sys.argv[1:]
     parser = argparse.ArgumentParser(description=_DESCRIPTION, epilog=_EPILOG)
 
+    parser.add_argument(
+        "-v", "--verbose", action="store_true", help="enable debug logs"
+    )
+
     subparsers = parser.add_subparsers(
         dest="command", required=True, help="subcommand (required)"
     )
@@ -42,7 +46,7 @@ def main(*, console: Console | None = None, argv: Sequence[str] | None = None) -
     args = parser.parse_args(argv)
 
     logging.basicConfig(
-        level="NOTSET",
+        level="NOTSET" if args.verbose else logging.INFO,
         format="%(message)s",
         datefmt="[%X]",
         handlers=[RichHandler(console=console)],
