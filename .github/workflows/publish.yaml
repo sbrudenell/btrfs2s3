@@ -32,6 +32,8 @@ jobs:
     - uses: actions/download-artifact@v4
       with:
         path: dist/
+    - run: ls -lR
     - uses: pypa/gh-action-pypi-publish@release/v1
       with:
         attestations: true
+        verbose: true
