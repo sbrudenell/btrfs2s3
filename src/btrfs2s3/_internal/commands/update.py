@@ -378,7 +378,6 @@ def command(*, console: Console, args: argparse.Namespace) -> int:
     s3_endpoint = s3_remote.get("endpoint", {})
 
     sources = config["sources"]
-    assert len({source["snapshots"] for source in sources}) == 1  # noqa: S101
     assert (  # noqa: S101
         len(
             {

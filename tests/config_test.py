@@ -244,3 +244,26 @@ def test_no_multiple_remotes(path: Path) -> None:
     """)
     with pytest.raises(InvalidConfigError):
         load_from_path(path)
+
+
+def test_no_multiple_snapshot_locations(path: Path) -> None:
+    path.write_text("""
+        timezone: a
+        sources:
+        - path: b
+          snapshots: c
+          upload_to_remotes:
+          - id: aws
+            preserve: 1y 1m
+        - path: x
+          snapshots: y
+          upload_to_remotes:
+          - id: aws
+            preserve: 1y 1m
+        remotes:
+        - id: aws
+          s3:
+            bucket: d
+    """)
+    with pytest.raises(InvalidConfigError):
+        load_from_path(path)
