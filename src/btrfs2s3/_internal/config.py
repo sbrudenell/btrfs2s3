@@ -207,8 +207,16 @@ def load_from_path(path: str | PathLike[str]) -> Config:
 
     all_uploads = [up for src in all_sources for up in src["upload_to_remotes"]]
 
+    # https://github.com/sbrudenell/btrfs2s3/issues/79
     if len({upload["preserve"] for upload in all_uploads}) > 1:
         msg = "multiple preserve configurations not supported in this release"
+        raise InvalidConfigError(msg)
+
+    all_pipe_throughs = [up.get("pipe_through", []) for up in all_uploads]
+
+    # https://github.com/sbrudenell/btrfs2s3/issues/80
+    if len({tuple(tuple(cmd) for cmd in p) for p in all_pipe_throughs}) > 1:
+        msg = "multiple pipe_through configurations not supported in this release"
         raise InvalidConfigError(msg)
 
     return config

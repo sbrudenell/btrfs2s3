@@ -290,3 +290,30 @@ def test_no_multiple_preserves(path: Path) -> None:
     """)
     with pytest.raises(InvalidConfigError):
         load_from_path(path)
+
+
+def test_no_multiple_pipe_throughs(path: Path) -> None:
+    path.write_text("""
+        timezone: a
+        sources:
+        - path: b
+          snapshots: c
+          upload_to_remotes:
+          - id: aws
+            preserve: 1y 1m
+            pipe_through:
+            - [gpg, --encrypt, -r, a@example.com]
+        - path: x
+          snapshots: c
+          upload_to_remotes:
+          - id: aws
+            preserve: 1y 1m
+            pipe_through:
+            - [gpg, --encrypt, -r, b@example.com]
+        remotes:
+        - id: aws
+          s3:
+            bucket: d
+    """)
+    with pytest.raises(InvalidConfigError):
+        load_from_path(path)
