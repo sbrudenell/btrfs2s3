@@ -235,8 +235,17 @@ remotes:
         verify: false
 ```
 
-[**Upcoming feature**](https://github.com/sbrudenell/btrfs2s3/issues/29): Multiple
-remotes aren't supported currently.
+[**Limitation**](https://github.com/sbrudenell/btrfs2s3/issues/29): Multiple `remotes`
+entries are not supported in the current release.
+
+[**Limitation**](https://github.com/sbrudenell/btrfs2s3/issues/81): All `snapshots`
+entries must point to the same location in the current release.
+
+[**Limitation**](https://github.com/sbrudenell/btrfs2s3/issues/79): All `preserve`
+configurations must be the same in the current release.
+
+[**Limitation**](https://github.com/sbrudenell/btrfs2s3/issues/80): All `pipe_through`
+configurations must be the same in the current release.
 
 # Preservation Policy
 
