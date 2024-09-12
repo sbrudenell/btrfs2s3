@@ -8,6 +8,7 @@ requires = [
 [project]
 name = "btrfs2s3"
 description = "Snapshot btrfs volumes and back them up to s3"
+readme = "README.md"
 authors = [
   { name = "Steven Brudenell", email = "steven.brudenell@gmail.com" },
 ]
