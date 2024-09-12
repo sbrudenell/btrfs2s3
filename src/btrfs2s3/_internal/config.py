@@ -198,9 +198,17 @@ def load_from_path(path: str | PathLike[str]) -> Config:
         msg = "multiple remotes not supported in this release"
         raise InvalidConfigError(msg)
 
+    all_sources = config["sources"]
+
     # https://github.com/sbrudenell/btrfs2s3/issues/81
-    if len({source["snapshots"] for source in config["sources"]}) > 1:
+    if len({source["snapshots"] for source in all_sources}) > 1:
         msg = "multiple snapshot locations not supported in this release"
+        raise InvalidConfigError(msg)
+
+    all_uploads = [up for src in all_sources for up in src["upload_to_remotes"]]
+
+    if len({upload["preserve"] for upload in all_uploads}) > 1:
+        msg = "multiple preserve configurations not supported in this release"
         raise InvalidConfigError(msg)
 
     return config

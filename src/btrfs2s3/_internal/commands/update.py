@@ -381,16 +381,6 @@ def command(*, console: Console, args: argparse.Namespace) -> int:
     assert (  # noqa: S101
         len(
             {
-                upload["preserve"]
-                for source in sources
-                for upload in source["upload_to_remotes"]
-            }
-        )
-        == 1
-    )
-    assert (  # noqa: S101
-        len(
-            {
                 tuple(tuple(cmd) for cmd in upload.get("pipe_through", []))
                 for source in sources
                 for upload in source["upload_to_remotes"]
