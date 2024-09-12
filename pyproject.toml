@@ -34,6 +34,7 @@ dependencies = [
   "typing-extensions>=4.4,<5",
   "tzdata",
 ]
+urls.homepage = "https://github.com/sbrudenell/btrfs2s3"
 scripts.btrfs2s3 = "btrfs2s3._internal.main:main"
 
 [tool.setuptools_scm]
