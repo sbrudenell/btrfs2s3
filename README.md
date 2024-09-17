@@ -141,7 +141,7 @@ Any breaking changes will result in a major version bump.
 
 As of writing, the documented user-facing API surface consists of:
 
-- The CLI
+- CLI arguments (not the CLI output)
 - The backup object storage and metadata format
 
 There is no publicly-exposed programmatic interface / API as of writing. The
