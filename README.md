@@ -2,41 +2,34 @@
 
 # What does it do?
 
-`btrfs2s3` maintains a *tree* of incremental backups in cloud object storage (anything
-with an S3-compatible API).
+`btrfs2s3` maintains a [*tree* of differential backups](#differential-tree) in cloud
+object storage (anything with an S3-compatible API).
 
-Each backup is just an archive produced by `btrfs send [-p]`.
+Each backup object is just a native btrfs archive produced by `btrfs send [-p]`.
 
-The root of the tree is a full backup. The other layers of the tree are incremental
+The root of the tree is a full backup. The other nodes of the tree are differential
 backups.
 
 The structure of the tree corresponds to a *schedule*.
 
-Example: you want to keep 1 yearly, 3 monthly and 7 daily backups. It's the 4th day of
-the month. The tree of incremental backups will look like this:
+It looks like this:
 
 - Yearly backup (full)
-  - Monthly backup #3 (delta from yearly backup)
-  - Monthly backup #2 (delta from yearly backup)
-    - Daily backup #7 (delta from monthly backup #2)
-    - Daily backup #6 (delta from monthly backup #2)
-    - Daily backup #5 (delta from monthly backup #2)
-  - Monthly backup #1 (delta from yearly backup)
-    - Daily backup #4 (delta from monthly backup #1)
-    - Daily backup #3 (delta from monthly backup #1)
-    - Daily backup #2 (delta from monthly backup #1)
-    - Daily backup #1 (delta from monthly backup #1)
+  - Monthly backup A (changes from yearly)
+  - Monthly backup B (changes from yearly)
+    - Daily backup 1 (changes from monthly B)
+    - Daily backup 2 (changes from monthly B)
+  - Monthly backup C (changes from yearly)
+    - Daily backup 3 (changes from monthly C)
+    - Daily backup 4 (changes from monthly C)
 
-The daily backups will be short-lived and small. Over time, the new data in them will
-migrate to the monthly and yearly backups.
+The schedule and granularity can be customized. Up-to-the-minute backups can be made,
+with minimal increase in cloud storage or I/O.
 
-Expired backups are automatically deleted.
-
-The design and implementation are tailored to minimize cloud storage and API usage
-costs.
+The design and implementation are tailored to minimize cloud costs.
 
 `btrfs2s3` will keep one *snapshot* on disk for each *backup* in the cloud. This
-one-to-one correspondence is required for incremental backups.
+one-to-one correspondence is required for differential backups.
 
 <!-- mdformat-toc start --slug=github --no-anchors --maxlevel=6 --minlevel=1 -->
 
@@ -50,6 +43,7 @@ one-to-one correspondence is required for incremental backups.
 - [Preservation Policy](#preservation-policy)
 - [Usage](#usage)
 - [Design](#design)
+- [Differential Tree](#differential-tree)
 - [Object storage scheme](#object-storage-scheme)
 - [Cloud storage costs](#cloud-storage-costs)
 - [Cloud API usage costs](#cloud-api-usage-costs)
@@ -249,6 +243,9 @@ configurations must be the same in the current release.
 
 # Preservation Policy
 
+The preservation policy defines the structure of the
+[differential tree](#differential-tree) for each source.
+
 The preservation policy is modeled on
 [retention policies in btrbk](https://digint.ch/btrbk/doc/btrbk.conf.5.html#_retention_policy).
 
@@ -286,14 +283,14 @@ In `btrfs2s3`, an **interval** is a specific span of time, such as the year 2006
 **timeframe** is a *type* of interval, such as "years" or "quarters".
 
 The preservation policy defines both the *schedule* at which backups are created, and
-the *structure* of the incremental backup tree.
+the *structure* of the [differential tree](#differential-tree).
 
 *The first (longest) timeframe declared in the policy will produce full backups. The
-other timeframes will produce incremental backups, whose parent is with the previous
+other timeframes will produce differential backups, whose parent is with the previous
 timeframe's backup.*
 
 For example, a policy of `1m 1d` will produce one monthly full backup and one daily
-incremental backup whose parent is the monthly backup. Weekly backups aren't defined by
+differential backup whose parent is the monthly backup. Weekly backups aren't defined by
 this policy, and so are not considered.
 
 Currently, the preservation policy applies to both snapshots and backups.
@@ -303,7 +300,7 @@ deeper tree is that a single corrupted or lost backup may affect a larger number
 other backups.
 
 It's quite reasonable to define a "deep" preservation policy with very short timeframes
-like minutes or seconds. This may produce some small incremental backups, but the data
+like minutes or seconds. This may produce some small differential backups, but the data
 within them will eventually migrate up the tree as new longer-timeframe backups are
 created. In theory, the shortest timeframe you can use in practice is equal to your
 commit interval (the `-o commit=` mount option). This defaults to 30 seconds.
@@ -375,7 +372,7 @@ With no `target-uuid` argument, restore all backups found on the remote.
 If `target-uuid` is supplied, it is interpreted based on the data found in the remote.
 If it refers to a source UUID (aka parent UUID), all backups for that source will be
 restored. If it refers to a specific snapshot UUID, then that snapshot and its
-send-parents will be restored (that is, if the target is an incremental backup, then its
+send-parents will be restored (that is, if the target is a differential backup, then its
 ancestor full backup and any intermediate backups will be restored too).
 
 `--pipe-through`: A command string. Each backup will be passed through this command
@@ -411,6 +408,61 @@ naming pattern cannot be configured.
 For cloud backups, `btrfs2s3` encodes metadata about the backup in the filename. This is
 so all metadata can be parsed from the result of one `ListObjectsV2` call.
 
+# Differential Tree
+
+`btrfs2s3` uses a tree of
+[differential backups](https://en.wikipedia.org/wiki/Differential_backup). In this
+scheme, the root is a full backup, and other nodes contain changes from their parent.
+
+It looks like this:
+
+- Yearly backup (full)
+  - Monthly backup A (changes from yearly)
+  - Monthly backup B (changes from yearly)
+    - Daily backup 1 (changes from monthly B)
+    - Daily backup 2 (changes from monthly B)
+  - Monthly backup C (changes from yearly)
+    - Daily backup 3 (changes from monthly C)
+    - Daily backup 4 (changes from monthly C)
+
+This provides a tradeoff between several concerns:
+
+- Minimizing duplicated data
+- Easily deleting expired data
+- Minimizing the number of backup objects needed for granular backups
+- Ease of understanding dependencies of backup objects
+- Simplifying code
+- Exploiting btrfs' native features
+- Exploiting cloud object storage features
+- Making frequent backups
+- Retaining many recent backups and fewer old ones
+
+Each backup is just the output of `btrfs send [-p]`. btrfs' copy-on-write architecture
+has already done the work of deduplication and detecting changes. `btrfs2s3` is
+basically a script that repeatedly calls `btrfs send` with a fancy choice of `-p`.
+
+The differential tree duplicates some data. In the example above, daily 2 will contain
+all the data from daily 1 (assuming none of it was deleted). This tradeoff makes it easy
+to delete expired backups, and easy to understand where data lives. The tradeoff can be
+adjusted with the preservation policy: a narrower tree will duplicate less data, at the
+expense of less frequent backups.
+
+In `btrfs2s3` we use a [preservation policy](#preservation-policy) to decide the
+structure of the tree. This is relatively simple to code and easy for users to
+understand, but it comes at some cost of duplication. In the example above, if daily 1
+has large changes but daily 2 does not, we could save space by having daily 2 contain
+just its small changes from daily 1, making the tree sometimes-differential and
+sometimes-incremental. But even if we could predict such savings with btrfs' tools, it
+would create longer backup chains, and add more complexity to `btrfs2s3`.
+
+**Terminology**: `btrfs2s3` isn't the first to use this kind of tree. I couldn't find a
+name for it, so I chose "differential tree". This may be a misnomer, as traditionally a
+differential backup is
+["only the difference in the data since the last full backup"](https://en.wikipedia.org/wiki/Differential_backup),
+which only applies to the first non-root level of a differential tree (I think
+"incremental tree" would be slightly less accurate). If you know a more accurate name,
+please email me.
+
 # Object storage scheme
 
 The content of each backup object is simply the output of `btrfs send [-p]` (plus
@@ -432,7 +484,7 @@ clarity):
   .ctim<ctime> \             # ctime of the snapshot
   .ctid<ctransid> \          # ctransid of the snapshot
   .uuid<uuid> \              # uuid of the snapshot
-  .sndp<send_parent_uuid> \  # uuid of the incremental parent
+  .sndp<send_parent_uuid> \  # uuid of the differential parent
   .prnt<parent_uuid> \       # uuid of the source subvol
   .mdvn<metadata_version> \  # currently always 1
   .seqn<sequence_number>     # currently must be 0
@@ -466,7 +518,7 @@ my_subvol.ctim2006-01-03T00:00:00+00:00.ctid12360.uuid5e8bb815-f8ce-43c5-95e0-08
 In this example:
 
 - There is one full backup on 2006-01-01
-- The other backups on 2006-01-02 and 2006-01-03 are incremental backups, because their
+- The other backups on 2006-01-02 and 2006-01-03 are differential backups, because their
   send-parent UUID is the UUID of the full backup
 - The parent UUID of each is `9d9d3bcb-4b62-46a3-b6e2-678eeb24f54e`. This is the UUID of
   the original mutable subvolume
@@ -483,7 +535,7 @@ In `btrfs2s3`, the main way to control storage costs is with the preservation po
 Generally, preserving fewer backups will reduce storage cost.
 
 Moreover, a *deeper backup tree* will reduce storage cost. `btrfs2s3` maintains a tree
-of incremental backups. This allows you to de-duplicate data.
+of differential backups. This allows you to de-duplicate data.
 
 Let's assume:
 
@@ -494,14 +546,14 @@ Let's assume:
 With `preserve: 24h` (hourly full backups for 24 hours), you would incur 2400GB of
 storage costs.
 
-With `preserve: 1d 24h` (daily full backups for 1 day; hourly incremental backups for 7
+With `preserve: 1d 24h` (daily full backups for 1 day; hourly differential backups for 7
 days), you would incur 400GB of storage costs, in the following tree:
 
 - 1 full backup (100GB)
-  - hourly incremental backup 1 (1GB)
-  - hourly incremental backup 2 (2GB)
+  - hourly differential backup 1 (1GB)
+  - hourly differential backup 2 (2GB)
   - ...
-  - hourly incremental backup 24 (24GB)
+  - hourly differential backup 24 (24GB)
 
 [**Upcoming feature**](https://github.com/sbrudenell/btrfs2s3/issues/30): `btrfs2s3` can
 take advantage of *storage classes*. For example, `btrfs2s3` knows that a yearly backup

@@ -197,7 +197,7 @@ def _make_backups_tree(*, asmt: SourceAssessment, tzinfo: tzinfo, bucket: str) -
             subtree = tree.add(Panel(Group(*lines), title=key, title_align="left"))
             add_children(subtree, uuid)
 
-    tree = Tree(f"tree of incremental backups of {asmt.path} in bucket {bucket}")
+    tree = Tree(f"tree of differential backups of {asmt.path} in bucket {bucket}")
     add_children(tree, None)
     return tree
 
