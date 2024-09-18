@@ -62,8 +62,9 @@ one-to-one correspondence is required for differential backups.
 
 # What problem does this solve?
 
-`btrfs2s3` is intended for users who want to self-host irreplacable data. Its main goal
-is to hand off backups to a third party, and minimize the cost of doing so.
+`btrfs2s3` is intended for users who want to self-host irreplacable data, but are
+concerned about the risk of self-hosting backups. `btrfs2s3`'s main function is to hand
+off backups to a third party, and minimize the cost of doing so.
 
 My hope is that more users (including myself) can self-host more data with confidence.
 
@@ -74,8 +75,8 @@ Non-goals:
 
 # The case for cloud backups of self-hosted data
 
-Cloud-hosted backups can be a cost-effective alternative to a backup system. They might
-also be the only way to eliminate yourself as a single point of failure.
+Cloud-hosted backups can be a cost-effective alternative to a self-hosted backup system.
+They might also be the only way to eliminate yourself as a single point of failure.
 
 Self-hosting precious data generally means redundant storage, good security, reliable
 monitoring and regular maintenance. Self-hosting *backups* means doing all that *twice*,
@@ -85,21 +86,21 @@ These aren't hard problems on their own, but each is a new opportunity for human
 which has no upper bound of severity. Personally, I've lost years of data by formatting
 the wrong volume.
 
-Further, you have admin powers over both primary and backup systems. If one is
-compromised, the other may get compromised through your access. If bad config affects
-one, it may affect the other through your administration. How can you protect yourself
-from yourself?
+Further, self-hosting primary and backup systems means means you have admin powers over
+both. If one is compromised, the other may get compromised through your access. If bad
+config affects one, it may affect the other through your administration. How can you
+protect yourself from yourself?
 
-If you're dedicated to self-hosting backups, you aren't restricted to object storage, so
-`btrfs2s3` may not be the best tool. You can store a native filesystem on the backup
-host, and take better advantage of native deduplication and direct file access. A tool
-like [btrbk](https://digint.ch/btrbk/) is good for this.
+If you are dedicated to self-hosting backups, `btrfs2s3` may not be the best tool. A
+self-hosted backup system can use the same filesystem as the primary, and take better
+advantage of native deduplication and direct file access. A tool like
+[btrbk](https://digint.ch/btrbk/) is good for this.
 
 # The case for snapshotting filesystems
 
-`btrfs2s3` stores native streams of snapshotting filesystems (currently only btrfs, but
-more support is planned). It may seem like a backup tool should support all filesystems,
-and not specialize.
+`btrfs2s3` stores native data streams from snapshotting filesystems (currently only
+btrfs, but more support is planned). It may seem like a backup tool should support all
+filesystems, and not specialize.
 
 When we specialize in snapshotting filesystems, we can take advantage of native change
 detection, deduplication and data storage formats. This has several advantages:
@@ -107,7 +108,7 @@ detection, deduplication and data storage formats. This has several advantages:
 - Backups can be done automatically in the background with little or no interruption,
   maximizing the chances that backups stay up-to-date
 - Backups can be very frequent, minimizing the chance of data loss
-- Our code can be greatly simplified, reducing maintenance costs and bug surface area
+- Our tool's code is greatly simplified, reducing maintenance costs and bug surface area
 - We're guaranteed to backup all filesystem-specific metadata, whereas a generic backup
   storage format may need to discard it
 
@@ -115,11 +116,11 @@ It may seem that if your data is on an ext4 volume or a Windows machine, it's a
 disadvantage if a backup tool doesn't support that.
 
 But if your data is worth backing up, it should be on a filesystem with checksums. This
-is the same as the argument for ECC memory. *Apparently*, most or all checksumming
+is the same as the argument for ECC memory. And *apparently*, most or all checksumming
 filesystems also support snapshots (true of btrfs, zfs, xfs, ceph; I welcome
 counterexamples). Thus if you need a backup tool, you likely already have native
-snapshotting features, and it would be wasteful for a backup tool to to ignore these and
-re-implement all their advantages.
+snapshotting features available, and it would be wasteful for a backup tool to to ignore
+these and re-implement all their advantages.
 
 Finally, you may think that btrfs (or some other snapshotting filesystem) is unstable or
 has problems. This is a tedious debate, but it's always reasonable to suspect that
