@@ -34,6 +34,9 @@ one-to-one correspondence is required for differential backups.
 <!-- mdformat-toc start --slug=github --no-anchors --maxlevel=6 --minlevel=1 -->
 
 - [What does it do?](#what-does-it-do)
+- [What problem does this solve?](#what-problem-does-this-solve)
+- [The case for cloud backups of self-hosted data](#the-case-for-cloud-backups-of-self-hosted-data)
+- [The case for snapshotting filesystems](#the-case-for-snapshotting-filesystems)
 - [Advantages](#advantages)
 - [Disadvantages](#disadvantages)
 - [Comparison with other tools](#comparison-with-other-tools)
@@ -53,11 +56,76 @@ one-to-one correspondence is required for differential backups.
 - [Immutable backups](#immutable-backups)
 - [Encryption](#encryption)
 - [Quirks when uploading to S3](#quirks-when-uploading-to-s3)
-- [Could this work with zfs?](#could-this-work-with-zfs)
-- [Could this work with self-hosted object storage?](#could-this-work-with-self-hosted-object-storage)
 - [Timezones](#timezones)
 
 <!-- mdformat-toc end -->
+
+# What problem does this solve?
+
+`btrfs2s3` is intended for users who want to self-host irreplacable data. Its main goal
+is to hand off backups to a third party, and minimize the cost of doing so.
+
+My hope is that more users (including myself) can self-host more data with confidence.
+
+Non-goals:
+
+- Self-hosted backups
+- Backups of replacable data, e.g. an operating system
+
+# The case for cloud backups of self-hosted data
+
+Cloud-hosted backups can be a cost-effective alternative to a backup system. They might
+also be the only way to eliminate yourself as a single point of failure.
+
+Self-hosting precious data generally means redundant storage, good security, reliable
+monitoring and regular maintenance. Self-hosting *backups* means doing all that *twice*,
+ideally on a geographically-distant system.
+
+These aren't hard problems on their own, but each is a new opportunity for human error,
+which has no upper bound of severity. Personally, I've lost years of data by formatting
+the wrong volume.
+
+Further, you have admin powers over both primary and backup systems. If one is
+compromised, the other may get compromised through your access. If bad config affects
+one, it may affect the other through your administration. How can you protect yourself
+from yourself?
+
+If you're dedicated to self-hosting backups, you aren't restricted to object storage, so
+`btrfs2s3` may not be the best tool. You can store a native filesystem on the backup
+host, and take better advantage of native deduplication and direct file access. A tool
+like [btrbk](https://digint.ch/btrbk/) is good for this.
+
+# The case for snapshotting filesystems
+
+`btrfs2s3` stores native streams of snapshotting filesystems (currently only btrfs, but
+more support is planned). It may seem like a backup tool should support all filesystems,
+and not specialize.
+
+When we specialize in snapshotting filesystems, we can take advantage of native change
+detection, deduplication and data storage formats. This has several advantages:
+
+- Backups can be done automatically in the background with little or no interruption,
+  maximizing the chances that backups stay up-to-date
+- Backups can be very frequent, minimizing the chance of data loss
+- Our code can be greatly simplified, reducing maintenance costs and bug surface area
+- We're guaranteed to backup all filesystem-specific metadata, whereas a generic backup
+  storage format may need to discard it
+
+It may seem that if your data is on an ext4 volume or a Windows machine, it's a
+disadvantage if a backup tool doesn't support that.
+
+But if your data is worth backing up, it should be on a filesystem with checksums. This
+is the same as the argument for ECC memory. *Apparently*, most or all checksumming
+filesystems also support snapshots (true of btrfs, zfs, xfs, ceph; I welcome
+counterexamples). Thus if you need a backup tool, you likely already have native
+snapshotting features, and it would be wasteful for a backup tool to to ignore these and
+re-implement all their advantages.
+
+Finally, you may think that btrfs (or some other snapshotting filesystem) is unstable or
+has problems. This is a tedious debate, but it's always reasonable to suspect that
+software has bugs. Insuring against bugs is one of the goals of backups. You'll need to
+decide for yourself whether a maybe-buggy system that supports easy backups is better
+than a maybe-less-buggy system where backups are harder.
 
 # Advantages
 
@@ -760,27 +828,6 @@ financially incentivized by AWS.
 
 `btrfs2s3` buffers to disk by default. As of writing, a program using 5 GiB of RAM for
 temporary storage would be considered unfriendly to users.
-
-# Could this work with zfs?
-
-Probably.
-
-But I don't like the design of zfs, so I don't intend to support this.
-
-# Could this work with self-hosted object storage?
-
-Probably.
-
-But the main goal of `btrfs2s3` is to hand off backups to a third party. `btrfs2s3` was
-written to reduce the risks of self-hosting backups:
-
-- *Durable* self-hosted backups are hard, and/or expensive
-- Accidentally deleting all your backups is easy. How do you protect yourself *from*
-  yourself?
-
-If you want to backup a btrfs filesystem, and you want to host a backup computer to do
-so, the best choice is probably to have another btrfs filesystem on the backup computer,
-and manage backups with [btrbk](https://digint.ch/btrbk/).
 
 # Timezones
 
