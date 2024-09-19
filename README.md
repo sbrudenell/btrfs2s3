@@ -52,7 +52,8 @@ one-to-one correspondence is required for differential backups.
 - [Cloud API usage costs](#cloud-api-usage-costs)
 - [Cloud-to-host costs](#cloud-to-host-costs)
 - [Host-to-cloud costs](#host-to-cloud-costs)
-- [Security](#security)
+- [Threat Model](#threat-model)
+- [Permissions](#permissions)
 - [Immutable backups](#immutable-backups)
 - [Encryption](#encryption)
 - [Quirks when uploading to S3](#quirks-when-uploading-to-s3)
@@ -122,11 +123,14 @@ counterexamples). Thus if you need a backup tool, you likely already have native
 snapshotting features available, and it would be wasteful for a backup tool to to ignore
 these and re-implement all their advantages.
 
-Finally, you may think that btrfs (or some other snapshotting filesystem) is unstable or
-has problems. This is a tedious debate, but it's always reasonable to suspect that
-software has bugs. Insuring against bugs is one of the goals of backups. You'll need to
-decide for yourself whether a maybe-buggy system that supports easy backups is better
-than a maybe-less-buggy system where backups are harder.
+Many believe that btrfs is unstable. While this is a tedious debate, it's always
+reasonable to believe software has bugs. But *backups are the best defense against
+bugs*. To the degree that snapshotting filesystems make backups easier,
+*non-snapshotting filesystems like ext4 incur risk by making backups harder*.
+
+One extra risk of relying on native snapshots is that its specialized code paths are
+less extremely-well-tested than traditional ones (`btrfs send` versus `read()`). There
+is some increased risk of silent data corruption in backups.
 
 # Advantages
 
@@ -696,7 +700,91 @@ to multiple remotes, `btrfs2s3` will by default copy backups directly to each re
 may be possible to upload each backup just to one remote, and use one of the various
 cloud-to-cloud copy mechanisms from there, but this is not planned yet.
 
-# Security
+# Threat Model
+
+Here are some threats we've considered when building `btrfs2s3`. For each one we list
+the most likely form, the potential impact, and how we can mitigate them through design
+and/or usage of the tool.
+
+**Data corrupting bugs**: A software bug silently corrupts data before it is uploaded.
+`btrfs send` is the most likely culprit as it does most of the complex processing.
+
+- *Impact*: A sub-tree of differential backups is unusable.
+- *Mitigation*:
+  - Preserve [multiple full backups](https://github.com/sbrudenell/btrfs2s3/issues/35).
+  - Test your backups regularly.
+
+**`btrfs2s3` user compromised on source host**: A hacker gets control of the user
+running `btrfs2s3`. Note that this can happen if `btrfs2s3` runs as the same user as the
+source subvolume, and a daemon producing data for that subvolume is compromised.
+
+- *Impact*: The hacker has direct read, write or delete access to the source data or
+  snapshots of the source. The hacker may have full control over the system, as
+  `btrfs2s3` requires `CAP_SYS_ADMIN`. The hacker also has access to cloud account
+  credentials and any permissions thereof.
+- *Mitigation*:
+  - Use [Immutable backups](#immutable-backups) to ensure there are some backups of data
+    from before the compromise.
+
+**Destructive config**: The administrator mistakenly modifies `btrfs2s3` config to
+delete more snapshots/backups than desired.
+
+- *Impact*: Snapshots and/or backups may be lost.
+- *Mitigation*:
+  - Use `btrfs update --pretend` to test the impact of any new config.
+  - Use [Immutable backups](#immutable-backups) to ensure backups can't be deleted by
+    mistake until their originally-prescribed rotation.
+
+**Cloud provider compromise**: An undesired actor (hacker, nosy administrator,
+government official, etc) gains full access to your backups.
+
+- *Impact*: The actor can read, write or delete your backups, as uploaded.
+- *Mitigation*:
+  - Use `pipe_through` to encrypt your backups before uploading.
+  - Use [multiple remotes](https://github.com/sbrudenell/btrfs2s3/issues/29).
+  - To defend against timing attacks, use infrequent backups.
+
+**Cloud account compromise**: An undesired actor gains access to your cloud credentials.
+
+- *Impact*: The actor can read, write or delete your backups, as uploaded. They may
+  incur excessive cloud costs by uploading their own data.
+- *Mitigation*:
+  - Use [multiple remotes](https://github.com/sbrudenell/btrfs2s3/issues/29).
+  - Use [Immutable backups](#immutable-backups) to ensure there are some backups of your
+    data from before the compromise (unless your root account is compromised).
+  - Apply usage quotas to your cloud accounts.
+
+**Cloud data loss**: Part or all of a cloud object is lost or corrupted. A likely
+scenario is a continuous segment is lost.
+
+- *Impact*: A sub-tree of differential backups is unusable.
+- *Mitigation*:
+  - Use [multiple remotes](https://github.com/sbrudenell/btrfs2s3/issues/29).
+  - Preserve [multiple full backups](https://github.com/sbrudenell/btrfs2s3/issues/35).
+  - Use [checksums](https://github.com/sbrudenell/btrfs2s3/issues/89) to ensure
+    corruption can be detected.
+  - Test your backups regularly to detect any loss.
+  - Use a careful choice of `pipe_through` whose output is resilient to partial data
+    loss. Manual forensics may be able to recover data.
+
+Other threats, not directly mitigated by `btrfs2s3`:
+
+- **Host hardware failure**: We rely on ECC memory and checksumming filesystems to
+  detect and/or mitigate errors.
+- **Data corrupted in transit**: We rely on the fact that we always communicate with a
+  cloud provider over TLS, which provides message integrity.
+
+**A note on durability**: In
+[the only first-hand account of AWS S3 data loss I can find](https://www.quora.com/Has-Amazon-S3-ever-lost-data-permanently/answer/Scott-Bonds),
+a migration bug lost data at the object and partial-object level. This confirms my
+educated guess that cloud objects are a failure domain, and that cloud storage divides
+objects into blocks (themselves being failure domains), and that human error (or
+compromise) is a bigger risk to cloud data than hardware failure. As of writing, S3
+claims 99.999999999% (eleven nines) durabilitiy. I personally believe this is an
+accurate calculation, but based on average hardware failure rates, as opposed to somehow
+calculating the odds of human error.
+
+# Permissions
 
 `btrfs2s3` manages snapshots and backups.
 
