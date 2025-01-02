@@ -30,7 +30,7 @@ from btrfs2s3._internal.commands import update
 from btrfs2s3._internal.console import CONSOLE
 
 if TYPE_CHECKING:
-    from typing import Sequence
+    from collections.abc import Sequence
 
     from rich.console import Console
 

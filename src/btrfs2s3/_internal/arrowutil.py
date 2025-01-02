@@ -30,7 +30,7 @@ from typing import TYPE_CHECKING
 from typing_extensions import TypeAlias
 
 if TYPE_CHECKING:
-    from typing import Iterable
+    from collections.abc import Iterable
 
     from arrow import Arrow
 

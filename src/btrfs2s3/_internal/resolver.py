@@ -27,20 +27,20 @@ from queue import SimpleQueue
 from typing import Generic
 from typing import Protocol
 from typing import TYPE_CHECKING
+from typing import TypeVar
 import uuid
 import warnings
 
 from btrfsutil import SubvolumeInfo
 from typing_extensions import Self
 from typing_extensions import TypeAlias
-from typing_extensions import TypeVar
 
 from btrfs2s3._internal.backups import BackupInfo
 from btrfs2s3._internal.util import backup_of_snapshot
 
 if TYPE_CHECKING:
-    from typing import Collection
-    from typing import Iterator
+    from collections.abc import Collection
+    from collections.abc import Iterator
 
     from btrfs2s3._internal.preservation import Policy
     from btrfs2s3._internal.preservation import TS

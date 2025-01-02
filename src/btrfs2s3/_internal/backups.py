@@ -31,8 +31,8 @@ from arrow import Arrow
 from typing_extensions import Self
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
     from datetime import tzinfo
-    from typing import Sequence
 
 _CTIM = "ctim"
 _CTID = "ctid"

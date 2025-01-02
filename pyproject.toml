@@ -29,10 +29,9 @@ readme = "README.md"
 authors = [
   { name = "Steven Brudenell", email = "steven.brudenell@gmail.com" },
 ]
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 classifiers = [
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.8",
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
@@ -43,7 +42,6 @@ dynamic = [
 ]
 dependencies = [
   "arrow>=1,<2",
-  "backports-zoneinfo; python_version<'3.9'",
   "boto3[crt]>=1,<2",
   "cfgv>=3,<4",
   "pyyaml>=6,<7",

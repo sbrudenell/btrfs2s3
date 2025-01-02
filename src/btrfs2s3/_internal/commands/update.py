@@ -23,6 +23,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import cast
 from typing import TYPE_CHECKING
+from zoneinfo import ZoneInfo
 
 import arrow
 from boto3.session import Session
@@ -52,14 +53,13 @@ from btrfs2s3._internal.resolver import Flags
 from btrfs2s3._internal.resolver import KeepMeta
 from btrfs2s3._internal.resolver import Reasons
 from btrfs2s3._internal.thunk import TBD
-from btrfs2s3._internal.zoneinfo import get_zoneinfo
 
 if TYPE_CHECKING:
     import argparse
+    from collections.abc import Iterable
+    from collections.abc import Sequence
     from datetime import tzinfo
-    from typing import Iterable
     from typing import Literal
-    from typing import Sequence
     from typing import TypedDict
 
     from typing_extensions import TypeAlias
@@ -390,7 +390,7 @@ def command(*, console: Console, args: argparse.Namespace) -> int:
         return 1
 
     config = cast(Config, args.config_file)
-    tzinfo = get_zoneinfo(config["timezone"])
+    tzinfo = ZoneInfo(config["timezone"])
     s3_remote = config["remotes"][0]["s3"]
     s3_endpoint = s3_remote.get("endpoint", {})
 

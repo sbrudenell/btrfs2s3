@@ -17,9 +17,10 @@
 
 from __future__ import annotations
 
+from zoneinfo import ZoneInfo
+
 import arrow
 from btrfs2s3._internal.commands.update import describe_time_span
-from btrfs2s3._internal.zoneinfo import get_zoneinfo
 import pytest
 from rich.text import Span
 
@@ -80,7 +81,7 @@ from rich.text import Span
 def test_describe_time_span(
     a_str: str, b_str: str, expected_plain: str, expected_spans: set[Span], tzname: str
 ) -> None:
-    tzinfo = get_zoneinfo(tzname)
+    tzinfo = ZoneInfo(tzname)
     a = arrow.get(a_str, tzinfo=tzinfo)
     b = arrow.get(b_str, tzinfo=tzinfo)
     got = describe_time_span((a.timestamp(), b.timestamp()), tzinfo, bounds="[]")

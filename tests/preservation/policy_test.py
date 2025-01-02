@@ -20,6 +20,7 @@ from __future__ import annotations
 from random import uniform
 import time
 from typing import cast
+from zoneinfo import ZoneInfo
 
 import arrow
 from btrfs2s3._internal.arrowutil import convert_span
@@ -27,7 +28,6 @@ from btrfs2s3._internal.preservation import Params
 from btrfs2s3._internal.preservation import Policy
 from btrfs2s3._internal.preservation import Timeframe
 from btrfs2s3._internal.preservation import TIMEFRAMES
-from btrfs2s3._internal.zoneinfo import get_zoneinfo
 import pytest
 
 
@@ -87,7 +87,7 @@ def test_alternate_now() -> None:
 
 
 def test_alternate_timezone() -> None:
-    tzinfo = get_zoneinfo("America/Los_Angeles")
+    tzinfo = ZoneInfo("America/Los_Angeles")
     policy = Policy(params=Params(years=1), tzinfo=tzinfo)
     time_span = convert_span(arrow.get(tzinfo=tzinfo).span("year", bounds="[]"))
 

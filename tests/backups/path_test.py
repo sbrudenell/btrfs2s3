@@ -28,7 +28,7 @@ from btrfs2s3._internal.backups import BackupInfo
 import pytest
 
 if TYPE_CHECKING:
-    from typing import Sequence
+    from collections.abc import Sequence
     from typing import TypeVar
 
     _T = TypeVar("_T")

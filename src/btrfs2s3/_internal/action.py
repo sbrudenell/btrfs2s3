@@ -36,9 +36,9 @@ from btrfs2s3._internal.util import NULL_UUID
 from btrfs2s3._internal.util import SubvolumeFlags
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+    from collections.abc import Sequence
     from pathlib import Path
-    from typing import Iterator
-    from typing import Sequence
 
     from mypy_boto3_s3.client import S3Client
 

@@ -26,8 +26,8 @@ from typing import TYPE_CHECKING
 import pytest
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
     from typing import IO
-    from typing import Iterator
 
 
 @pytest.fixture(params=[5 * 2**20, 5 * 2**20 + 512, 10 * 2**20])

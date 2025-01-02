@@ -21,12 +21,12 @@ import sys
 from types import TracebackType
 from typing import Any
 from typing import Final
+from typing import final
 from typing import Literal
 from typing import overload
 from typing import TypeVar
 
 from _typeshed import structseq
-from typing_extensions import final
 from typing_extensions import Self
 from typing_extensions import TypeAlias
 

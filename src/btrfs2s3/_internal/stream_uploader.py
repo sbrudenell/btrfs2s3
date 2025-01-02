@@ -24,9 +24,9 @@ from tempfile import TemporaryFile
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
     from typing import AnyStr
     from typing import IO
-    from typing import Iterator
 
     from mypy_boto3_s3.client import S3Client
     from mypy_boto3_s3.type_defs import CompletedPartTypeDef
