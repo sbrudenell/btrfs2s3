@@ -1,6 +1,6 @@
 # btrfs2s3 - maintains a tree of differential backups in object storage.
 #
-# Copyright (C) 2024 Steven Brudenell and other contributors.
+# Copyright (C) 2024-2025 Steven Brudenell and other contributors.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from datetime import timezone
 from io import StringIO
 import os
 from pathlib import Path
@@ -35,6 +36,7 @@ import pytest
 from rich.console import Console
 
 from btrfs2s3._internal.console import THEME
+from btrfs2s3._internal.util import use_tzinfo
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -98,12 +100,20 @@ def bucket(s3: S3Client) -> str:
 
 
 class DownloadAndPipe(Protocol):
-    def __call__(self, key: str, args: Sequence[str | Path]) -> int: ...
+    def __call__(
+        self, key: str, args: Sequence[str | Path], *, bucket: str | None = None
+    ) -> int: ...
 
 
 @pytest.fixture
 def download_and_pipe(s3: S3Client, bucket: str) -> DownloadAndPipe:
-    def inner(key: str, args: Sequence[str | Path]) -> int:
+    default_bucket = bucket
+
+    def inner(
+        key: str, args: Sequence[str | Path], *, bucket: str | None = None
+    ) -> int:
+        if bucket is None:
+            bucket = default_bucket
         process = Popen(args, stdin=PIPE, stdout=DEVNULL)
         # https://github.com/python/typeshed/issues/3831
         assert process.stdin is not None
@@ -184,3 +194,9 @@ def goldifyconsole(
     console = console_factory(file=file)
     yield console
     goldify(file.getvalue())
+
+
+@pytest.fixture(autouse=True)
+def _utc() -> Iterator[None]:
+    with use_tzinfo(timezone.utc):
+        yield

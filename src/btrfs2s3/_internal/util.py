@@ -1,6 +1,6 @@
 # btrfs2s3 - maintains a tree of differential backups in object storage.
 #
-# Copyright (C) 2024 Steven Brudenell and other contributors.
+# Copyright (C) 2024-2025 Steven Brudenell and other contributors.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,13 +17,34 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
+from contextvars import ContextVar
 from enum import IntFlag
+from typing import TYPE_CHECKING
 
 from btrfsutil import SubvolumeInfo
 
 from btrfs2s3._internal.backups import BackupInfo
 
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+    from datetime import tzinfo
+
+    from btrfs2s3._internal.btrfsioctl import SubvolInfo
+
 NULL_UUID = b"\0" * 16
+
+
+TZINFO: ContextVar[tzinfo] = ContextVar("tzinfo")
+
+
+@contextmanager
+def use_tzinfo(tz: tzinfo) -> Iterator[None]:
+    token = TZINFO.set(tz)
+    try:
+        yield
+    finally:
+        TZINFO.reset(token)
 
 
 def mksubvol(
@@ -75,6 +96,19 @@ def backup_of_snapshot(
         send_parent_uuid=None if send_parent is None else send_parent.uuid,
         ctransid=snapshot.ctransid,
         ctime=snapshot.ctime,
+    )
+
+
+def backup_of_snap(
+    snap: SubvolInfo, /, send_parent: SubvolInfo | None = None
+) -> BackupInfo:
+    assert snap.parent_uuid is not None
+    return BackupInfo(
+        uuid=snap.uuid,
+        parent_uuid=snap.parent_uuid,
+        send_parent_uuid=None if send_parent is None else send_parent.uuid,
+        ctransid=snap.ctransid,
+        ctime=snap.ctime,
     )
 
 
