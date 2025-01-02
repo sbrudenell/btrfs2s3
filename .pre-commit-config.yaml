@@ -65,3 +65,10 @@ repos:
     - moto[s3]>=5,<6
     - pytest>=8,<9
     args: []
+- repo: https://github.com/commitizen-tools/commitizen
+  rev: v4.1.0
+  hooks:
+  - id: commitizen
+  - id: commitizen-branch
+    stages:
+    - pre-push
