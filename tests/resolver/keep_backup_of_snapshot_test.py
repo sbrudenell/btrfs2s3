@@ -25,7 +25,7 @@ import arrow
 from btrfs2s3._internal.preservation import Policy
 from btrfs2s3._internal.resolver import _Resolver
 from btrfs2s3._internal.resolver import Flags
-from btrfs2s3._internal.resolver import KeepBackup
+from btrfs2s3._internal.resolver import Item
 from btrfs2s3._internal.resolver import KeepMeta
 from btrfs2s3._internal.resolver import Reasons
 from btrfs2s3._internal.util import backup_of_snapshot
@@ -58,7 +58,9 @@ def mksnap(parent_uuid: bytes) -> MkSnap:
 
 def test_simple_backup_of_snapshot(mksnap: MkSnap) -> None:
     snapshot = mksnap()
-    resolver = _Resolver(snapshots=(snapshot,), backups=(), policy=Policy())
+    resolver = _Resolver(
+        snapshots=(snapshot,), backups=(), policy=Policy(), mk_backup=backup_of_snapshot
+    )
 
     with resolver._with_reasons(Reasons.Preserved):
         got = resolver._keep_backup_of_snapshot(snapshot)
@@ -67,13 +69,15 @@ def test_simple_backup_of_snapshot(mksnap: MkSnap) -> None:
     assert got == expected
 
     assert resolver.get_result().keep_backups == {
-        got.uuid: KeepBackup(got, KeepMeta(reasons=Reasons.Preserved, flags=Flags.New))
+        got.uuid: Item(got, KeepMeta(reasons=Reasons.Preserved, flags=Flags.New))
     }
 
 
 def test_backup_done_twice(mksnap: MkSnap) -> None:
     snapshot = mksnap()
-    resolver = _Resolver(snapshots=(snapshot,), backups=(), policy=Policy())
+    resolver = _Resolver(
+        snapshots=(snapshot,), backups=(), policy=Policy(), mk_backup=backup_of_snapshot
+    )
 
     with resolver._with_reasons(Reasons.Preserved):
         got1 = resolver._keep_backup_of_snapshot(snapshot)
@@ -83,9 +87,7 @@ def test_backup_done_twice(mksnap: MkSnap) -> None:
     assert got1 == got2
 
     assert resolver.get_result().keep_backups == {
-        got1.uuid: KeepBackup(
-            got1, KeepMeta(reasons=Reasons.Preserved, flags=Flags.New)
-        )
+        got1.uuid: Item(got1, KeepMeta(reasons=Reasons.Preserved, flags=Flags.New))
     }
 
 
@@ -98,6 +100,7 @@ def test_choose_correct_parents(mksnap: MkSnap) -> None:
         snapshots=(snapshot1, snapshot2, snapshot3, snapshot4),
         backups=(),
         policy=Policy.all(),
+        mk_backup=backup_of_snapshot,
     )
 
     with resolver._with_reasons(Reasons.Preserved):
@@ -116,16 +119,16 @@ def test_choose_correct_parents(mksnap: MkSnap) -> None:
     assert backup4 == expected4
 
     assert resolver.get_result().keep_backups == {
-        backup1.uuid: KeepBackup(
+        backup1.uuid: Item(
             backup1, KeepMeta(reasons=Reasons.Preserved, flags=Flags.New)
         ),
-        backup2.uuid: KeepBackup(
+        backup2.uuid: Item(
             backup2, KeepMeta(reasons=Reasons.Preserved, flags=Flags.New)
         ),
-        backup3.uuid: KeepBackup(
+        backup3.uuid: Item(
             backup3, KeepMeta(reasons=Reasons.Preserved, flags=Flags.New)
         ),
-        backup4.uuid: KeepBackup(
+        backup4.uuid: Item(
             backup4, KeepMeta(reasons=Reasons.Preserved, flags=Flags.New)
         ),
     }
@@ -140,7 +143,10 @@ def test_existing_backup(mksnap: MkSnap) -> None:
     # existing backup if we need to backup the snapshot
     backup2 = backup_of_snapshot(snapshot2, send_parent=None)
     resolver = _Resolver(
-        snapshots=(snapshot1, snapshot2), backups=(backup1, backup2), policy=Policy()
+        snapshots=(snapshot1, snapshot2),
+        backups=(backup1, backup2),
+        policy=Policy(),
+        mk_backup=backup_of_snapshot,
     )
 
     with resolver._with_reasons(Reasons.Preserved):
@@ -151,6 +157,6 @@ def test_existing_backup(mksnap: MkSnap) -> None:
     assert got_backup2 == backup2
 
     assert resolver.get_result().keep_backups == {
-        backup1.uuid: KeepBackup(backup1, KeepMeta(reasons=Reasons.Preserved)),
-        backup2.uuid: KeepBackup(backup2, KeepMeta(reasons=Reasons.Preserved)),
+        backup1.uuid: Item(backup1, KeepMeta(reasons=Reasons.Preserved)),
+        backup2.uuid: Item(backup2, KeepMeta(reasons=Reasons.Preserved)),
     }

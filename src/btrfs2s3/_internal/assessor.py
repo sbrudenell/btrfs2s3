@@ -35,6 +35,7 @@ from btrfs2s3._internal.resolver import resolve
 from btrfs2s3._internal.s3 import iter_backups
 from btrfs2s3._internal.thunk import Thunk
 from btrfs2s3._internal.thunk import ThunkArg
+from btrfs2s3._internal.util import backup_of_snapshot
 from btrfs2s3._internal.util import mksubvol
 from btrfs2s3._internal.util import SubvolumeFlags
 
@@ -203,7 +204,9 @@ class _SourceAssessor:
             return lambda: self._make_snapshot_path(snapshot.real_info())
         return self._make_snapshot_path(snapshot.real_info())
 
-    def _do_resolve(self, *, include_proposed: bool = True) -> resolver.Result:
+    def _do_resolve(
+        self, *, include_proposed: bool = True
+    ) -> resolver.Result[SubvolumeInfo, BackupInfo]:
         snapshots = []
         for snapshot in self.assessment.snapshots.values():
             if snapshot.info.flags & SubvolumeFlags.Proposed and not include_proposed:
@@ -215,7 +218,12 @@ class _SourceAssessor:
             if not b.backup.is_tbd()
         ]
 
-        return resolve(snapshots=snapshots, backups=backups, policy=self.policy)
+        return resolve(
+            snapshots=snapshots,
+            backups=backups,
+            policy=self.policy,
+            mk_backup=backup_of_snapshot,
+        )
 
     def _resolve(self) -> None:
         # Run resolve including proposed snapshots.

@@ -1,6 +1,6 @@
 # btrfs2s3 - maintains a tree of differential backups in object storage.
 #
-# Copyright (C) 2024 Steven Brudenell and other contributors.
+# Copyright (C) 2024-2025 Steven Brudenell and other contributors.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -31,12 +31,7 @@ from typing import TypeVar
 import uuid
 import warnings
 
-from btrfsutil import SubvolumeInfo
 from typing_extensions import Self
-from typing_extensions import TypeAlias
-
-from btrfs2s3._internal.backups import BackupInfo
-from btrfs2s3._internal.util import backup_of_snapshot
 
 if TYPE_CHECKING:
     from collections.abc import Collection
@@ -46,7 +41,7 @@ if TYPE_CHECKING:
     from btrfs2s3._internal.preservation import TS
 
 
-class _Info(Protocol):
+class InfoLike(Protocol):
     @property
     def uuid(self) -> bytes: ...
     @property
@@ -55,7 +50,14 @@ class _Info(Protocol):
     def ctransid(self) -> int: ...
 
 
-_I = TypeVar("_I", bound=_Info)
+class BackupLike(InfoLike, Protocol):
+    @property
+    def send_parent_uuid(self) -> bytes | None: ...
+
+
+_I = TypeVar("_I", bound=InfoLike)
+_S_contra = TypeVar("_S_contra", bound=InfoLike, contravariant=True)
+_B_co = TypeVar("_B_co", bound=BackupLike, covariant=True)
 
 
 class _Index(Generic[_I]):
@@ -118,14 +120,14 @@ class KeepMeta:
 
 
 @dataclasses.dataclass
-class _MarkedItem(Generic[_I]):
+class Item(Generic[_I]):
     item: _I
     meta: KeepMeta = field(default_factory=KeepMeta)
 
 
 class _Marker(Generic[_I]):
     def __init__(self) -> None:
-        self._result: dict[bytes, _MarkedItem[_I]] = {}
+        self._result: dict[bytes, Item[_I]] = {}
         self._reasons_ctx: ContextVar[Reasons] = ContextVar(
             "reasons", default=Reasons.Empty
         )
@@ -152,14 +154,14 @@ class _Marker(Generic[_I]):
         finally:
             self._time_span_ctx.reset(token)
 
-    def get_result(self) -> dict[bytes, _MarkedItem[_I]]:
+    def get_result(self) -> dict[bytes, Item[_I]]:
         return self._result
 
     def mark(
         self, item: _I, *, flags: Flags = Flags.Empty, other_uuid: bytes | None = None
     ) -> None:
         if item.uuid not in self._result:
-            self._result[item.uuid] = _MarkedItem(item=item)
+            self._result[item.uuid] = Item(item=item)
         marked = self._result[item.uuid]
         update = KeepMeta(
             reasons=self._reasons_ctx.get(),
@@ -172,30 +174,34 @@ class _Marker(Generic[_I]):
         marked.meta |= update
 
 
-KeepSnapshot: TypeAlias = _MarkedItem[SubvolumeInfo]
-KeepBackup: TypeAlias = _MarkedItem[BackupInfo]
-
-
 @dataclasses.dataclass(frozen=True)
-class Result:
-    keep_snapshots: dict[bytes, KeepSnapshot] = field(default_factory=dict)
-    keep_backups: dict[bytes, KeepBackup] = field(default_factory=dict)
+class Result(Generic[_S_contra, _B_co]):
+    keep_snapshots: dict[bytes, Item[_S_contra]] = field(default_factory=dict)
+    keep_backups: dict[bytes, Item[_B_co]] = field(default_factory=dict)
 
 
-class _Resolver:
+class MkBackup(Protocol, Generic[_S_contra, _B_co]):
+    def __call__(
+        self, snapshot: _S_contra, /, send_parent: _S_contra | None = None
+    ) -> _B_co: ...
+
+
+class _Resolver(Generic[_S_contra, _B_co]):
     def __init__(
         self,
         *,
-        snapshots: Collection[SubvolumeInfo],
-        backups: Collection[BackupInfo],
+        snapshots: Collection[_S_contra],
+        backups: Collection[_B_co],
         policy: Policy,
+        mk_backup: MkBackup[_S_contra, _B_co],
     ) -> None:
         self._snapshots = _Index(items=snapshots, policy=policy)
         self._backups = _Index(items=backups, policy=policy)
         self._policy = policy
+        self._mk_backup = mk_backup
 
-        self._keep_snapshots: _Marker[SubvolumeInfo] = _Marker()
-        self._keep_backups: _Marker[BackupInfo] = _Marker()
+        self._keep_snapshots: _Marker[_S_contra] = _Marker()
+        self._keep_backups: _Marker[_B_co] = _Marker()
 
     @contextlib.contextmanager
     def _with_time_span(self, time_span: TS) -> Iterator[None]:
@@ -209,7 +215,7 @@ class _Resolver:
             with self._keep_backups.with_reasons(reasons):
                 yield
 
-    def get_result(self) -> Result:
+    def get_result(self) -> Result[_S_contra, _B_co]:
         return Result(
             keep_snapshots=self._keep_snapshots.get_result(),
             keep_backups=self._keep_backups.get_result(),
@@ -217,12 +223,12 @@ class _Resolver:
 
     def _keep_backup_of_snapshot(
         self,
-        snapshot: SubvolumeInfo,
+        snapshot: _S_contra,
         *,
         flags: Flags = Flags.Empty,
         other_uuid: bytes | None = None,
-    ) -> BackupInfo:
-        backup: BackupInfo | None = None
+    ) -> _B_co:
+        backup: _B_co | None = None
         # Use an existing backup when available
         if snapshot.uuid in self._keep_backups.get_result():
             backup = self._keep_backups.get_result()[snapshot.uuid].item
@@ -231,7 +237,7 @@ class _Resolver:
         if backup is None:
             flags |= Flags.New
             # Determine send-parent for a new backup
-            send_parent: SubvolumeInfo | None = None
+            send_parent: _S_contra | None = None
             for snapshot_time_span in self._policy.iter_time_spans(snapshot.ctime):
                 nominal_snapshot = self._snapshots.get_nominal(snapshot_time_span)
                 if nominal_snapshot is None:
@@ -240,7 +246,7 @@ class _Resolver:
                     break
                 send_parent = nominal_snapshot
 
-            backup = backup_of_snapshot(snapshot, send_parent=send_parent)
+            backup = self._mk_backup(snapshot, send_parent=send_parent)
 
         self._keep_backups.mark(backup, flags=flags, other_uuid=other_uuid)
         return backup
@@ -292,7 +298,7 @@ class _Resolver:
 
     def _keep_send_ancestors_of_backups(self) -> None:
         # Ensure the send-parent ancestors of any kept backups are also kept
-        backups_to_check: SimpleQueue[BackupInfo] = SimpleQueue()
+        backups_to_check: SimpleQueue[_B_co] = SimpleQueue()
         for marked_item in self._keep_backups.get_result().values():
             backups_to_check.put(marked_item.item)
         while not backups_to_check.empty():
@@ -330,11 +336,14 @@ class _Resolver:
 
 def resolve(
     *,
-    snapshots: Collection[SubvolumeInfo],
-    backups: Collection[BackupInfo],
+    snapshots: Collection[_S_contra],
+    backups: Collection[_B_co],
     policy: Policy,
-) -> Result:
-    resolver = _Resolver(snapshots=snapshots, backups=backups, policy=policy)
+    mk_backup: MkBackup[_S_contra, _B_co],
+) -> Result[_S_contra, _B_co]:
+    resolver = _Resolver(
+        snapshots=snapshots, backups=backups, policy=policy, mk_backup=mk_backup
+    )
     resolver.keep_snapshots_and_backups_for_preserved_time_spans()
 
     resolver.keep_most_recent_snapshot()

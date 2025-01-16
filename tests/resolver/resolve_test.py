@@ -24,9 +24,8 @@ import arrow
 from btrfs2s3._internal.preservation import Params
 from btrfs2s3._internal.preservation import Policy
 from btrfs2s3._internal.resolver import Flags
-from btrfs2s3._internal.resolver import KeepBackup
+from btrfs2s3._internal.resolver import Item
 from btrfs2s3._internal.resolver import KeepMeta
-from btrfs2s3._internal.resolver import KeepSnapshot
 from btrfs2s3._internal.resolver import Reasons
 from btrfs2s3._internal.resolver import resolve
 from btrfs2s3._internal.resolver import Result
@@ -65,7 +64,9 @@ def _t(t: str) -> float:
 
 
 def test_noop() -> None:
-    result = resolve(snapshots=(), backups=(), policy=Policy())
+    result = resolve(
+        snapshots=(), backups=(), policy=Policy(), mk_backup=backup_of_snapshot
+    )
 
     assert result == Result(keep_snapshots={}, keep_backups={})
 
@@ -76,12 +77,13 @@ def test_one_snapshot_preserved(mksnap: MkSnap) -> None:
         snapshots=(snapshot,),
         backups=(),
         policy=Policy(now=arrow.get("2006-01-01").timestamp(), params=Params(years=1)),
+        mk_backup=backup_of_snapshot,
     )
 
     expected_backup = backup_of_snapshot(snapshot, send_parent=None)
     assert result == Result(
         keep_snapshots={
-            snapshot.uuid: KeepSnapshot(
+            snapshot.uuid: Item(
                 snapshot,
                 KeepMeta(
                     reasons=Reasons.Preserved | Reasons.MostRecent,
@@ -90,7 +92,7 @@ def test_one_snapshot_preserved(mksnap: MkSnap) -> None:
             )
         },
         keep_backups={
-            expected_backup.uuid: KeepBackup(
+            expected_backup.uuid: Item(
                 expected_backup,
                 KeepMeta(
                     reasons=Reasons.Preserved | Reasons.MostRecent,
@@ -112,13 +114,14 @@ def test_multiple_snapshots_and_time_spans(mksnap: MkSnap) -> None:
         policy=Policy(
             now=arrow.get("2006-01-02").timestamp(), params=Params(years=1, months=1)
         ),
+        mk_backup=backup_of_snapshot,
     )
 
     expected_backup1 = backup_of_snapshot(snapshot1, send_parent=None)
     expected_backup3 = backup_of_snapshot(snapshot3, send_parent=snapshot1)
     assert result == Result(
         keep_snapshots={
-            snapshot1.uuid: KeepSnapshot(
+            snapshot1.uuid: Item(
                 snapshot1,
                 KeepMeta(
                     reasons=Reasons.Preserved,
@@ -128,12 +131,10 @@ def test_multiple_snapshots_and_time_spans(mksnap: MkSnap) -> None:
                     },
                 ),
             ),
-            snapshot3.uuid: KeepSnapshot(
-                snapshot3, KeepMeta(reasons=Reasons.MostRecent)
-            ),
+            snapshot3.uuid: Item(snapshot3, KeepMeta(reasons=Reasons.MostRecent)),
         },
         keep_backups={
-            expected_backup1.uuid: KeepBackup(
+            expected_backup1.uuid: Item(
                 expected_backup1,
                 KeepMeta(
                     reasons=Reasons.Preserved,
@@ -144,7 +145,7 @@ def test_multiple_snapshots_and_time_spans(mksnap: MkSnap) -> None:
                     },
                 ),
             ),
-            expected_backup3.uuid: KeepBackup(
+            expected_backup3.uuid: Item(
                 expected_backup3, KeepMeta(reasons=Reasons.MostRecent, flags=Flags.New)
             ),
         },
@@ -163,19 +164,20 @@ def test_keep_send_ancestor_on_year_change(mksnap: MkSnap) -> None:
         policy=Policy(
             now=arrow.get("2007-01-01").timestamp(), params=Params(years=1, months=2)
         ),
+        mk_backup=backup_of_snapshot,
     )
 
     expected_backup3 = backup_of_snapshot(snapshot3, send_parent=None)
     assert result == Result(
         keep_snapshots={
-            snapshot2.uuid: KeepSnapshot(
+            snapshot2.uuid: Item(
                 snapshot2,
                 KeepMeta(
                     reasons=Reasons.Preserved,
                     time_spans={(_t("2006-12-01"), _t("2007-01-01"))},
                 ),
             ),
-            snapshot3.uuid: KeepSnapshot(
+            snapshot3.uuid: Item(
                 snapshot3,
                 KeepMeta(
                     reasons=Reasons.Preserved | Reasons.MostRecent,
@@ -187,18 +189,18 @@ def test_keep_send_ancestor_on_year_change(mksnap: MkSnap) -> None:
             ),
         },
         keep_backups={
-            backup1.uuid: KeepBackup(
+            backup1.uuid: Item(
                 backup1,
                 KeepMeta(reasons=Reasons.SendAncestor, other_uuids={backup2.uuid}),
             ),
-            backup2.uuid: KeepBackup(
+            backup2.uuid: Item(
                 backup2,
                 KeepMeta(
                     reasons=Reasons.Preserved,
                     time_spans={(_t("2006-12-01"), _t("2007-01-01"))},
                 ),
             ),
-            expected_backup3.uuid: KeepBackup(
+            expected_backup3.uuid: Item(
                 expected_backup3,
                 KeepMeta(
                     reasons=Reasons.Preserved | Reasons.MostRecent,
@@ -225,12 +227,13 @@ def test_backup_chain_broken(mksnap: MkSnap) -> None:
             policy=Policy(
                 now=arrow.get("2006-01-01").timestamp(), params=Params(years=1)
             ),
+            mk_backup=backup_of_snapshot,
         )
 
     assert result == Result(
         keep_snapshots={},
         keep_backups={
-            backup2.uuid: KeepBackup(
+            backup2.uuid: Item(
                 backup2,
                 KeepMeta(
                     reasons=Reasons.Preserved,
