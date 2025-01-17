@@ -62,31 +62,55 @@ lint.select = [
   "ALL",
 ]
 lint.ignore = [
+  # ANN101 and ANN102 require type annotations for "self" and "cls". These have
+  # already been removed in newer releases of ruff.
   "ANN101",
   "ANN102",
+  # COM812 requires trailing commas. docs say this is not recommended for use
+  # with ruff-format.
   "COM812",
+  # ISC001 concatenates adjacent strings. ruff-formatter asks for this to be
+  # disabled.
   "ISC001",
-]
-lint.per-file-ignores."src/btrfs2s3/_internal/*" = [
-  "PLR",
-]
-lint.per-file-ignores."src/btrfs2s3/assessor.py" = [
-  "D",
-]
-lint.per-file-ignores."src/btrfs2s3/commands/*" = [
-  "T",
-]
-lint.per-file-ignores."src/btrfs2s3/resolver.py" = [
-  "D",
+  # PLR0911 checks for excessive return statements. Too chatty to be useful for
+  # an experienced dev.
+  "PLR0911",
+  # PLR0913 checks for excessive function arguments. Too chatty to be useful
+  # for an experienced dev.
+  "PLR0913",
+  # S101 forids assert. Unconditional alerts are not useful.
+  "S101",
+  # S311 forbids randrange. Unconditional alerts are not useful.
+  "S311",
+  # S603 forbids Popen. Unconditional alerts are not useful.
+  "S603",
+  # S607 forbids check_call with relative path. Unconditional alerts are not
+  # useful.
+  "S607",
+  # SIM117 requires combining nested with statements. In my experience this
+  # frequently leads to long, less-readable multi-line with statements.
+  "SIM117",
 ]
 lint.per-file-ignores."tests/*" = [
+  # D checks docstrings. I'm not going to require these in tests.
   "D",
-  "PLR",
-  "S",
-  "SLF",
+  # PLR2004 checks for magic numbers. This is explicitly desired with tests.
+  "PLR2004",
+  # S105 checks against hardcoded values being assigned to AWS_* environment
+  # variables. We explicitly do this to shadow any real credentials.
+  "S105",
+  # SLF001 checks for private member access. This is explicitly desired with
+  # whitebox testing.
+  "SLF001",
 ]
-lint.per-file-ignores."typeshed/*" = [
-  "A",
+lint.per-file-ignores."typeshed/btrfsutil.pyi" = [
+  # btrfsutil uses "id" as an argument name.
+  "A002",
+  # FBT001 checks against positional booleans. btrfsutil uses these.
+  "FBT001",
+  # SLOT001 checks that subclasses of tuple should define __slots__ for
+  # performance reasons. This is irrelevant to *.pyi files.
+  "SLOT001",
 ]
 lint.isort.force-single-line = true
 lint.isort.force-sort-within-sections = true

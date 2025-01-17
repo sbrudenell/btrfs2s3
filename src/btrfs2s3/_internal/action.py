@@ -150,14 +150,14 @@ def create_backup(
     pipeline: list[Popen[bytes]] = []
     for args in chain((send_args,), pipe_through):
         prev_stdout = pipeline[-1].stdout if pipeline else None
-        pipeline.append(Popen(args, stdin=prev_stdout, stdout=PIPE))  # noqa: S603
+        pipeline.append(Popen(args, stdin=prev_stdout, stdout=PIPE))
         # https://docs.python.org/3/library/subprocess.html#replacing-shell-pipeline
         if prev_stdout:
             prev_stdout.close()
 
     pipeline_stdout = pipeline[-1].stdout
     # https://github.com/python/typeshed/issues/3831
-    assert pipeline_stdout is not None  # noqa: S101
+    assert pipeline_stdout is not None
     try:
         upload_non_seekable_stream_via_tempfile(
             client=s3,

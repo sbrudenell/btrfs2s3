@@ -199,13 +199,13 @@ class _Resolver:
 
     @contextlib.contextmanager
     def _with_time_span(self, time_span: TS) -> Iterator[None]:
-        with self._keep_snapshots.with_time_span(time_span):  # noqa: SIM117
+        with self._keep_snapshots.with_time_span(time_span):
             with self._keep_backups.with_time_span(time_span):
                 yield
 
     @contextlib.contextmanager
     def _with_reasons(self, reasons: Reasons) -> Iterator[None]:
-        with self._keep_snapshots.with_reasons(reasons):  # noqa: SIM117
+        with self._keep_snapshots.with_reasons(reasons):
             with self._keep_backups.with_reasons(reasons):
                 yield
 
