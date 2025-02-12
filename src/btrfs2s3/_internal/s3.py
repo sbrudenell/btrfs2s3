@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from typing import Iterator
 
     from mypy_boto3_s3.client import S3Client
-    from mypy_boto3_s3.type_defs import ListObjectsV2RequestRequestTypeDef
+    from mypy_boto3_s3.type_defs import ListObjectsV2RequestTypeDef
     from mypy_boto3_s3.type_defs import ObjectTypeDef
 
 
@@ -29,7 +29,7 @@ def iter_backups(
     done = False
     continuation_token: str | None = None
     while not done:
-        kwargs: ListObjectsV2RequestRequestTypeDef = {"Bucket": bucket}
+        kwargs: ListObjectsV2RequestTypeDef = {"Bucket": bucket}
         if continuation_token is not None:
             kwargs["ContinuationToken"] = continuation_token
         response = client.list_objects_v2(**kwargs)
