@@ -17,16 +17,16 @@
 
 from __future__ import annotations
 
-from enum import Enum
-from typing import cast
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import pytest
 from rich.console import Console
 
+from btrfs2s3._internal.btrfsioctl import create_snap
 from btrfs2s3._internal.btrfsioctl import create_subvol
 from btrfs2s3._internal.btrfsioctl import subvol_info
+from btrfs2s3._internal.commands.update2 import NAME
 from btrfs2s3._internal.console import THEME
 from btrfs2s3._internal.main import main
 from btrfs2s3._internal.s3 import iter_backups
@@ -39,60 +39,18 @@ if TYPE_CHECKING:
     from tests.conftest import DownloadAndPipe
 
 
-class Impl(Enum):
-    Update = "update"
-    Update2 = "update2"
-
-
-@pytest.fixture(params=[Impl.Update, Impl.Update2])
-def impl(request: pytest.FixtureRequest) -> Impl:
-    return cast(Impl, request.param)
-
-
-def test_pretend(
-    tmp_path: Path,
-    btrfs_mountpoint: Path,
-    bucket: str,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    # Create a subvolume
-    source = btrfs_mountpoint / "source"
-    create_subvol(source)
-    # Snapshot dir, but no snapshots
-    snapshot_dir = btrfs_mountpoint / "snapshots"
-    snapshot_dir.mkdir()
-    # Modify some data in the source
-    (source / "dummy-file").write_bytes(b"dummy")
-
-    console = Console(force_terminal=True, theme=THEME, width=88, height=30)
-    config_path = tmp_path / "config.yaml"
-    config_path.write_text(f"""
-      timezone: UTC
-      sources:
-      - path: {source}
-        snapshots: {snapshot_dir}
-        upload_to_remotes:
-        - id: aws
-          preserve: 1y
-      remotes:
-      - id: aws
-        s3:
-          bucket: {bucket}
-    """)
-    assert main(console=console, argv=["update", "--pretend", str(config_path)]) == 0
-
-    (out, err) = capsys.readouterr()
-    # No idea how to stabilize this for golden testing
-    assert "assessment and proposed new state" in out
-    assert err == ""
-
-
-@pytest.fixture(params=[False, True], ids=["noterminal", "terminal"])
-def terminal(request: pytest.FixtureRequest) -> bool:
-    return bool(request.param)
-
-
-def test_force(
+@pytest.mark.parametrize(
+    ("terminal", "force", "with_created_snapshots"),
+    [
+        (True, True, True),
+        (True, True, False),
+        (True, False, True),
+        (True, False, False),
+        (False, True, True),
+        (False, True, False),
+    ],
+)
+def test_execute(
     tmp_path: Path,
     btrfs_mountpoint: Path,
     s3: S3Client,
@@ -100,7 +58,8 @@ def test_force(
     capsys: pytest.CaptureFixture[str],
     download_and_pipe: DownloadAndPipe,
     terminal: bool,  # noqa: FBT001
-    impl: Impl,
+    force: bool,  # noqa: FBT001
+    with_created_snapshots: bool,  # noqa: FBT001
 ) -> None:
     # Create a subvolume
     source = btrfs_mountpoint / "source"
@@ -110,6 +69,8 @@ def test_force(
     snapshot_dir.mkdir()
     # Modify some data in the source
     (source / "dummy-file").write_bytes(b"dummy")
+    if not with_created_snapshots:
+        create_snap(src=source, dst=snapshot_dir / "snapshot", read_only=True)
 
     console = Console(force_terminal=terminal, theme=THEME, width=88, height=30)
     config_path = tmp_path / "config.yaml"
@@ -126,16 +87,17 @@ def test_force(
         s3:
           bucket: {bucket}
     """)
-    argv = [impl.value, "--force", str(config_path)]
-    assert main(console=console, argv=argv) == 0
+    argv = [NAME, "--force", str(config_path)] if force else [NAME, str(config_path)]
+    if terminal and not force:
+        with patch("rich.console.input", return_value="y"):
+            assert main(console=console, argv=argv) == 0
+    else:
+        assert main(console=console, argv=argv) == 0
 
     (out, err) = capsys.readouterr()
     if terminal:
         # No idea how to stabilize this for golden testing
-        if impl == Impl.Update:
-            assert "assessment and proposed new state" in out
-        else:
-            assert "actions to take" in out
+        assert "actions to take" in out
     else:
         assert out == ""
     assert err == ""
@@ -152,14 +114,15 @@ def test_force(
     assert main(console=console, argv=argv) == 0
 
     (out, err) = capsys.readouterr()
-    if impl == Impl.Update or terminal:
+    if terminal:
         assert "nothing to be done" in out
     else:
         assert out == ""
+    assert err == ""
 
 
-def test_refuse_to_run_unattended_without_pretend_or_force(
-    tmp_path: Path, goldifyconsole: Console, impl: Impl
+def test_refuse_to_run_unattended_without_force(
+    tmp_path: Path, goldifyconsole: Console
 ) -> None:
     # This shouldn't get to the point of verifying arguments
     config_path = tmp_path / "config.yaml"
@@ -176,25 +139,21 @@ def test_refuse_to_run_unattended_without_pretend_or_force(
         s3:
           bucket: dummy_bucket
     """)
-    assert main(argv=[impl.value, str(config_path)], console=goldifyconsole) == 1
+    assert main(argv=[NAME, str(config_path)], console=goldifyconsole) == 1
 
 
-@pytest.fixture(params=[False, True])
-def undo(request: pytest.FixtureRequest) -> bool:
-    return bool(request.param)
-
-
+@pytest.mark.parametrize(
+    ("with_created_snapshots", "undo"), [(True, True), (True, False), (False, False)]
+)
 def test_reject_continue_prompt(
     tmp_path: Path,
     btrfs_mountpoint: Path,
     bucket: str,
     capsys: pytest.CaptureFixture[str],
     s3: S3Client,
-    impl: Impl,
     undo: bool,  # noqa: FBT001
+    with_created_snapshots: bool,  # noqa: FBT001
 ) -> None:
-    if impl == Impl.Update and undo:
-        pytest.xfail("not a case")
     # Create a subvolume
     source = btrfs_mountpoint / "source"
     create_subvol(source)
@@ -203,6 +162,8 @@ def test_reject_continue_prompt(
     snapshot_dir.mkdir()
     # Modify some data in the source
     (source / "dummy-file").write_bytes(b"dummy")
+    if not with_created_snapshots:
+        create_snap(src=source, dst=snapshot_dir / "snapshot", read_only=True)
 
     console = Console(force_terminal=True, theme=THEME, width=88, height=30)
     config_path = tmp_path / "config.yaml"
@@ -220,7 +181,7 @@ def test_reject_continue_prompt(
           bucket: {bucket}
     """)
     with patch("rich.console.input", return_value="u" if undo else "n"):
-        assert main(console=console, argv=[impl.value, str(config_path)]) == 0
+        assert main(console=console, argv=[NAME, str(config_path)]) == 0
 
     (out, err) = capsys.readouterr()
     # No idea how to stabilize this for golden testing
@@ -228,6 +189,62 @@ def test_reject_continue_prompt(
     assert err == ""
 
     # Ensure there were no side effects
-    if impl == Impl.Update or undo:
+    if with_created_snapshots and undo:
         assert list(snapshot_dir.iterdir()) == []
     assert s3.list_objects_v2(Bucket=bucket).get("Contents", []) == []
+
+
+def test_execute_with_multiple_sources(
+    tmp_path: Path,
+    btrfs_mountpoint: Path,
+    s3: S3Client,
+    bucket: str,
+    download_and_pipe: DownloadAndPipe,
+) -> None:
+    # Create subvolumes
+    source1 = btrfs_mountpoint / "source1"
+    source2 = btrfs_mountpoint / "source2"
+    create_subvol(source1)
+    create_subvol(source2)
+    # Snapshot dir, but no snapshots
+    snapshot_dir = btrfs_mountpoint / "snapshots"
+    snapshot_dir.mkdir()
+    # Modify some data in the source
+    (source1 / "dummy-file").write_bytes(b"dummy")
+    (source2 / "dummy-file").write_bytes(b"dummy")
+
+    console = Console(force_terminal=False, theme=THEME, width=88, height=30)
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(f"""
+      timezone: UTC
+      sources:
+      - path: {source1}
+        snapshots: {snapshot_dir}
+        upload_to_remotes:
+        - id: aws
+          preserve: 1y
+      - path: {source2}
+        snapshots: {snapshot_dir}
+        upload_to_remotes:
+        - id: aws
+          preserve: 1y
+      remotes:
+      - id: aws
+        s3:
+          bucket: {bucket}
+    """)
+    assert main(console=console, argv=[NAME, "--force", str(config_path)]) == 0
+
+    (snapshot1, snapshot2) = snapshot_dir.iterdir()
+    info1 = subvol_info(snapshot1)
+    info2 = subvol_info(snapshot2)
+    assert {info1.parent_uuid, info2.parent_uuid} == {
+        subvol_info(source1).uuid,
+        subvol_info(source2).uuid,
+    }
+    ((obj1, backup1), (obj2, backup2)) = iter_backups(s3, bucket)
+    assert {backup1.uuid, backup2.uuid} == {info1.uuid, info2.uuid}
+    assert backup1.send_parent_uuid is None
+    assert backup2.send_parent_uuid is None
+    download_and_pipe(obj1["Key"], ["btrfs", "receive", "--dump"])
+    download_and_pipe(obj2["Key"], ["btrfs", "receive", "--dump"])
