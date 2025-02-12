@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING
 from rich.logging import RichHandler
 
 from btrfs2s3._internal.commands import update
+from btrfs2s3._internal.commands import update2
 from btrfs2s3._internal.console import CONSOLE
 
 if TYPE_CHECKING:
@@ -59,6 +60,7 @@ def main(*, console: Console | None = None, argv: Sequence[str] | None = None) -
     )
 
     update.add_args(subparsers.add_parser(update.NAME, **update.ARGS))
+    update2.add_args(subparsers.add_parser(update2.NAME, **update2.ARGS))
 
     args = parser.parse_args(argv)
 
@@ -71,6 +73,8 @@ def main(*, console: Console | None = None, argv: Sequence[str] | None = None) -
 
     if args.command == update.NAME:
         return update.command(console=console, args=args)
+    if args.command == update2.NAME:
+        return update2.command(console=console, args=args)
     raise NotImplementedError
 
 

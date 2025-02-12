@@ -17,8 +17,6 @@
 
 from __future__ import annotations
 
-from enum import Enum
-from typing import cast
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
@@ -38,21 +36,19 @@ if TYPE_CHECKING:
     from tests.conftest import DownloadAndPipe
 
 
-class Impl(Enum):
-    Update = "update"
-    Update2 = "update2"
+@pytest.fixture(params=[False, True], ids=["confirm", "force"])
+def force(request: pytest.FixtureRequest) -> bool:
+    return bool(request.param)
 
 
-@pytest.fixture(params=[Impl.Update, Impl.Update2])
-def impl(request: pytest.FixtureRequest) -> Impl:
-    return cast(Impl, request.param)
-
-
-def test_pretend(
+def test_execute(
     tmp_path: Path,
     btrfs_mountpoint: Path,
+    s3: S3Client,
     bucket: str,
     capsys: pytest.CaptureFixture[str],
+    download_and_pipe: DownloadAndPipe,
+    force: bool,  # noqa: FBT001
 ) -> None:
     # Create a subvolume
     source = btrfs_mountpoint / "source"
@@ -79,66 +75,18 @@ def test_pretend(
         s3:
           bucket: {bucket}
     """)
-    assert main(console=console, argv=["update", "--pretend", str(config_path)]) == 0
+    argv: list[str]
+    if force:
+        argv = ["update2", "--force", str(config_path)]
+        assert main(console=console, argv=argv) == 0
+    else:
+        argv = ["update2", str(config_path)]
+        with patch("rich.console.input", return_value="y"):
+            assert main(console=console, argv=argv) == 0
 
     (out, err) = capsys.readouterr()
     # No idea how to stabilize this for golden testing
-    assert "assessment and proposed new state" in out
-    assert err == ""
-
-
-@pytest.fixture(params=[False, True], ids=["noterminal", "terminal"])
-def terminal(request: pytest.FixtureRequest) -> bool:
-    return bool(request.param)
-
-
-def test_force(
-    tmp_path: Path,
-    btrfs_mountpoint: Path,
-    s3: S3Client,
-    bucket: str,
-    capsys: pytest.CaptureFixture[str],
-    download_and_pipe: DownloadAndPipe,
-    terminal: bool,  # noqa: FBT001
-    impl: Impl,
-) -> None:
-    # Create a subvolume
-    source = btrfs_mountpoint / "source"
-    btrfsutil.create_subvolume(source)
-    # Snapshot dir, but no snapshots
-    snapshot_dir = btrfs_mountpoint / "snapshots"
-    snapshot_dir.mkdir()
-    # Modify some data in the source
-    (source / "dummy-file").write_bytes(b"dummy")
-    btrfsutil.sync(source)
-
-    console = Console(force_terminal=terminal, theme=THEME, width=88, height=30)
-    config_path = tmp_path / "config.yaml"
-    config_path.write_text(f"""
-      timezone: UTC
-      sources:
-      - path: {source}
-        snapshots: {snapshot_dir}
-        upload_to_remotes:
-        - id: aws
-          preserve: 1y
-      remotes:
-      - id: aws
-        s3:
-          bucket: {bucket}
-    """)
-    argv = [impl.value, "--force", str(config_path)]
-    assert main(console=console, argv=argv) == 0
-
-    (out, err) = capsys.readouterr()
-    if terminal:
-        # No idea how to stabilize this for golden testing
-        if impl == Impl.Update:
-            assert "assessment and proposed new state" in out
-        else:
-            assert "actions to take" in out
-    else:
-        assert out == ""
+    assert "actions to take" in out
     assert err == ""
 
     (snapshot,) = snapshot_dir.iterdir()
@@ -153,14 +101,11 @@ def test_force(
     assert main(console=console, argv=argv) == 0
 
     (out, err) = capsys.readouterr()
-    if impl == Impl.Update:
-        assert "nothing to be done" in out
-    else:
-        assert out == ""
+    assert "nothing to be done" in out
 
 
-def test_refuse_to_run_unattended_without_pretend_or_force(
-    tmp_path: Path, goldifyconsole: Console, impl: Impl
+def test_refuse_to_run_unattended_without_force(
+    tmp_path: Path, goldifyconsole: Console
 ) -> None:
     # This shouldn't get to the point of verifying arguments
     config_path = tmp_path / "config.yaml"
@@ -177,10 +122,10 @@ def test_refuse_to_run_unattended_without_pretend_or_force(
         s3:
           bucket: dummy_bucket
     """)
-    assert main(argv=[impl.value, str(config_path)], console=goldifyconsole) == 1
+    assert main(argv=["update2", str(config_path)], console=goldifyconsole) == 1
 
 
-@pytest.fixture(params=[False, True])
+@pytest.fixture(params=[False, True], ids=["cancel", "undo"])
 def undo(request: pytest.FixtureRequest) -> bool:
     return bool(request.param)
 
@@ -191,11 +136,8 @@ def test_reject_continue_prompt(
     bucket: str,
     capsys: pytest.CaptureFixture[str],
     s3: S3Client,
-    impl: Impl,
     undo: bool,  # noqa: FBT001
 ) -> None:
-    if impl == Impl.Update and undo:
-        pytest.xfail("not a case")
     # Create a subvolume
     source = btrfs_mountpoint / "source"
     btrfsutil.create_subvolume(source)
@@ -222,7 +164,7 @@ def test_reject_continue_prompt(
           bucket: {bucket}
     """)
     with patch("rich.console.input", return_value="u" if undo else "n"):
-        assert main(console=console, argv=[impl.value, str(config_path)]) == 0
+        assert main(console=console, argv=["update2", str(config_path)]) == 0
 
     (out, err) = capsys.readouterr()
     # No idea how to stabilize this for golden testing
@@ -230,6 +172,6 @@ def test_reject_continue_prompt(
     assert err == ""
 
     # Ensure there were no side effects
-    if impl == Impl.Update or undo:
+    if undo:
         assert list(snapshot_dir.iterdir()) == []
     assert s3.list_objects_v2(Bucket=bucket).get("Contents", []) == []
