@@ -328,8 +328,8 @@ def get_kernel_send_proto() -> int:
 
 def get_userspace_send_proto() -> int:
     full_output = check_output(["btrfs", "version"], text=True)
-    m = re.match(r"^btrfs-progs v(.*)$", full_output)
-    assert m is not None
+    m = re.match(r"^btrfs-progs v(.*)$", full_output, re.MULTILINE)
+    assert m is not None, full_output
     version_str = m.group(1)
     version = tuple(int(part) for part in version_str.split("."))
     if version >= (5, 19):
