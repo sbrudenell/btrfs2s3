@@ -40,7 +40,7 @@ def part_size(request: pytest.FixtureRequest) -> int:
     return cast(int, request.param)
 
 
-@pytest.fixture()
+@pytest.fixture
 def stream_data(data_size: int) -> bytes:
     return os.urandom(data_size)
 
@@ -55,7 +55,7 @@ def seekable(request: pytest.FixtureRequest) -> bool:
     return cast(bool, request.param)
 
 
-@pytest.fixture()
+@pytest.fixture
 def stream(buffering: int, seekable: bool, stream_data: bytes) -> Iterator[IO[bytes]]:  # noqa: FBT001
     if seekable:
         with TemporaryFile(buffering=buffering) as stream:

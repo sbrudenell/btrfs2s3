@@ -20,11 +20,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
+import btrfsutil
+from rich.console import Console
+
 from btrfs2s3._internal.console import THEME
 from btrfs2s3._internal.main import main
 from btrfs2s3._internal.s3 import iter_backups
-import btrfsutil
-from rich.console import Console
 
 if TYPE_CHECKING:
     from pathlib import Path

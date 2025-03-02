@@ -23,12 +23,13 @@ from typing import cast
 from zoneinfo import ZoneInfo
 
 import arrow
+import pytest
+
 from btrfs2s3._internal.arrowutil import convert_span
 from btrfs2s3._internal.preservation import Params
 from btrfs2s3._internal.preservation import Policy
 from btrfs2s3._internal.preservation import Timeframe
 from btrfs2s3._internal.preservation import TIMEFRAMES
-import pytest
 
 
 def _random_timestamp() -> float:

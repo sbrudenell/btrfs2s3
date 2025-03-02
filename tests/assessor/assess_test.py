@@ -22,6 +22,9 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from botocore.exceptions import ClientError
+import btrfsutil
+import pytest
+
 from btrfs2s3._internal.action import Actions
 from btrfs2s3._internal.assessor import assess
 from btrfs2s3._internal.assessor import assessment_to_actions
@@ -35,8 +38,6 @@ from btrfs2s3._internal.s3 import iter_backups
 from btrfs2s3._internal.util import backup_of_snapshot
 from btrfs2s3._internal.util import NULL_UUID
 from btrfs2s3._internal.util import SubvolumeFlags
-import btrfsutil
-import pytest
 
 if TYPE_CHECKING:
     from pathlib import Path

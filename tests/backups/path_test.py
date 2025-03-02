@@ -24,8 +24,9 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 import arrow
-from btrfs2s3._internal.backups import BackupInfo
 import pytest
+
+from btrfs2s3._internal.backups import BackupInfo
 
 if TYPE_CHECKING:
     from collections.abc import Sequence

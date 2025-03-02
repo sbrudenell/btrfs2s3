@@ -23,9 +23,10 @@ import subprocess
 from typing import TYPE_CHECKING
 
 from botocore.exceptions import ClientError
-from btrfs2s3._internal.action import create_backup
 import btrfsutil
 import pytest
+
+from btrfs2s3._internal.action import create_backup
 
 if TYPE_CHECKING:
     from pathlib import Path

@@ -20,9 +20,10 @@ from __future__ import annotations
 from zoneinfo import ZoneInfo
 
 import arrow
-from btrfs2s3._internal.commands.update import describe_time_span
 import pytest
 from rich.text import Span
+
+from btrfs2s3._internal.commands.update import describe_time_span
 
 
 @pytest.mark.parametrize(

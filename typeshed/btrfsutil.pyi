@@ -120,6 +120,7 @@ class SubvolumeIterator(Iterator[tuple[str, _IT_co]]):
     def __enter__(self) -> Self: ...
     def __exit__(
         self,
+        /,
         __exc_type: type[BaseException] | None,
         __exc_value: BaseException | None,
         __traceback: TracebackType | None,

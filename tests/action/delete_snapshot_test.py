@@ -19,9 +19,10 @@ import os
 from pathlib import Path
 import subprocess
 
-from btrfs2s3._internal.action import delete_snapshot
 import btrfsutil
 import pytest
+
+from btrfs2s3._internal.action import delete_snapshot
 
 
 def test_call(btrfs_mountpoint: Path) -> None:

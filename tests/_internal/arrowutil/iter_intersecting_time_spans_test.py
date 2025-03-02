@@ -16,6 +16,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import arrow
+
 from btrfs2s3._internal.arrowutil import iter_intersecting_time_spans
 
 

@@ -17,11 +17,12 @@
 
 from __future__ import annotations
 
+import pytest
+from typing_extensions import assert_type
+
 from btrfs2s3._internal.thunk import StillTBDError
 from btrfs2s3._internal.thunk import TBD
 from btrfs2s3._internal.thunk import Thunk
-import pytest
-from typing_extensions import assert_type
 
 
 def test_immediate() -> None:

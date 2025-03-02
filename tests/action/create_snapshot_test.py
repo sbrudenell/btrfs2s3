@@ -17,9 +17,10 @@
 
 from pathlib import Path
 
+import btrfsutil
+
 from btrfs2s3._internal.action import create_snapshot
 from btrfs2s3._internal.util import SubvolumeFlags
-import btrfsutil
 
 
 def test_call(btrfs_mountpoint: Path) -> None:

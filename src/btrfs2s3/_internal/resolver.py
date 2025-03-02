@@ -132,8 +132,8 @@ class _Marker(Generic[_I]):
             "reasons", default=Reasons.Empty
         )
         self._flags_ctx: ContextVar[Flags] = ContextVar("flags", default=Flags.Empty)
-        self._time_span_ctx: ContextVar[set[TS]] = ContextVar(
-            "time_span", default=set()
+        self._time_span_ctx: ContextVar[frozenset[TS]] = ContextVar(
+            "time_span", default=frozenset()
         )
 
     @contextlib.contextmanager
@@ -166,7 +166,7 @@ class _Marker(Generic[_I]):
         update = KeepMeta(
             reasons=self._reasons_ctx.get(),
             flags=flags | self._flags_ctx.get(),
-            time_spans=self._time_span_ctx.get(),
+            time_spans=set(self._time_span_ctx.get()),
             other_uuids={other_uuid} if other_uuid is not None else set(),
         )
         if not update.reasons:

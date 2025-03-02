@@ -30,10 +30,11 @@ from typing import TYPE_CHECKING
 from warnings import warn
 
 import boto3
-from btrfs2s3._internal.console import THEME
 from moto import mock_aws
 import pytest
 from rich.console import Console
+
+from btrfs2s3._internal.console import THEME
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -53,13 +54,13 @@ def _aws_credentials() -> None:
     os.environ["AWS_DEFAULT_REGION"] = "us-east-1"
 
 
-@pytest.fixture()
+@pytest.fixture
 def _aws(_aws_credentials: None) -> Iterator[None]:
     with mock_aws():
         yield
 
 
-@pytest.fixture()
+@pytest.fixture
 def btrfs_mountpoint() -> Iterator[Path]:
     with tempfile.NamedTemporaryFile() as loop_file:
         loop_file.truncate(2**30)
@@ -72,7 +73,7 @@ def btrfs_mountpoint() -> Iterator[Path]:
                 subprocess.check_call(["umount", mount_temp_dir])
 
 
-@pytest.fixture()
+@pytest.fixture
 def ext4_mountpoint() -> Iterator[Path]:
     with tempfile.NamedTemporaryFile() as loop_file:
         loop_file.truncate(2**30)
@@ -85,12 +86,12 @@ def ext4_mountpoint() -> Iterator[Path]:
                 subprocess.check_call(["umount", mount_temp_dir])
 
 
-@pytest.fixture()
+@pytest.fixture
 def s3(_aws: None) -> S3Client:
     return boto3.client("s3")
 
 
-@pytest.fixture()
+@pytest.fixture
 def bucket(s3: S3Client) -> str:
     s3.create_bucket(Bucket="test-bucket")
     return "test-bucket"
@@ -100,7 +101,7 @@ class DownloadAndPipe(Protocol):
     def __call__(self, key: str, args: Sequence[str | Path]) -> int: ...
 
 
-@pytest.fixture()
+@pytest.fixture
 def download_and_pipe(s3: S3Client, bucket: str) -> DownloadAndPipe:
     def inner(key: str, args: Sequence[str | Path]) -> int:
         process = Popen(args, stdin=PIPE, stdout=DEVNULL)
@@ -147,7 +148,7 @@ class Goldify(Protocol):
     def __call__(self, value: str) -> None: ...
 
 
-@pytest.fixture()
+@pytest.fixture
 def goldify(request: pytest.FixtureRequest, touched_golden: set[Path]) -> Goldify:
     path = Path(request.node.nodeid + ".golden")
     touched_golden.add(path)
@@ -165,7 +166,7 @@ class ConsoleFactory(Protocol):
     def __call__(self, file: IO[str] | None = None) -> Console: ...
 
 
-@pytest.fixture()
+@pytest.fixture
 def console_factory() -> ConsoleFactory:
     def inner(file: IO[str] | None = None) -> Console:
         return Console(
@@ -175,7 +176,7 @@ def console_factory() -> ConsoleFactory:
     return inner
 
 
-@pytest.fixture()
+@pytest.fixture
 def goldifyconsole(
     console_factory: ConsoleFactory, goldify: Goldify
 ) -> Iterator[Console]:

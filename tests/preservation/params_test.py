@@ -15,8 +15,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from btrfs2s3._internal.preservation import Params
 import pytest
+
+from btrfs2s3._internal.preservation import Params
 
 
 def test_args() -> None:

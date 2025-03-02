@@ -20,8 +20,9 @@ from __future__ import annotations
 from datetime import timezone
 
 import arrow
-from btrfs2s3._internal.arrowutil import humanize_span
 import pytest
+
+from btrfs2s3._internal.arrowutil import humanize_span
 
 
 @pytest.mark.parametrize(

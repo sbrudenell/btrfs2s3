@@ -17,8 +17,9 @@
 
 from pathlib import Path
 
-from btrfs2s3._internal.action import rename_snapshot
 import btrfsutil
+
+from btrfs2s3._internal.action import rename_snapshot
 
 
 def test_call(btrfs_mountpoint: Path) -> None:

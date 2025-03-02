@@ -24,6 +24,8 @@ from subprocess import DEVNULL
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING
 
+import pytest
+
 from btrfs2s3._internal.btrfsioctl import create_snap
 from btrfs2s3._internal.btrfsioctl import create_subvol
 from btrfs2s3._internal.btrfsioctl import destroy_snap
@@ -33,7 +35,6 @@ from btrfs2s3._internal.btrfsioctl import opendir
 from btrfs2s3._internal.btrfsioctl import send
 from btrfs2s3._internal.btrfsioctl import subvol_info
 from btrfs2s3._internal.btrfsioctl import SubvolInfo
-import pytest
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -51,41 +52,41 @@ def dst_stream(request: pytest.FixtureRequest) -> bool:
     return bool(request.param)
 
 
-@pytest.fixture()
+@pytest.fixture
 def dir_fd(btrfs_mountpoint: Path) -> Iterator[int]:
     with opendir(btrfs_mountpoint) as fd:
         yield fd
 
 
-@pytest.fixture()
+@pytest.fixture
 def subvol_name(dir_fd: int) -> str:
     name = "subvol"
     create_subvol(name, dir_fd=dir_fd)
     return name
 
 
-@pytest.fixture()
+@pytest.fixture
 def source_fd(dir_fd: int, subvol_name: str) -> Iterator[int]:
     with opendir(subvol_name, dir_fd=dir_fd) as fd:
         yield fd
 
 
-@pytest.fixture()
+@pytest.fixture
 def subvol_path(subvol_name: str, btrfs_mountpoint: Path) -> Path:
     return btrfs_mountpoint / subvol_name
 
 
-@pytest.fixture()
+@pytest.fixture
 def data_a() -> bytes:
     return randbytes(4096)
 
 
-@pytest.fixture()
+@pytest.fixture
 def data_b() -> bytes:
     return randbytes(4096)
 
 
-@pytest.fixture()
+@pytest.fixture
 def snapshot_1_name(
     subvol_path: Path, data_a: bytes, dir_fd: int, source_fd: int
 ) -> str:
@@ -95,7 +96,7 @@ def snapshot_1_name(
     return name
 
 
-@pytest.fixture()
+@pytest.fixture
 def snapshot_2_name(
     subvol_path: Path,
     data_b: bytes,
@@ -109,7 +110,7 @@ def snapshot_2_name(
     return name
 
 
-@pytest.fixture()
+@pytest.fixture
 def snapshot_2_path(
     btrfs_mountpoint: Path, snapshot_2_name: str, data_a: bytes, data_b: bytes
 ) -> Path:
@@ -119,35 +120,35 @@ def snapshot_2_path(
     return path
 
 
-@pytest.fixture()
+@pytest.fixture
 def snapshot_1_fd(dir_fd: int, snapshot_1_name: str) -> Iterator[int]:
     with opendir(snapshot_1_name, dir_fd=dir_fd) as fd:
         yield fd
 
 
-@pytest.fixture()
+@pytest.fixture
 def snapshot_1_info(snapshot_1_fd: int) -> SubvolInfo:
     return subvol_info(snapshot_1_fd)
 
 
-@pytest.fixture()
+@pytest.fixture
 def snapshot_2_info(snapshot_2_fd: int) -> SubvolInfo:
     return subvol_info(snapshot_2_fd)
 
 
-@pytest.fixture()
+@pytest.fixture
 def snapshot_2_fd(dir_fd: int, snapshot_2_name: str) -> Iterator[int]:
     with opendir(snapshot_2_name, dir_fd=dir_fd) as fd:
         yield fd
 
 
-@pytest.fixture()
+@pytest.fixture
 def tempfp1() -> Iterator[IO[bytes]]:
     with NamedTemporaryFile() as fp:
         yield fp
 
 
-@pytest.fixture()
+@pytest.fixture
 def tempfp2() -> Iterator[IO[bytes]]:
     with NamedTemporaryFile() as fp:
         yield fp

@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import pytest
+
 from btrfs2s3._internal.config import Config
 from btrfs2s3._internal.config import InvalidConfigError
 from btrfs2s3._internal.config import load_from_path
@@ -27,13 +29,12 @@ from btrfs2s3._internal.config import S3EndpointConfig
 from btrfs2s3._internal.config import S3RemoteConfig
 from btrfs2s3._internal.config import SourceConfig
 from btrfs2s3._internal.config import UploadToRemoteConfig
-import pytest
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 
-@pytest.fixture()
+@pytest.fixture
 def path(tmp_path: Path) -> Path:
     return tmp_path / "config.yaml"
 

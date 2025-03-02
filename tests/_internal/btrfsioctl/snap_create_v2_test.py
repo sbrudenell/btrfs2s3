@@ -19,12 +19,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import pytest
+
 from btrfs2s3._internal.btrfsioctl import create_snap
 from btrfs2s3._internal.btrfsioctl import create_subvol
 from btrfs2s3._internal.btrfsioctl import opendir
 from btrfs2s3._internal.btrfsioctl import subvol_info
 from btrfs2s3._internal.btrfsioctl import SubvolFlag
-import pytest
 
 if TYPE_CHECKING:
     from pathlib import Path

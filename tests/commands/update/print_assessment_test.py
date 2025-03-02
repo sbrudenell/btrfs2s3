@@ -23,6 +23,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import arrow
+import pytest
+
 from btrfs2s3._internal.assessor import Assessment
 from btrfs2s3._internal.assessor import BackupAssessment
 from btrfs2s3._internal.assessor import SnapshotAssessment
@@ -35,7 +37,6 @@ from btrfs2s3._internal.thunk import Thunk
 from btrfs2s3._internal.util import backup_of_snapshot
 from btrfs2s3._internal.util import mksubvol
 from btrfs2s3._internal.util import SubvolumeFlags
-import pytest
 
 if TYPE_CHECKING:
     from rich.console import Console
@@ -49,7 +50,7 @@ print_assessment_under_test = partial(
 )
 
 
-@pytest.fixture()
+@pytest.fixture
 def golden_asmt_with_no_changes() -> Assessment:
     asmt = Assessment()
     source1 = mksubvol(

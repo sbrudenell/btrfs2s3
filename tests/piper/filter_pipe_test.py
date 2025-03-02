@@ -22,8 +22,9 @@ from subprocess import CalledProcessError
 from typing import cast
 from typing import TYPE_CHECKING
 
-from btrfs2s3._internal.piper import filter_pipe
 import pytest
+
+from btrfs2s3._internal.piper import filter_pipe
 
 if TYPE_CHECKING:
     from collections.abc import Sequence

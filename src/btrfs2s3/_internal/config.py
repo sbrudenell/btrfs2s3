@@ -205,8 +205,8 @@ def load_from_path(path: str | PathLike[str]) -> Config:
         for upload_to_remote in source["upload_to_remotes"]:
             if upload_to_remote["id"] not in remote_ids:
                 msg = (
-                    f'remote id {upload_to_remote["id"]!r} for source '
-                    f'{source["path"]!r} is not defined in the list of remotes'
+                    f"remote id {upload_to_remote['id']!r} for source "
+                    f"{source['path']!r} is not defined in the list of remotes"
                 )
                 raise InvalidConfigError(msg)
 

@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import pytest
+
 from btrfs2s3._internal.btrfsioctl import create_subvol
 from btrfs2s3._internal.btrfsioctl import FIRST_FREE_OBJECTID
 from btrfs2s3._internal.btrfsioctl import FS_TREE_OBJECTID
@@ -26,7 +28,6 @@ from btrfs2s3._internal.btrfsioctl import NULL_UUID
 from btrfs2s3._internal.btrfsioctl import opendir
 from btrfs2s3._internal.btrfsioctl import subvol_info
 from btrfs2s3._internal.btrfsioctl import UUID_SIZE
-import pytest
 
 if TYPE_CHECKING:
     from pathlib import Path

@@ -19,13 +19,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import pytest
+
 from btrfs2s3._internal.btrfsioctl import create_snap
 from btrfs2s3._internal.btrfsioctl import create_subvol
 from btrfs2s3._internal.btrfsioctl import destroy_snap
 from btrfs2s3._internal.btrfsioctl import opendir
 from btrfs2s3._internal.btrfsioctl import subvol_info
 from btrfs2s3._internal.btrfsioctl import SubvolInfo
-import pytest
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -42,13 +43,13 @@ def use_snapshot_id(request: pytest.FixtureRequest) -> bool:
     return bool(request.param)
 
 
-@pytest.fixture()
+@pytest.fixture
 def dir_fd(btrfs_mountpoint: Path) -> Iterator[int]:
     with opendir(btrfs_mountpoint) as fd:
         yield fd
 
 
-@pytest.fixture()
+@pytest.fixture
 def snapshot(dir_fd: int) -> tuple[str, SubvolInfo]:
     subvol_name = "subvol"
     snap_name = "snapshot"

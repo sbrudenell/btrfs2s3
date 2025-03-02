@@ -22,6 +22,8 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import arrow
+import pytest
+
 from btrfs2s3._internal.preservation import Params
 from btrfs2s3._internal.preservation import Policy
 from btrfs2s3._internal.resolver import _Resolver
@@ -32,13 +34,12 @@ from btrfs2s3._internal.resolver import Reasons
 from btrfs2s3._internal.resolver import Result
 from btrfs2s3._internal.util import backup_of_snapshot
 from btrfs2s3._internal.util import mksubvol
-import pytest
 
 if TYPE_CHECKING:
     from btrfsutil import SubvolumeInfo
 
 
-@pytest.fixture()
+@pytest.fixture
 def parent_uuid() -> bytes:
     return uuid4().bytes
 
@@ -47,7 +48,7 @@ class MkSnap(Protocol):
     def __call__(self, *, t: str | None = None, i: int = 0) -> SubvolumeInfo: ...
 
 
-@pytest.fixture()
+@pytest.fixture
 def mksnap(parent_uuid: bytes) -> MkSnap:
     def inner(*, t: str | None = None, i: int = 0) -> SubvolumeInfo:
         a = arrow.get() if t is None else arrow.get(t)
