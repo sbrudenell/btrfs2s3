@@ -170,6 +170,10 @@ def create_backup(
         # Allow the pipeline to fail if the upload fails
         pipeline_stdout.close()
 
+    # wait for all processes in the pipeline to complete, to match shell pipeline
+    # semantics
+    for process in pipeline:
+        process.wait()
     # reverse order to match the semantics of pipefail
     for process in reversed(pipeline):
         if process.wait() != 0:

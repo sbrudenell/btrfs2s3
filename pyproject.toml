@@ -116,6 +116,12 @@ lint.isort.force-sort-within-sections = true
 lint.isort.order-by-type = false
 lint.pydocstyle.convention = "google"
 
+[tool.pytest.ini_options]
+filterwarnings = [
+  "error",
+  "ignore::DeprecationWarning:botocore.crt.auth",
+]
+
 [tool.coverage.run]
 plugins = [
   "covdefaults",
