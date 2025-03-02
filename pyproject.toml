@@ -61,10 +61,6 @@ lint.select = [
   "ALL",
 ]
 lint.ignore = [
-  # ANN101 and ANN102 require type annotations for "self" and "cls". These have
-  # already been removed in newer releases of ruff.
-  "ANN101",
-  "ANN102",
   # COM812 requires trailing commas. docs say this is not recommended for use
   # with ruff-format.
   "COM812",
