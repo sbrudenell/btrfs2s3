@@ -118,7 +118,7 @@ def test_create_and_backup_new_snapshot(
     download_and_pipe(obj["Key"], ["btrfs", "receive", "--dump"])
 
 
-def test_create_and_backup_with_parent(
+def test_create_and_backup_with_parent(  # noqa: PLR0915
     btrfs_mountpoint: Path,
     s3: S3Client,
     bucket: str,
@@ -187,11 +187,15 @@ def test_create_and_backup_with_parent(
 
     actions.execute(s3, bucket)
 
-    (snapshot1, snapshot2) = sorted(snapshot_dir.iterdir())
+    (snapshot1, snapshot2) = snapshot_dir.iterdir()
     assert snapshot1.name.startswith(source.name)
     assert snapshot2.name.startswith(source.name)
     snapshot1_info = btrfsutil.subvolume_info(snapshot1)
     snapshot2_info = btrfsutil.subvolume_info(snapshot2)
+    snapshot1_info, snapshot2_info = sorted(
+        (snapshot1_info, snapshot2_info), key=lambda i: i.ctransid
+    )
+    assert snapshot1_info.ctransid < snapshot2_info.ctransid
     assert snapshot1_info.parent_uuid == btrfsutil.subvolume_info(source).uuid
     assert snapshot2_info.parent_uuid == btrfsutil.subvolume_info(source).uuid
 
