@@ -23,7 +23,7 @@ import arrow
 import pytest
 from rich.text import Span
 
-from btrfs2s3._internal.commands.update import describe_time_span
+from btrfs2s3._internal.time_span_describer import describe_time_span
 
 
 @pytest.mark.parametrize(

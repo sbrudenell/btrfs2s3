@@ -53,18 +53,14 @@ from btrfs2s3._internal.resolver import Flags
 from btrfs2s3._internal.resolver import KeepMeta
 from btrfs2s3._internal.resolver import Reasons
 from btrfs2s3._internal.thunk import TBD
+from btrfs2s3._internal.time_span_describer import describe_time_span
 
 if TYPE_CHECKING:
     import argparse
     from collections.abc import Iterable
     from collections.abc import Sequence
     from datetime import tzinfo
-    from typing import Literal
     from typing import TypedDict
-
-    from typing_extensions import TypeAlias
-
-    _Bounds: TypeAlias = Literal["[)", "()", "(]", "[]"]
 
 _iso8601_highlight = ISO8601Highlighter()
 
@@ -77,47 +73,6 @@ def _time_span_key(time_span: TS) -> tuple[float, float]:
 def _describe_time_spans(time_spans: Iterable[TS], tzinfo: tzinfo) -> Text:
     return describe_time_span(
         sorted(time_spans, key=_time_span_key)[0], tzinfo, bounds="[]"
-    )
-
-
-def describe_time_span(
-    time_span: TS, tzinfo: tzinfo, *, bounds: _Bounds = "[)"
-) -> Text:
-    """Returns a highlighted summary of a time span in context of preservation."""
-    a_timestamp, b_timestamp = time_span
-    a = arrow.get(a_timestamp, tzinfo=tzinfo)
-    b = arrow.get(b_timestamp, tzinfo=tzinfo)
-    if (a, b) == a.span("year", bounds=bounds):
-        return Text.from_markup(f"[iso8601.date]{a.year:04d}[/] yearly")
-    if (a, b) == a.span("quarter", bounds=bounds):
-        return Text.from_markup(f"[iso8601.date]{a.year:04d}-Q{a.quarter}[/] quarterly")
-    if (a, b) == a.span("month", bounds=bounds):
-        return Text.from_markup(f"[iso8601.date]{a.year:04d}-{a.month:02d}[/] monthly")
-    if (a, b) == a.span("week", bounds=bounds):
-        return Text.from_markup(f"[iso8601.date]{a.year:04d}-W{a.week:02d}[/] weekly")
-    if (a, b) == a.span("day", bounds=bounds):
-        return Text.from_markup(
-            f"[iso8601.date]{a.year:04d}-{a.month:02d}-{a.day:02d}[/] daily"
-        )
-    if (a, b) == a.span("hour", bounds=bounds):
-        return Text.from_markup(
-            f"[iso8601.date]{a.year:04d}-{a.month:02d}-{a.day:02d}[/]T"
-            f"[iso8601.time]{a.hour:02d}[/] hourly"
-        )
-    if (a, b) == a.span("minute", bounds=bounds):
-        return Text.from_markup(
-            f"[iso8601.date]{a.year:04d}-{a.month:02d}-{a.day:02d}[/]T"
-            f"[iso8601.time]{a.hour:02d}:{a.minute:02d}[/] minutely"
-        )
-    if (a, b) == a.span("second", bounds=bounds):
-        return Text.from_markup(
-            f"[iso8601.date]{a.year:04d}-{a.month:02d}-{a.day:02d}[/]T"
-            f"[iso8601.time]{a.hour:02d}:{a.minute:02d}:{a.second:02d}[/] secondly"
-        )
-    return (
-        _iso8601_highlight(a.format("YYYY-MM-DDTHH:mm:ss"))
-        .append("/")
-        .append(_iso8601_highlight(b.format("YYYY-MM-DDTHH:mm:ss")))
     )
 
 
