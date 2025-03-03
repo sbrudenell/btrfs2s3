@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import btrfsutil
+import pytest
 from rich.console import Console
 
 from btrfs2s3._internal.console import THEME
@@ -31,7 +32,6 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from mypy_boto3_s3.client import S3Client
-    import pytest
 
     from tests.conftest import DownloadAndPipe
 
@@ -75,6 +75,11 @@ def test_pretend(
     assert err == ""
 
 
+@pytest.fixture(params=[False, True], ids=["noterminal", "terminal"])
+def terminal(request: pytest.FixtureRequest) -> bool:
+    return bool(request.param)
+
+
 def test_force(
     tmp_path: Path,
     btrfs_mountpoint: Path,
@@ -82,6 +87,7 @@ def test_force(
     bucket: str,
     capsys: pytest.CaptureFixture[str],
     download_and_pipe: DownloadAndPipe,
+    terminal: bool,  # noqa: FBT001
 ) -> None:
     # Create a subvolume
     source = btrfs_mountpoint / "source"
@@ -93,7 +99,7 @@ def test_force(
     (source / "dummy-file").write_bytes(b"dummy")
     btrfsutil.sync(source)
 
-    console = Console(force_terminal=True, theme=THEME, width=88, height=30)
+    console = Console(force_terminal=terminal, theme=THEME, width=88, height=30)
     config_path = tmp_path / "config.yaml"
     config_path.write_text(f"""
       timezone: UTC
@@ -112,8 +118,11 @@ def test_force(
     assert main(console=console, argv=argv) == 0
 
     (out, err) = capsys.readouterr()
-    # No idea how to stabilize this for golden testing
-    assert "assessment and proposed new state" in out
+    if terminal:
+        # No idea how to stabilize this for golden testing
+        assert "assessment and proposed new state" in out
+    else:
+        assert out == ""
     assert err == ""
 
     (snapshot,) = snapshot_dir.iterdir()
@@ -125,7 +134,7 @@ def test_force(
     download_and_pipe(obj["Key"], ["btrfs", "receive", "--dump"])
 
     # Second run should be no-op
-    assert main(argv=argv) == 0
+    assert main(console=console, argv=argv) == 0
 
     (out, err) = capsys.readouterr()
     assert "nothing to be done" in out
