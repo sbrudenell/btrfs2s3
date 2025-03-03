@@ -118,6 +118,12 @@ filterwarnings = [
   "ignore::DeprecationWarning:botocore.crt.auth",
 ]
 
+[tool.coverage.paths]
+source = [
+  "src/btrfs2s3",
+  "*/.tox/*/lib/python*/site-packages/btrfs2s3",
+]
+
 [tool.coverage.run]
 plugins = [
   "covdefaults",
