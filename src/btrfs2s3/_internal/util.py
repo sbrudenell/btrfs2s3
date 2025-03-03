@@ -18,6 +18,8 @@
 from __future__ import annotations
 
 from enum import IntFlag
+from typing import Protocol
+from typing import TypeVar
 
 from btrfsutil import SubvolumeInfo
 
@@ -66,9 +68,22 @@ def mksubvol(
     )
 
 
-def backup_of_snapshot(
-    snapshot: SubvolumeInfo, send_parent: SubvolumeInfo | None = None
-) -> BackupInfo:
+class SubvolumeLike(Protocol):
+    @property
+    def uuid(self) -> bytes: ...
+    @property
+    def parent_uuid(self) -> bytes | None: ...
+    @property
+    def ctransid(self) -> int: ...
+    @property
+    def ctime(self) -> float: ...
+
+
+_S = TypeVar("_S", bound=SubvolumeLike)
+
+
+def backup_of_snapshot(snapshot: _S, send_parent: _S | None = None) -> BackupInfo:
+    assert snapshot.parent_uuid is not None
     return BackupInfo(
         uuid=snapshot.uuid,
         parent_uuid=snapshot.parent_uuid,

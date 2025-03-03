@@ -17,13 +17,9 @@
 
 from __future__ import annotations
 
-from typing import Protocol
-from typing import TYPE_CHECKING
 from uuid import uuid4
 
-import arrow
-import pytest
-
+from btrfs2s3._internal.btrfsioctl import SubvolInfo
 from btrfs2s3._internal.preservation import Policy
 from btrfs2s3._internal.resolver import _Resolver
 from btrfs2s3._internal.resolver import Flags
@@ -32,30 +28,6 @@ from btrfs2s3._internal.resolver import KeepMeta
 from btrfs2s3._internal.resolver import Reasons
 from btrfs2s3._internal.resolver import Result
 from btrfs2s3._internal.util import backup_of_snapshot
-from btrfs2s3._internal.util import mksubvol
-
-if TYPE_CHECKING:
-    from btrfsutil import SubvolumeInfo
-
-
-@pytest.fixture
-def parent_uuid() -> bytes:
-    return uuid4().bytes
-
-
-class MkSnap(Protocol):
-    def __call__(self, *, t: str | None = None, i: int = 0) -> SubvolumeInfo: ...
-
-
-@pytest.fixture
-def mksnap(parent_uuid: bytes) -> MkSnap:
-    def inner(*, t: str | None = None, i: int = 0) -> SubvolumeInfo:
-        a = arrow.get() if t is None else arrow.get(t)
-        return mksubvol(
-            uuid=uuid4().bytes, parent_uuid=parent_uuid, ctime=a.timestamp(), ctransid=i
-        )
-
-    return inner
 
 
 def test_noop() -> None:
@@ -68,8 +40,8 @@ def test_noop() -> None:
     assert resolver.get_result() == Result(keep_snapshots={}, keep_backups={})
 
 
-def test_one_snapshot(mksnap: MkSnap) -> None:
-    snapshot = mksnap()
+def test_one_snapshot() -> None:
+    snapshot = SubvolInfo.create(parent_uuid=uuid4().bytes)
     resolver = _Resolver(
         snapshots=(snapshot,), backups=(), policy=Policy(), mk_backup=backup_of_snapshot
     )
@@ -89,9 +61,13 @@ def test_one_snapshot(mksnap: MkSnap) -> None:
     )
 
 
-def test_multiple_snapshots_keep_most_recent(mksnap: MkSnap) -> None:
-    snapshot1 = mksnap(i=1)
-    snapshot2 = mksnap(i=2)
+def test_multiple_snapshots_keep_most_recent() -> None:
+    snapshot1 = SubvolInfo.create(
+        uuid=uuid4().bytes, parent_uuid=uuid4().bytes, ctransid=1
+    )
+    snapshot2 = SubvolInfo.create(
+        uuid=uuid4().bytes, parent_uuid=uuid4().bytes, ctransid=2
+    )
     backup1 = backup_of_snapshot(snapshot1, send_parent=None)
     resolver = _Resolver(
         snapshots=(snapshot1, snapshot2),

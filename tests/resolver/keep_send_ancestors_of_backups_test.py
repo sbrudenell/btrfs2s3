@@ -17,13 +17,11 @@
 
 from __future__ import annotations
 
-from typing import Protocol
-from typing import TYPE_CHECKING
 from uuid import uuid4
 
-import arrow
 import pytest
 
+from btrfs2s3._internal.btrfsioctl import SubvolInfo
 from btrfs2s3._internal.preservation import Policy
 from btrfs2s3._internal.resolver import _Resolver
 from btrfs2s3._internal.resolver import Flags
@@ -32,30 +30,6 @@ from btrfs2s3._internal.resolver import KeepMeta
 from btrfs2s3._internal.resolver import Reasons
 from btrfs2s3._internal.resolver import Result
 from btrfs2s3._internal.util import backup_of_snapshot
-from btrfs2s3._internal.util import mksubvol
-
-if TYPE_CHECKING:
-    from btrfsutil import SubvolumeInfo
-
-
-@pytest.fixture
-def parent_uuid() -> bytes:
-    return uuid4().bytes
-
-
-class MkSnap(Protocol):
-    def __call__(self, *, t: str | None = None, i: int = 0) -> SubvolumeInfo: ...
-
-
-@pytest.fixture
-def mksnap(parent_uuid: bytes) -> MkSnap:
-    def inner(*, t: str | None = None, i: int = 0) -> SubvolumeInfo:
-        a = arrow.get() if t is None else arrow.get(t)
-        return mksubvol(
-            uuid=uuid4().bytes, parent_uuid=parent_uuid, ctime=a.timestamp(), ctransid=i
-        )
-
-    return inner
 
 
 def test_noop() -> None:
@@ -68,8 +42,8 @@ def test_noop() -> None:
     assert resolver.get_result() == Result(keep_snapshots={}, keep_backups={})
 
 
-def test_backup_with_no_parent(mksnap: MkSnap) -> None:
-    snapshot1 = mksnap()
+def test_backup_with_no_parent() -> None:
+    snapshot1 = SubvolInfo.create(parent_uuid=uuid4().bytes)
     backup1 = backup_of_snapshot(snapshot1, send_parent=None)
     resolver = _Resolver(
         snapshots=(), backups=(backup1,), policy=Policy(), mk_backup=backup_of_snapshot
@@ -85,10 +59,10 @@ def test_backup_with_no_parent(mksnap: MkSnap) -> None:
     )
 
 
-def test_send_ancestors_already_kept(mksnap: MkSnap) -> None:
-    snapshot1 = mksnap()
-    snapshot2 = mksnap()
-    snapshot3 = mksnap()
+def test_send_ancestors_already_kept() -> None:
+    snapshot1 = SubvolInfo.create(uuid=uuid4().bytes, parent_uuid=uuid4().bytes)
+    snapshot2 = SubvolInfo.create(uuid=uuid4().bytes, parent_uuid=uuid4().bytes)
+    snapshot3 = SubvolInfo.create(uuid=uuid4().bytes, parent_uuid=uuid4().bytes)
     backup1 = backup_of_snapshot(snapshot1, send_parent=None)
     backup2 = backup_of_snapshot(snapshot2, send_parent=snapshot1)
     backup3 = backup_of_snapshot(snapshot3, send_parent=snapshot2)
@@ -115,10 +89,10 @@ def test_send_ancestors_already_kept(mksnap: MkSnap) -> None:
     )
 
 
-def test_send_ancestors_created_but_not_yet_kept(mksnap: MkSnap) -> None:
-    snapshot1 = mksnap()
-    snapshot2 = mksnap()
-    snapshot3 = mksnap()
+def test_send_ancestors_created_but_not_yet_kept() -> None:
+    snapshot1 = SubvolInfo.create(uuid=uuid4().bytes, parent_uuid=uuid4().bytes)
+    snapshot2 = SubvolInfo.create(uuid=uuid4().bytes, parent_uuid=uuid4().bytes)
+    snapshot3 = SubvolInfo.create(uuid=uuid4().bytes, parent_uuid=uuid4().bytes)
     backup1 = backup_of_snapshot(snapshot1, send_parent=None)
     backup2 = backup_of_snapshot(snapshot2, send_parent=snapshot1)
     backup3 = backup_of_snapshot(snapshot3, send_parent=snapshot2)
@@ -149,10 +123,10 @@ def test_send_ancestors_created_but_not_yet_kept(mksnap: MkSnap) -> None:
     )
 
 
-def test_send_ancestors_not_yet_created(mksnap: MkSnap) -> None:
-    snapshot1 = mksnap()
-    snapshot2 = mksnap()
-    snapshot3 = mksnap()
+def test_send_ancestors_not_yet_created() -> None:
+    snapshot1 = SubvolInfo.create(uuid=uuid4().bytes, parent_uuid=uuid4().bytes)
+    snapshot2 = SubvolInfo.create(uuid=uuid4().bytes, parent_uuid=uuid4().bytes)
+    snapshot3 = SubvolInfo.create(uuid=uuid4().bytes, parent_uuid=uuid4().bytes)
     backup3 = backup_of_snapshot(snapshot3, send_parent=snapshot2)
     resolver = _Resolver(
         snapshots=(snapshot1, snapshot2, snapshot3),
@@ -191,9 +165,9 @@ def test_send_ancestors_not_yet_created(mksnap: MkSnap) -> None:
     )
 
 
-def test_backup_chain_broken(mksnap: MkSnap) -> None:
-    snapshot1 = mksnap()
-    snapshot2 = mksnap()
+def test_backup_chain_broken() -> None:
+    snapshot1 = SubvolInfo.create(uuid=uuid4().bytes, parent_uuid=uuid4().bytes)
+    snapshot2 = SubvolInfo.create(uuid=uuid4().bytes, parent_uuid=uuid4().bytes)
     backup2 = backup_of_snapshot(snapshot2, send_parent=snapshot1)
     resolver = _Resolver(
         snapshots=(), backups=(backup2,), policy=Policy(), mk_backup=backup_of_snapshot

@@ -17,13 +17,11 @@
 
 from __future__ import annotations
 
-from typing import Protocol
-from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import arrow
-import pytest
 
+from btrfs2s3._internal.btrfsioctl import SubvolInfo
 from btrfs2s3._internal.preservation import Params
 from btrfs2s3._internal.preservation import Policy
 from btrfs2s3._internal.resolver import _Resolver
@@ -33,30 +31,6 @@ from btrfs2s3._internal.resolver import KeepMeta
 from btrfs2s3._internal.resolver import Reasons
 from btrfs2s3._internal.resolver import Result
 from btrfs2s3._internal.util import backup_of_snapshot
-from btrfs2s3._internal.util import mksubvol
-
-if TYPE_CHECKING:
-    from btrfsutil import SubvolumeInfo
-
-
-@pytest.fixture
-def parent_uuid() -> bytes:
-    return uuid4().bytes
-
-
-class MkSnap(Protocol):
-    def __call__(self, *, t: str | None = None, i: int = 0) -> SubvolumeInfo: ...
-
-
-@pytest.fixture
-def mksnap(parent_uuid: bytes) -> MkSnap:
-    def inner(*, t: str | None = None, i: int = 0) -> SubvolumeInfo:
-        a = arrow.get() if t is None else arrow.get(t)
-        return mksubvol(
-            uuid=uuid4().bytes, parent_uuid=parent_uuid, ctime=a.timestamp(), ctransid=i
-        )
-
-    return inner
 
 
 def test_noop() -> None:
@@ -73,15 +47,15 @@ def _t(t: str) -> float:
     return arrow.get(t).timestamp()
 
 
-def test_one_snapshot_multiple_time_spans(mksnap: MkSnap) -> None:
+def test_one_snapshot_multiple_time_spans() -> None:
     # One snapshot on Jan 1st
-    snapshot = mksnap(t="2006-01-01")
+    snapshot = SubvolInfo.create(
+        uuid=uuid4().bytes, parent_uuid=uuid4().bytes, ctime=_t("2006-01-01")
+    )
     resolver = _Resolver(
         snapshots=(snapshot,),
         backups=(),
-        policy=Policy(
-            now=arrow.get("2006-01-01").timestamp(), params=Params(years=1, months=1)
-        ),
+        policy=Policy(now=_t("2006-01-01"), params=Params(years=1, months=1)),
         mk_backup=backup_of_snapshot,
     )
 
@@ -117,14 +91,16 @@ def test_one_snapshot_multiple_time_spans(mksnap: MkSnap) -> None:
     )
 
 
-def test_one_snapshot_with_existing_backup(mksnap: MkSnap) -> None:
+def test_one_snapshot_with_existing_backup() -> None:
     # One snapshot on Jan 1st
-    snapshot = mksnap(t="2006-01-01")
+    snapshot = SubvolInfo.create(
+        uuid=uuid4().bytes, parent_uuid=uuid4().bytes, ctime=_t("2006-01-01")
+    )
     backup = backup_of_snapshot(snapshot, send_parent=None)
     resolver = _Resolver(
         snapshots=(snapshot,),
         backups=(backup,),
-        policy=Policy(now=arrow.get("2006-01-01").timestamp(), params=Params(years=1)),
+        policy=Policy(now=_t("2006-01-01"), params=Params(years=1)),
         mk_backup=backup_of_snapshot,
     )
 
@@ -152,15 +128,17 @@ def test_one_snapshot_with_existing_backup(mksnap: MkSnap) -> None:
     )
 
 
-def test_one_existing_backup_and_no_snapshot(mksnap: MkSnap) -> None:
+def test_one_existing_backup_and_no_snapshot() -> None:
     # One snapshot on Jan 1st
-    snapshot = mksnap(t="2006-01-01")
+    snapshot = SubvolInfo.create(
+        uuid=uuid4().bytes, parent_uuid=uuid4().bytes, ctime=_t("2006-01-01")
+    )
     backup = backup_of_snapshot(snapshot, send_parent=None)
     # Don't include the snapshot
     resolver = _Resolver(
         snapshots=(),
         backups=(backup,),
-        policy=Policy(now=arrow.get("2006-01-01").timestamp(), params=Params(years=1)),
+        policy=Policy(now=_t("2006-01-01"), params=Params(years=1)),
         mk_backup=backup_of_snapshot,
     )
 
@@ -181,17 +159,27 @@ def test_one_existing_backup_and_no_snapshot(mksnap: MkSnap) -> None:
     )
 
 
-def test_one_existing_backup_and_newer_snapshot(mksnap: MkSnap) -> None:
+def test_one_existing_backup_and_newer_snapshot() -> None:
     # Two snapshots on Jan 1st, one newer by transid
-    snapshot1 = mksnap(t="2006-01-01", i=1)
-    snapshot2 = mksnap(t="2006-01-01", i=2)
+    snapshot1 = SubvolInfo.create(
+        uuid=uuid4().bytes,
+        parent_uuid=uuid4().bytes,
+        ctime=_t("2006-01-01"),
+        ctransid=1,
+    )
+    snapshot2 = SubvolInfo.create(
+        uuid=uuid4().bytes,
+        parent_uuid=uuid4().bytes,
+        ctime=_t("2006-01-01"),
+        ctransid=2,
+    )
     # One backup of the earlier snapshot
     backup1 = backup_of_snapshot(snapshot1, send_parent=None)
     # Don't include the older snapshot
     resolver = _Resolver(
         snapshots=(snapshot2,),
         backups=(backup1,),
-        policy=Policy(now=arrow.get("2006-01-01").timestamp(), params=Params(years=1)),
+        policy=Policy(now=_t("2006-01-01"), params=Params(years=1)),
         mk_backup=backup_of_snapshot,
     )
 
@@ -222,16 +210,26 @@ def test_one_existing_backup_and_newer_snapshot(mksnap: MkSnap) -> None:
     )
 
 
-def test_one_existing_backup_and_older_snapshot(mksnap: MkSnap) -> None:
+def test_one_existing_backup_and_older_snapshot() -> None:
     # Two snapshots on Jan 1st, one newer by transid
-    snapshot1 = mksnap(t="2006-01-01", i=1)
-    snapshot2 = mksnap(t="2006-01-01", i=2)
+    snapshot1 = SubvolInfo.create(
+        uuid=uuid4().bytes,
+        parent_uuid=uuid4().bytes,
+        ctime=_t("2006-01-01"),
+        ctransid=1,
+    )
+    snapshot2 = SubvolInfo.create(
+        uuid=uuid4().bytes,
+        parent_uuid=uuid4().bytes,
+        ctime=_t("2006-01-01"),
+        ctransid=2,
+    )
     # One backup of the newer snapshot
     backup2 = backup_of_snapshot(snapshot2, send_parent=None)
     resolver = _Resolver(
         snapshots=(snapshot1, snapshot2),
         backups=(backup2,),
-        policy=Policy(now=arrow.get("2006-01-01").timestamp(), params=Params(years=1)),
+        policy=Policy(now=_t("2006-01-01"), params=Params(years=1)),
         mk_backup=backup_of_snapshot,
     )
 

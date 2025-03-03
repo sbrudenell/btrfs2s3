@@ -17,12 +17,12 @@
 
 from __future__ import annotations
 
-from typing import Protocol
-from typing import TYPE_CHECKING
+from uuid import uuid4
 
 import arrow
 import pytest
 
+from btrfs2s3._internal.btrfsioctl import SubvolInfo
 from btrfs2s3._internal.preservation import Params
 from btrfs2s3._internal.preservation import Policy
 from btrfs2s3._internal.resolver import Flags
@@ -32,32 +32,6 @@ from btrfs2s3._internal.resolver import Reasons
 from btrfs2s3._internal.resolver import resolve
 from btrfs2s3._internal.resolver import Result
 from btrfs2s3._internal.util import backup_of_snapshot
-from btrfs2s3._internal.util import mksubvol
-
-if TYPE_CHECKING:
-    from btrfsutil import SubvolumeInfo
-
-from uuid import uuid4
-
-
-@pytest.fixture
-def parent_uuid() -> bytes:
-    return uuid4().bytes
-
-
-class MkSnap(Protocol):
-    def __call__(self, *, t: str | None = None, i: int = 0) -> SubvolumeInfo: ...
-
-
-@pytest.fixture
-def mksnap(parent_uuid: bytes) -> MkSnap:
-    def inner(*, t: str | None = None, i: int = 0) -> SubvolumeInfo:
-        a = arrow.get() if t is None else arrow.get(t)
-        return mksubvol(
-            uuid=uuid4().bytes, parent_uuid=parent_uuid, ctime=a.timestamp(), ctransid=i
-        )
-
-    return inner
 
 
 def _t(t: str) -> float:
@@ -72,12 +46,17 @@ def test_noop() -> None:
     assert result == Result(keep_snapshots={}, keep_backups={})
 
 
-def test_one_snapshot_preserved(mksnap: MkSnap) -> None:
-    snapshot = mksnap(t="2006-01-01", i=1)
+def test_one_snapshot_preserved() -> None:
+    snapshot = SubvolInfo.create(
+        uuid=uuid4().bytes,
+        parent_uuid=uuid4().bytes,
+        ctime=_t("2006-01-01"),
+        ctransid=1,
+    )
     result = resolve(
         snapshots=(snapshot,),
         backups=(),
-        policy=Policy(now=arrow.get("2006-01-01").timestamp(), params=Params(years=1)),
+        policy=Policy(now=_t("2006-01-01"), params=Params(years=1)),
         mk_backup=backup_of_snapshot,
     )
 
@@ -105,16 +84,29 @@ def test_one_snapshot_preserved(mksnap: MkSnap) -> None:
     )
 
 
-def test_multiple_snapshots_and_time_spans(mksnap: MkSnap) -> None:
-    snapshot1 = mksnap(t="2006-01-01", i=1)
-    snapshot2 = mksnap(t="2006-01-02", i=2)
-    snapshot3 = mksnap(t="2006-01-02", i=3)
+def test_multiple_snapshots_and_time_spans() -> None:
+    snapshot1 = SubvolInfo.create(
+        uuid=uuid4().bytes,
+        parent_uuid=uuid4().bytes,
+        ctime=_t("2006-01-01"),
+        ctransid=1,
+    )
+    snapshot2 = SubvolInfo.create(
+        uuid=uuid4().bytes,
+        parent_uuid=uuid4().bytes,
+        ctime=_t("2006-01-02"),
+        ctransid=2,
+    )
+    snapshot3 = SubvolInfo.create(
+        uuid=uuid4().bytes,
+        parent_uuid=uuid4().bytes,
+        ctime=_t("2006-01-02"),
+        ctransid=3,
+    )
     result = resolve(
         snapshots=(snapshot1, snapshot2, snapshot3),
         backups=(),
-        policy=Policy(
-            now=arrow.get("2006-01-02").timestamp(), params=Params(years=1, months=1)
-        ),
+        policy=Policy(now=_t("2006-01-02"), params=Params(years=1, months=1)),
         mk_backup=backup_of_snapshot,
     )
 
@@ -153,18 +145,31 @@ def test_multiple_snapshots_and_time_spans(mksnap: MkSnap) -> None:
     )
 
 
-def test_keep_send_ancestor_on_year_change(mksnap: MkSnap) -> None:
-    snapshot1 = mksnap(t="2006-01-01", i=1)
-    snapshot2 = mksnap(t="2006-12-01", i=2)
-    snapshot3 = mksnap(t="2007-01-01", i=3)
+def test_keep_send_ancestor_on_year_change() -> None:
+    snapshot1 = SubvolInfo.create(
+        uuid=uuid4().bytes,
+        parent_uuid=uuid4().bytes,
+        ctime=_t("2006-01-01"),
+        ctransid=1,
+    )
+    snapshot2 = SubvolInfo.create(
+        uuid=uuid4().bytes,
+        parent_uuid=uuid4().bytes,
+        ctime=_t("2006-12-01"),
+        ctransid=2,
+    )
+    snapshot3 = SubvolInfo.create(
+        uuid=uuid4().bytes,
+        parent_uuid=uuid4().bytes,
+        ctime=_t("2007-01-01"),
+        ctransid=3,
+    )
     backup1 = backup_of_snapshot(snapshot1, send_parent=None)
     backup2 = backup_of_snapshot(snapshot2, send_parent=snapshot1)
     result = resolve(
         snapshots=(snapshot1, snapshot2, snapshot3),
         backups=(backup1, backup2),
-        policy=Policy(
-            now=arrow.get("2007-01-01").timestamp(), params=Params(years=1, months=2)
-        ),
+        policy=Policy(now=_t("2007-01-01"), params=Params(years=1, months=2)),
         mk_backup=backup_of_snapshot,
     )
 
@@ -216,18 +221,26 @@ def test_keep_send_ancestor_on_year_change(mksnap: MkSnap) -> None:
     )
 
 
-def test_backup_chain_broken(mksnap: MkSnap) -> None:
-    snapshot1 = mksnap(t="2005-01-01", i=1)
-    snapshot2 = mksnap(t="2006-01-01", i=2)
+def test_backup_chain_broken() -> None:
+    snapshot1 = SubvolInfo.create(
+        uuid=uuid4().bytes,
+        parent_uuid=uuid4().bytes,
+        ctime=_t("2005-01-01"),
+        ctransid=1,
+    )
+    snapshot2 = SubvolInfo.create(
+        uuid=uuid4().bytes,
+        parent_uuid=uuid4().bytes,
+        ctime=_t("2006-01-01"),
+        ctransid=2,
+    )
     backup2 = backup_of_snapshot(snapshot2, send_parent=snapshot1)
 
     with pytest.warns(UserWarning, match="Backup chain is broken"):
         result = resolve(
             snapshots=(),
             backups=(backup2,),
-            policy=Policy(
-                now=arrow.get("2006-01-01").timestamp(), params=Params(years=1)
-            ),
+            policy=Policy(now=_t("2006-01-01"), params=Params(years=1)),
             mk_backup=backup_of_snapshot,
         )
 

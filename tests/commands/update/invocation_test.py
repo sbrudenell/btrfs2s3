@@ -20,10 +20,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
-import btrfsutil
 import pytest
 from rich.console import Console
 
+from btrfs2s3._internal.btrfsioctl import create_subvol
+from btrfs2s3._internal.btrfsioctl import subvol_info
 from btrfs2s3._internal.console import THEME
 from btrfs2s3._internal.main import main
 from btrfs2s3._internal.s3 import iter_backups
@@ -44,13 +45,12 @@ def test_pretend(
 ) -> None:
     # Create a subvolume
     source = btrfs_mountpoint / "source"
-    btrfsutil.create_subvolume(source)
+    create_subvol(source)
     # Snapshot dir, but no snapshots
     snapshot_dir = btrfs_mountpoint / "snapshots"
     snapshot_dir.mkdir()
     # Modify some data in the source
     (source / "dummy-file").write_bytes(b"dummy")
-    btrfsutil.sync(source)
 
     console = Console(force_terminal=True, theme=THEME, width=88, height=30)
     config_path = tmp_path / "config.yaml"
@@ -91,13 +91,12 @@ def test_force(
 ) -> None:
     # Create a subvolume
     source = btrfs_mountpoint / "source"
-    btrfsutil.create_subvolume(source)
+    create_subvol(source)
     # Snapshot dir, but no snapshots
     snapshot_dir = btrfs_mountpoint / "snapshots"
     snapshot_dir.mkdir()
     # Modify some data in the source
     (source / "dummy-file").write_bytes(b"dummy")
-    btrfsutil.sync(source)
 
     console = Console(force_terminal=terminal, theme=THEME, width=88, height=30)
     config_path = tmp_path / "config.yaml"
@@ -126,8 +125,8 @@ def test_force(
     assert err == ""
 
     (snapshot,) = snapshot_dir.iterdir()
-    info = btrfsutil.subvolume_info(snapshot)
-    assert info.parent_uuid == btrfsutil.subvolume_info(source).uuid
+    info = subvol_info(snapshot)
+    assert info.parent_uuid == subvol_info(source).uuid
     ((obj, backup),) = iter_backups(s3, bucket)
     assert backup.uuid == info.uuid
     assert backup.send_parent_uuid is None
@@ -170,13 +169,12 @@ def test_reject_continue_prompt(
 ) -> None:
     # Create a subvolume
     source = btrfs_mountpoint / "source"
-    btrfsutil.create_subvolume(source)
+    create_subvol(source)
     # Snapshot dir, but no snapshots
     snapshot_dir = btrfs_mountpoint / "snapshots"
     snapshot_dir.mkdir()
     # Modify some data in the source
     (source / "dummy-file").write_bytes(b"dummy")
-    btrfsutil.sync(source)
 
     console = Console(force_terminal=True, theme=THEME, width=88, height=30)
     config_path = tmp_path / "config.yaml"
