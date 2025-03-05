@@ -34,6 +34,10 @@ from btrfs2s3._internal.resolver import Result
 from btrfs2s3._internal.util import backup_of_snapshot
 
 
+def _u() -> bytes:
+    return uuid4().bytes
+
+
 def _t(t: str) -> float:
     return arrow.get(t).timestamp()
 
@@ -48,10 +52,7 @@ def test_noop() -> None:
 
 def test_one_snapshot_preserved() -> None:
     snapshot = SubvolInfo(
-        uuid=uuid4().bytes,
-        parent_uuid=uuid4().bytes,
-        ctime=_t("2006-01-01"),
-        ctransid=1,
+        uuid=_u(), parent_uuid=_u(), ctime=_t("2006-01-01"), ctransid=1
     )
     result = resolve(
         snapshots=(snapshot,),
@@ -86,22 +87,13 @@ def test_one_snapshot_preserved() -> None:
 
 def test_multiple_snapshots_and_time_spans() -> None:
     snapshot1 = SubvolInfo(
-        uuid=uuid4().bytes,
-        parent_uuid=uuid4().bytes,
-        ctime=_t("2006-01-01"),
-        ctransid=1,
+        uuid=_u(), parent_uuid=_u(), ctime=_t("2006-01-01"), ctransid=1
     )
     snapshot2 = SubvolInfo(
-        uuid=uuid4().bytes,
-        parent_uuid=uuid4().bytes,
-        ctime=_t("2006-01-02"),
-        ctransid=2,
+        uuid=_u(), parent_uuid=_u(), ctime=_t("2006-01-02"), ctransid=2
     )
     snapshot3 = SubvolInfo(
-        uuid=uuid4().bytes,
-        parent_uuid=uuid4().bytes,
-        ctime=_t("2006-01-02"),
-        ctransid=3,
+        uuid=_u(), parent_uuid=_u(), ctime=_t("2006-01-02"), ctransid=3
     )
     result = resolve(
         snapshots=(snapshot1, snapshot2, snapshot3),
@@ -147,22 +139,13 @@ def test_multiple_snapshots_and_time_spans() -> None:
 
 def test_keep_send_ancestor_on_year_change() -> None:
     snapshot1 = SubvolInfo(
-        uuid=uuid4().bytes,
-        parent_uuid=uuid4().bytes,
-        ctime=_t("2006-01-01"),
-        ctransid=1,
+        uuid=_u(), parent_uuid=_u(), ctime=_t("2006-01-01"), ctransid=1
     )
     snapshot2 = SubvolInfo(
-        uuid=uuid4().bytes,
-        parent_uuid=uuid4().bytes,
-        ctime=_t("2006-12-01"),
-        ctransid=2,
+        uuid=_u(), parent_uuid=_u(), ctime=_t("2006-12-01"), ctransid=2
     )
     snapshot3 = SubvolInfo(
-        uuid=uuid4().bytes,
-        parent_uuid=uuid4().bytes,
-        ctime=_t("2007-01-01"),
-        ctransid=3,
+        uuid=_u(), parent_uuid=_u(), ctime=_t("2007-01-01"), ctransid=3
     )
     backup1 = backup_of_snapshot(snapshot1, send_parent=None)
     backup2 = backup_of_snapshot(snapshot2, send_parent=snapshot1)
@@ -223,16 +206,10 @@ def test_keep_send_ancestor_on_year_change() -> None:
 
 def test_backup_chain_broken() -> None:
     snapshot1 = SubvolInfo(
-        uuid=uuid4().bytes,
-        parent_uuid=uuid4().bytes,
-        ctime=_t("2005-01-01"),
-        ctransid=1,
+        uuid=_u(), parent_uuid=_u(), ctime=_t("2005-01-01"), ctransid=1
     )
     snapshot2 = SubvolInfo(
-        uuid=uuid4().bytes,
-        parent_uuid=uuid4().bytes,
-        ctime=_t("2006-01-01"),
-        ctransid=2,
+        uuid=_u(), parent_uuid=_u(), ctime=_t("2006-01-01"), ctransid=2
     )
     backup2 = backup_of_snapshot(snapshot2, send_parent=snapshot1)
 

@@ -30,6 +30,10 @@ if TYPE_CHECKING:
     from mypy_boto3_s3.client import S3Client
 
 
+def _u() -> bytes:
+    return uuid4().bytes
+
+
 def test_empty(s3: S3Client, bucket: str) -> None:
     got = list(iter_backups(s3, bucket))
     assert got == []
@@ -43,11 +47,11 @@ def test_objects_but_none_are_backups(s3: S3Client, bucket: str) -> None:
 
 def mkinfo() -> BackupInfo:
     return BackupInfo(
-        uuid=uuid4().bytes,
-        parent_uuid=uuid4().bytes,
+        uuid=_u(),
+        parent_uuid=_u(),
         ctransid=randrange(100000),
         ctime=arrow.get().timestamp(),
-        send_parent_uuid=uuid4().bytes,
+        send_parent_uuid=_u(),
     )
 
 

@@ -31,12 +31,16 @@ from btrfs2s3._internal.resolver import Reasons
 from btrfs2s3._internal.util import backup_of_snapshot
 
 
+def _u() -> bytes:
+    return uuid4().bytes
+
+
 def _t(t: str) -> float:
     return arrow.get(t).timestamp()
 
 
 def test_simple_backup_of_snapshot() -> None:
-    snapshot = SubvolInfo(parent_uuid=uuid4().bytes)
+    snapshot = SubvolInfo(parent_uuid=_u())
     resolver = _Resolver(
         snapshots=(snapshot,), backups=(), policy=Policy(), mk_backup=backup_of_snapshot
     )
@@ -53,7 +57,7 @@ def test_simple_backup_of_snapshot() -> None:
 
 
 def test_backup_done_twice() -> None:
-    snapshot = SubvolInfo(parent_uuid=uuid4().bytes)
+    snapshot = SubvolInfo(parent_uuid=_u())
     resolver = _Resolver(
         snapshots=(snapshot,), backups=(), policy=Policy(), mk_backup=backup_of_snapshot
     )
@@ -72,28 +76,16 @@ def test_backup_done_twice() -> None:
 
 def test_choose_correct_parents() -> None:
     snapshot1 = SubvolInfo(
-        uuid=uuid4().bytes,
-        parent_uuid=uuid4().bytes,
-        ctime=_t("2006-01-01"),
-        ctransid=1,
+        uuid=_u(), parent_uuid=_u(), ctime=_t("2006-01-01"), ctransid=1
     )
     snapshot2 = SubvolInfo(
-        uuid=uuid4().bytes,
-        parent_uuid=uuid4().bytes,
-        ctime=_t("2006-02-01"),
-        ctransid=2,
+        uuid=_u(), parent_uuid=_u(), ctime=_t("2006-02-01"), ctransid=2
     )
     snapshot3 = SubvolInfo(
-        uuid=uuid4().bytes,
-        parent_uuid=uuid4().bytes,
-        ctime=_t("2006-02-01"),
-        ctransid=3,
+        uuid=_u(), parent_uuid=_u(), ctime=_t("2006-02-01"), ctransid=3
     )
     snapshot4 = SubvolInfo(
-        uuid=uuid4().bytes,
-        parent_uuid=uuid4().bytes,
-        ctime=_t("2006-02-02"),
-        ctransid=4,
+        uuid=_u(), parent_uuid=_u(), ctime=_t("2006-02-02"), ctransid=4
     )
     resolver = _Resolver(
         snapshots=(snapshot1, snapshot2, snapshot3, snapshot4),
@@ -135,16 +127,10 @@ def test_choose_correct_parents() -> None:
 
 def test_existing_backup() -> None:
     snapshot1 = SubvolInfo(
-        uuid=uuid4().bytes,
-        parent_uuid=uuid4().bytes,
-        ctime=_t("2006-01-01"),
-        ctransid=1,
+        uuid=_u(), parent_uuid=_u(), ctime=_t("2006-01-01"), ctransid=1
     )
     snapshot2 = SubvolInfo(
-        uuid=uuid4().bytes,
-        parent_uuid=uuid4().bytes,
-        ctime=_t("2006-02-01"),
-        ctransid=2,
+        uuid=_u(), parent_uuid=_u(), ctime=_t("2006-02-01"), ctransid=2
     )
     # full backup, as normal
     backup1 = backup_of_snapshot(snapshot1, send_parent=None)

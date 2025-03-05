@@ -25,6 +25,10 @@ from btrfs2s3._internal.resolver import _Index
 from btrfs2s3._internal.util import mksubvol
 
 
+def _u() -> bytes:
+    return uuid4().bytes
+
+
 def test_get_nominal_none() -> None:
     index = _Index(policy=Policy(), items=())
     got = index.get_nominal((0.0, 0.0))
@@ -50,11 +54,7 @@ def test_get_nominal_snapshot_one_of_many() -> None:
 
 def test_get_nominal_backup_one() -> None:
     backup = BackupInfo(
-        uuid=uuid4().bytes,
-        parent_uuid=uuid4().bytes,
-        send_parent_uuid=None,
-        ctime=0,
-        ctransid=0,
+        uuid=_u(), parent_uuid=_u(), send_parent_uuid=None, ctime=0, ctransid=0
     )
     index = _Index(policy=Policy.all(), items=(backup,))
     for timespan in Policy.all().iter_time_spans(backup.ctime):
@@ -64,14 +64,10 @@ def test_get_nominal_backup_one() -> None:
 
 def test_get_nominal_backup_one_of_many() -> None:
     backup1 = BackupInfo(
-        uuid=uuid4().bytes,
-        parent_uuid=uuid4().bytes,
-        send_parent_uuid=None,
-        ctime=0,
-        ctransid=0,
+        uuid=_u(), parent_uuid=_u(), send_parent_uuid=None, ctime=0, ctransid=0
     )
     backup2 = BackupInfo(
-        uuid=uuid4().bytes,
+        uuid=_u(),
         parent_uuid=backup1.parent_uuid,
         send_parent_uuid=None,
         ctime=0,
@@ -85,12 +81,12 @@ def test_get_nominal_backup_one_of_many() -> None:
 
 def test_get_none() -> None:
     index = _Index(policy=Policy(), items=())
-    got = index.get(uuid4().bytes)
+    got = index.get(_u())
     assert got is None
 
 
 def test_get_snapshot() -> None:
-    snapshot = mksubvol(uuid=uuid4().bytes)
+    snapshot = mksubvol(uuid=_u())
     index = _Index(policy=Policy(), items=(snapshot,))
     got = index.get(snapshot.uuid)
     assert got == snapshot
@@ -98,11 +94,7 @@ def test_get_snapshot() -> None:
 
 def test_get_backup() -> None:
     backup = BackupInfo(
-        uuid=uuid4().bytes,
-        parent_uuid=uuid4().bytes,
-        send_parent_uuid=None,
-        ctime=0,
-        ctransid=0,
+        uuid=_u(), parent_uuid=_u(), send_parent_uuid=None, ctime=0, ctransid=0
     )
     index = _Index(policy=Policy(), items=(backup,))
     got = index.get(backup.uuid)
@@ -116,8 +108,8 @@ def test_get_most_recent_none() -> None:
 
 
 def test_get_most_recent_snapshot() -> None:
-    snapshot1 = mksubvol(uuid=uuid4().bytes, ctransid=1)
-    snapshot2 = mksubvol(uuid=uuid4().bytes, ctransid=2)
+    snapshot1 = mksubvol(uuid=_u(), ctransid=1)
+    snapshot2 = mksubvol(uuid=_u(), ctransid=2)
     index = _Index(policy=Policy(), items=(snapshot1, snapshot2))
     got = index.get_most_recent()
     assert got == snapshot2
@@ -130,7 +122,7 @@ def test_get_all_time_spans_empty() -> None:
 
 
 def test_get_all_time_spans() -> None:
-    snapshot = mksubvol(uuid=uuid4().bytes, ctime=2000000000.0)
+    snapshot = mksubvol(uuid=_u(), ctime=2000000000.0)
     index = _Index(policy=Policy.all(), items=(snapshot,))
     got = index.get_all_time_spans()
     assert got == set(Policy.all().iter_time_spans(snapshot.ctime))

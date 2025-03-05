@@ -33,6 +33,10 @@ from btrfs2s3._internal.resolver import Result
 from btrfs2s3._internal.util import backup_of_snapshot
 
 
+def _u() -> bytes:
+    return uuid4().bytes
+
+
 def test_noop() -> None:
     resolver = _Resolver(
         snapshots=(), backups=(), policy=Policy(), mk_backup=backup_of_snapshot
@@ -49,9 +53,7 @@ def _t(t: str) -> float:
 
 def test_one_snapshot_multiple_time_spans() -> None:
     # One snapshot on Jan 1st
-    snapshot = SubvolInfo(
-        uuid=uuid4().bytes, parent_uuid=uuid4().bytes, ctime=_t("2006-01-01")
-    )
+    snapshot = SubvolInfo(uuid=_u(), parent_uuid=_u(), ctime=_t("2006-01-01"))
     resolver = _Resolver(
         snapshots=(snapshot,),
         backups=(),
@@ -93,9 +95,7 @@ def test_one_snapshot_multiple_time_spans() -> None:
 
 def test_one_snapshot_with_existing_backup() -> None:
     # One snapshot on Jan 1st
-    snapshot = SubvolInfo(
-        uuid=uuid4().bytes, parent_uuid=uuid4().bytes, ctime=_t("2006-01-01")
-    )
+    snapshot = SubvolInfo(uuid=_u(), parent_uuid=_u(), ctime=_t("2006-01-01"))
     backup = backup_of_snapshot(snapshot, send_parent=None)
     resolver = _Resolver(
         snapshots=(snapshot,),
@@ -130,9 +130,7 @@ def test_one_snapshot_with_existing_backup() -> None:
 
 def test_one_existing_backup_and_no_snapshot() -> None:
     # One snapshot on Jan 1st
-    snapshot = SubvolInfo(
-        uuid=uuid4().bytes, parent_uuid=uuid4().bytes, ctime=_t("2006-01-01")
-    )
+    snapshot = SubvolInfo(uuid=_u(), parent_uuid=_u(), ctime=_t("2006-01-01"))
     backup = backup_of_snapshot(snapshot, send_parent=None)
     # Don't include the snapshot
     resolver = _Resolver(
@@ -162,16 +160,10 @@ def test_one_existing_backup_and_no_snapshot() -> None:
 def test_one_existing_backup_and_newer_snapshot() -> None:
     # Two snapshots on Jan 1st, one newer by transid
     snapshot1 = SubvolInfo(
-        uuid=uuid4().bytes,
-        parent_uuid=uuid4().bytes,
-        ctime=_t("2006-01-01"),
-        ctransid=1,
+        uuid=_u(), parent_uuid=_u(), ctime=_t("2006-01-01"), ctransid=1
     )
     snapshot2 = SubvolInfo(
-        uuid=uuid4().bytes,
-        parent_uuid=uuid4().bytes,
-        ctime=_t("2006-01-01"),
-        ctransid=2,
+        uuid=_u(), parent_uuid=_u(), ctime=_t("2006-01-01"), ctransid=2
     )
     # One backup of the earlier snapshot
     backup1 = backup_of_snapshot(snapshot1, send_parent=None)
@@ -213,16 +205,10 @@ def test_one_existing_backup_and_newer_snapshot() -> None:
 def test_one_existing_backup_and_older_snapshot() -> None:
     # Two snapshots on Jan 1st, one newer by transid
     snapshot1 = SubvolInfo(
-        uuid=uuid4().bytes,
-        parent_uuid=uuid4().bytes,
-        ctime=_t("2006-01-01"),
-        ctransid=1,
+        uuid=_u(), parent_uuid=_u(), ctime=_t("2006-01-01"), ctransid=1
     )
     snapshot2 = SubvolInfo(
-        uuid=uuid4().bytes,
-        parent_uuid=uuid4().bytes,
-        ctime=_t("2006-01-01"),
-        ctransid=2,
+        uuid=_u(), parent_uuid=_u(), ctime=_t("2006-01-01"), ctransid=2
     )
     # One backup of the newer snapshot
     backup2 = backup_of_snapshot(snapshot2, send_parent=None)

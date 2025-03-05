@@ -32,6 +32,10 @@ from btrfs2s3._internal.resolver import Result
 from btrfs2s3._internal.util import backup_of_snapshot
 
 
+def _u() -> bytes:
+    return uuid4().bytes
+
+
 def test_noop() -> None:
     resolver = _Resolver(
         snapshots=(), backups=(), policy=Policy(), mk_backup=backup_of_snapshot
@@ -43,7 +47,7 @@ def test_noop() -> None:
 
 
 def test_backup_with_no_parent() -> None:
-    snapshot1 = SubvolInfo(parent_uuid=uuid4().bytes)
+    snapshot1 = SubvolInfo(parent_uuid=_u())
     backup1 = backup_of_snapshot(snapshot1, send_parent=None)
     resolver = _Resolver(
         snapshots=(), backups=(backup1,), policy=Policy(), mk_backup=backup_of_snapshot
@@ -60,9 +64,9 @@ def test_backup_with_no_parent() -> None:
 
 
 def test_send_ancestors_already_kept() -> None:
-    snapshot1 = SubvolInfo(uuid=uuid4().bytes, parent_uuid=uuid4().bytes)
-    snapshot2 = SubvolInfo(uuid=uuid4().bytes, parent_uuid=uuid4().bytes)
-    snapshot3 = SubvolInfo(uuid=uuid4().bytes, parent_uuid=uuid4().bytes)
+    snapshot1 = SubvolInfo(uuid=_u(), parent_uuid=_u())
+    snapshot2 = SubvolInfo(uuid=_u(), parent_uuid=_u())
+    snapshot3 = SubvolInfo(uuid=_u(), parent_uuid=_u())
     backup1 = backup_of_snapshot(snapshot1, send_parent=None)
     backup2 = backup_of_snapshot(snapshot2, send_parent=snapshot1)
     backup3 = backup_of_snapshot(snapshot3, send_parent=snapshot2)
@@ -90,9 +94,9 @@ def test_send_ancestors_already_kept() -> None:
 
 
 def test_send_ancestors_created_but_not_yet_kept() -> None:
-    snapshot1 = SubvolInfo(uuid=uuid4().bytes, parent_uuid=uuid4().bytes)
-    snapshot2 = SubvolInfo(uuid=uuid4().bytes, parent_uuid=uuid4().bytes)
-    snapshot3 = SubvolInfo(uuid=uuid4().bytes, parent_uuid=uuid4().bytes)
+    snapshot1 = SubvolInfo(uuid=_u(), parent_uuid=_u())
+    snapshot2 = SubvolInfo(uuid=_u(), parent_uuid=_u())
+    snapshot3 = SubvolInfo(uuid=_u(), parent_uuid=_u())
     backup1 = backup_of_snapshot(snapshot1, send_parent=None)
     backup2 = backup_of_snapshot(snapshot2, send_parent=snapshot1)
     backup3 = backup_of_snapshot(snapshot3, send_parent=snapshot2)
@@ -124,9 +128,9 @@ def test_send_ancestors_created_but_not_yet_kept() -> None:
 
 
 def test_send_ancestors_not_yet_created() -> None:
-    snapshot1 = SubvolInfo(uuid=uuid4().bytes, parent_uuid=uuid4().bytes)
-    snapshot2 = SubvolInfo(uuid=uuid4().bytes, parent_uuid=uuid4().bytes)
-    snapshot3 = SubvolInfo(uuid=uuid4().bytes, parent_uuid=uuid4().bytes)
+    snapshot1 = SubvolInfo(uuid=_u(), parent_uuid=_u())
+    snapshot2 = SubvolInfo(uuid=_u(), parent_uuid=_u())
+    snapshot3 = SubvolInfo(uuid=_u(), parent_uuid=_u())
     backup3 = backup_of_snapshot(snapshot3, send_parent=snapshot2)
     resolver = _Resolver(
         snapshots=(snapshot1, snapshot2, snapshot3),
@@ -166,8 +170,8 @@ def test_send_ancestors_not_yet_created() -> None:
 
 
 def test_backup_chain_broken() -> None:
-    snapshot1 = SubvolInfo(uuid=uuid4().bytes, parent_uuid=uuid4().bytes)
-    snapshot2 = SubvolInfo(uuid=uuid4().bytes, parent_uuid=uuid4().bytes)
+    snapshot1 = SubvolInfo(uuid=_u(), parent_uuid=_u())
+    snapshot2 = SubvolInfo(uuid=_u(), parent_uuid=_u())
     backup2 = backup_of_snapshot(snapshot2, send_parent=snapshot1)
     resolver = _Resolver(
         snapshots=(), backups=(backup2,), policy=Policy(), mk_backup=backup_of_snapshot
