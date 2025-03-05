@@ -110,13 +110,12 @@ class KeepMeta:
     time_spans: set[TS] = field(default_factory=set)
     other_uuids: set[bytes] = field(default_factory=set)
 
-    def __or__(self, other: Self) -> Self:
-        return self.__class__(
-            reasons=self.reasons | other.reasons,
-            flags=self.flags | other.flags,
-            time_spans=self.time_spans | other.time_spans,
-            other_uuids=self.other_uuids | other.other_uuids,
-        )
+    def __ior__(self, other: Self) -> Self:
+        self.reasons |= other.reasons
+        self.flags |= other.flags
+        self.time_spans |= other.time_spans
+        self.other_uuids |= other.other_uuids
+        return self
 
 
 @dataclasses.dataclass
