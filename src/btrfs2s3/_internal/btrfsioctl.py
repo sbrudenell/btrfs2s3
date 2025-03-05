@@ -42,8 +42,6 @@ from typing import runtime_checkable
 from typing import TYPE_CHECKING
 from typing import Union
 
-from typing_extensions import Self
-
 if TYPE_CHECKING:
     from collections.abc import Iterator
     from ctypes import _CData
@@ -175,65 +173,23 @@ assert sizeof(SendArgs) == (72 if sizeof(POINTER(c_uint64)) == 8 else 68)  # noq
 
 
 class SubvolInfo(NamedTuple):
-    @classmethod
-    def create(
-        cls,
-        *,
-        id: int = 0,  # noqa: A002
-        name: str = "",
-        parent_id: int = 0,
-        dir_id: int = 0,
-        generation: int = 0,
-        flags: int = 0,
-        uuid: bytes = NULL_UUID,
-        parent_uuid: bytes | None = None,
-        received_uuid: bytes | None = None,
-        ctransid: int = 0,
-        otransid: int = 0,
-        stransid: int = 0,
-        rtransid: int = 0,
-        ctime: float = 0,
-        otime: float = 0,
-        stime: float = 0,
-        rtime: float = 0,
-    ) -> Self:
-        return cls(
-            id=id,
-            name=name,
-            parent_id=parent_id,
-            dir_id=dir_id,
-            generation=generation,
-            flags=flags,
-            uuid=uuid,
-            parent_uuid=parent_uuid,
-            received_uuid=received_uuid,
-            ctransid=ctransid,
-            otransid=otransid,
-            stransid=stransid,
-            rtransid=rtransid,
-            ctime=ctime,
-            otime=otime,
-            stime=stime,
-            rtime=rtime,
-        )
-
-    id: int
-    name: str
-    parent_id: int
-    dir_id: int
-    generation: int
-    flags: int
-    uuid: bytes
-    parent_uuid: bytes | None
-    received_uuid: bytes | None
-    ctransid: int
-    otransid: int
-    stransid: int
-    rtransid: int
-    ctime: float
-    otime: float
-    stime: float
-    rtime: float
+    id: int = 0
+    name: str = ""
+    parent_id: int = 0
+    dir_id: int = 0
+    generation: int = 0
+    flags: int = 0
+    uuid: bytes = NULL_UUID
+    parent_uuid: bytes | None = None
+    received_uuid: bytes | None = None
+    ctransid: int = 0
+    otransid: int = 0
+    stransid: int = 0
+    rtransid: int = 0
+    ctime: float = 0.0
+    otime: float = 0.0
+    stime: float = 0.0
+    rtime: float = 0.0
 
 
 class SubvolInfoStruct(Structure):

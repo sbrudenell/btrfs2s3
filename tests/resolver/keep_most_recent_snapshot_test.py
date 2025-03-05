@@ -41,7 +41,7 @@ def test_noop() -> None:
 
 
 def test_one_snapshot() -> None:
-    snapshot = SubvolInfo.create(parent_uuid=uuid4().bytes)
+    snapshot = SubvolInfo(parent_uuid=uuid4().bytes)
     resolver = _Resolver(
         snapshots=(snapshot,), backups=(), policy=Policy(), mk_backup=backup_of_snapshot
     )
@@ -62,12 +62,8 @@ def test_one_snapshot() -> None:
 
 
 def test_multiple_snapshots_keep_most_recent() -> None:
-    snapshot1 = SubvolInfo.create(
-        uuid=uuid4().bytes, parent_uuid=uuid4().bytes, ctransid=1
-    )
-    snapshot2 = SubvolInfo.create(
-        uuid=uuid4().bytes, parent_uuid=uuid4().bytes, ctransid=2
-    )
+    snapshot1 = SubvolInfo(uuid=uuid4().bytes, parent_uuid=uuid4().bytes, ctransid=1)
+    snapshot2 = SubvolInfo(uuid=uuid4().bytes, parent_uuid=uuid4().bytes, ctransid=2)
     backup1 = backup_of_snapshot(snapshot1, send_parent=None)
     resolver = _Resolver(
         snapshots=(snapshot1, snapshot2),

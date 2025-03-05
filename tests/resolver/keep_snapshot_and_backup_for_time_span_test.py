@@ -49,7 +49,7 @@ def _t(t: str) -> float:
 
 def test_one_snapshot_multiple_time_spans() -> None:
     # One snapshot on Jan 1st
-    snapshot = SubvolInfo.create(
+    snapshot = SubvolInfo(
         uuid=uuid4().bytes, parent_uuid=uuid4().bytes, ctime=_t("2006-01-01")
     )
     resolver = _Resolver(
@@ -93,7 +93,7 @@ def test_one_snapshot_multiple_time_spans() -> None:
 
 def test_one_snapshot_with_existing_backup() -> None:
     # One snapshot on Jan 1st
-    snapshot = SubvolInfo.create(
+    snapshot = SubvolInfo(
         uuid=uuid4().bytes, parent_uuid=uuid4().bytes, ctime=_t("2006-01-01")
     )
     backup = backup_of_snapshot(snapshot, send_parent=None)
@@ -130,7 +130,7 @@ def test_one_snapshot_with_existing_backup() -> None:
 
 def test_one_existing_backup_and_no_snapshot() -> None:
     # One snapshot on Jan 1st
-    snapshot = SubvolInfo.create(
+    snapshot = SubvolInfo(
         uuid=uuid4().bytes, parent_uuid=uuid4().bytes, ctime=_t("2006-01-01")
     )
     backup = backup_of_snapshot(snapshot, send_parent=None)
@@ -161,13 +161,13 @@ def test_one_existing_backup_and_no_snapshot() -> None:
 
 def test_one_existing_backup_and_newer_snapshot() -> None:
     # Two snapshots on Jan 1st, one newer by transid
-    snapshot1 = SubvolInfo.create(
+    snapshot1 = SubvolInfo(
         uuid=uuid4().bytes,
         parent_uuid=uuid4().bytes,
         ctime=_t("2006-01-01"),
         ctransid=1,
     )
-    snapshot2 = SubvolInfo.create(
+    snapshot2 = SubvolInfo(
         uuid=uuid4().bytes,
         parent_uuid=uuid4().bytes,
         ctime=_t("2006-01-01"),
@@ -212,13 +212,13 @@ def test_one_existing_backup_and_newer_snapshot() -> None:
 
 def test_one_existing_backup_and_older_snapshot() -> None:
     # Two snapshots on Jan 1st, one newer by transid
-    snapshot1 = SubvolInfo.create(
+    snapshot1 = SubvolInfo(
         uuid=uuid4().bytes,
         parent_uuid=uuid4().bytes,
         ctime=_t("2006-01-01"),
         ctransid=1,
     )
-    snapshot2 = SubvolInfo.create(
+    snapshot2 = SubvolInfo(
         uuid=uuid4().bytes,
         parent_uuid=uuid4().bytes,
         ctime=_t("2006-01-01"),

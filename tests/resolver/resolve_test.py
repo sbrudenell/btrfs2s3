@@ -47,7 +47,7 @@ def test_noop() -> None:
 
 
 def test_one_snapshot_preserved() -> None:
-    snapshot = SubvolInfo.create(
+    snapshot = SubvolInfo(
         uuid=uuid4().bytes,
         parent_uuid=uuid4().bytes,
         ctime=_t("2006-01-01"),
@@ -85,19 +85,19 @@ def test_one_snapshot_preserved() -> None:
 
 
 def test_multiple_snapshots_and_time_spans() -> None:
-    snapshot1 = SubvolInfo.create(
+    snapshot1 = SubvolInfo(
         uuid=uuid4().bytes,
         parent_uuid=uuid4().bytes,
         ctime=_t("2006-01-01"),
         ctransid=1,
     )
-    snapshot2 = SubvolInfo.create(
+    snapshot2 = SubvolInfo(
         uuid=uuid4().bytes,
         parent_uuid=uuid4().bytes,
         ctime=_t("2006-01-02"),
         ctransid=2,
     )
-    snapshot3 = SubvolInfo.create(
+    snapshot3 = SubvolInfo(
         uuid=uuid4().bytes,
         parent_uuid=uuid4().bytes,
         ctime=_t("2006-01-02"),
@@ -146,19 +146,19 @@ def test_multiple_snapshots_and_time_spans() -> None:
 
 
 def test_keep_send_ancestor_on_year_change() -> None:
-    snapshot1 = SubvolInfo.create(
+    snapshot1 = SubvolInfo(
         uuid=uuid4().bytes,
         parent_uuid=uuid4().bytes,
         ctime=_t("2006-01-01"),
         ctransid=1,
     )
-    snapshot2 = SubvolInfo.create(
+    snapshot2 = SubvolInfo(
         uuid=uuid4().bytes,
         parent_uuid=uuid4().bytes,
         ctime=_t("2006-12-01"),
         ctransid=2,
     )
-    snapshot3 = SubvolInfo.create(
+    snapshot3 = SubvolInfo(
         uuid=uuid4().bytes,
         parent_uuid=uuid4().bytes,
         ctime=_t("2007-01-01"),
@@ -222,13 +222,13 @@ def test_keep_send_ancestor_on_year_change() -> None:
 
 
 def test_backup_chain_broken() -> None:
-    snapshot1 = SubvolInfo.create(
+    snapshot1 = SubvolInfo(
         uuid=uuid4().bytes,
         parent_uuid=uuid4().bytes,
         ctime=_t("2005-01-01"),
         ctransid=1,
     )
-    snapshot2 = SubvolInfo.create(
+    snapshot2 = SubvolInfo(
         uuid=uuid4().bytes,
         parent_uuid=uuid4().bytes,
         ctime=_t("2006-01-01"),
