@@ -259,8 +259,6 @@ sources:
     snapshots: /path/to/your/snapshots
     # upload_to_remotes specifies where btrfs2s3 should store backups of this
     # source, and how they should be managed. At least one is required.
-    # Currently, only one is allowed
-    # (https://github.com/sbrudenell/btrfs2s3/issues/29)
     upload_to_remotes:
         # The id refers to the "id" field of the top-level "remotes" list.
       - id: aws
@@ -301,18 +299,6 @@ remotes:
         # validate against a custom certificate store.
         verify: false
 ```
-
-[**Limitation**](https://github.com/sbrudenell/btrfs2s3/issues/29): Multiple `remotes`
-entries are not supported in the current release.
-
-[**Limitation**](https://github.com/sbrudenell/btrfs2s3/issues/81): All `snapshots`
-entries must point to the same location in the current release.
-
-[**Limitation**](https://github.com/sbrudenell/btrfs2s3/issues/79): All `preserve`
-configurations must be the same in the current release.
-
-[**Limitation**](https://github.com/sbrudenell/btrfs2s3/issues/80): All `pipe_through`
-configurations must be the same in the current release.
 
 # Preservation Policy
 
@@ -677,10 +663,8 @@ free egress costs. As of mid 2024, I'm aware of a few providers that offer free 
 such as Backblaze B2. Meanwhile, AWS has some of the highest egress costs in the
 industry.
 
-[**Upcoming feature**](https://github.com/sbrudenell/btrfs2s3/issues/29): We will later
-support uploading backups to multiple remotes. If you upload backups to multiple
-providers to reduce provider risk, you can pick one provider that offers free egress,
-and test your backups on that provider.
+If you upload backups to multiple providers to reduce provider risk, you can pick one
+provider that offers free egress, and test your backups on that provider.
 
 # Host-to-cloud costs
 
@@ -695,10 +679,10 @@ Host-to-cloud costs are an inherent tradeoff against frequent backups. `btrfs2s3
 designed for frequent or even continuous backups. If this incurs excessive cost for you,
 you may need to configure `btrfs2s3` for less frequent backups.
 
-[**Upcoming feature**](https://github.com/sbrudenell/btrfs2s3/issues/29): When uploading
-to multiple remotes, `btrfs2s3` will by default copy backups directly to each remote. It
-may be possible to upload each backup just to one remote, and use one of the various
-cloud-to-cloud copy mechanisms from there, but this is not planned yet.
+**Upcoming feature**: When uploading to multiple remotes, `btrfs2s3` will by default
+copy backups directly to each remote. It may be possible to upload each backup just to
+one remote, and use one of the various cloud-to-cloud copy mechanisms from there, but
+this is not planned yet.
 
 # Threat Model
 
@@ -741,7 +725,7 @@ government official, etc) gains full access to your backups.
 - *Impact*: The actor can read, write or delete your backups, as uploaded.
 - *Mitigation*:
   - Use `pipe_through` to encrypt your backups before uploading.
-  - Use [multiple remotes](https://github.com/sbrudenell/btrfs2s3/issues/29).
+  - Use multiple remotes.
   - To defend against timing attacks, use infrequent backups.
 
 **Cloud account compromise**: An undesired actor gains access to your cloud credentials.
@@ -749,7 +733,7 @@ government official, etc) gains full access to your backups.
 - *Impact*: The actor can read, write or delete your backups, as uploaded. They may
   incur excessive cloud costs by uploading their own data.
 - *Mitigation*:
-  - Use [multiple remotes](https://github.com/sbrudenell/btrfs2s3/issues/29).
+  - Use multiple remotes.
   - Use [Immutable backups](#immutable-backups) to ensure there are some backups of your
     data from before the compromise (unless your root account is compromised).
   - Apply usage quotas to your cloud accounts.
@@ -759,7 +743,7 @@ scenario is a continuous segment is lost.
 
 - *Impact*: A sub-tree of differential backups is unusable.
 - *Mitigation*:
-  - Use [multiple remotes](https://github.com/sbrudenell/btrfs2s3/issues/29).
+  - Use multiple remotes.
   - Preserve [multiple full backups](https://github.com/sbrudenell/btrfs2s3/issues/35).
   - Use [checksums](https://github.com/sbrudenell/btrfs2s3/issues/89) to ensure
     corruption can be detected.

@@ -243,7 +243,7 @@ def test_invalid_upload_to_remote_id(path: Path) -> None:
         load_from_path(path)
 
 
-def test_no_multiple_remotes(path: Path) -> None:
+def test_multiple_remotes(path: Path) -> None:
     path.write_text("""
         timezone: a
         sources:
@@ -251,6 +251,8 @@ def test_no_multiple_remotes(path: Path) -> None:
           snapshots: c
           upload_to_remotes:
           - id: aws
+            preserve: 1y 1m
+          - id: b2
             preserve: 1y 1m
         remotes:
         - id: aws
@@ -260,11 +262,31 @@ def test_no_multiple_remotes(path: Path) -> None:
           s3:
             bucket: e
     """)
-    with pytest.raises(InvalidConfigError):
-        load_from_path(path)
+    config = load_from_path(path)
+    assert config == Config(
+        {
+            "timezone": "a",
+            "sources": [
+                SourceConfig(
+                    {
+                        "path": "b",
+                        "snapshots": "c",
+                        "upload_to_remotes": [
+                            UploadToRemoteConfig({"id": "aws", "preserve": "1y 1m"}),
+                            UploadToRemoteConfig({"id": "b2", "preserve": "1y 1m"}),
+                        ],
+                    }
+                )
+            ],
+            "remotes": [
+                RemoteConfig({"id": "aws", "s3": S3RemoteConfig({"bucket": "d"})}),
+                RemoteConfig({"id": "b2", "s3": S3RemoteConfig({"bucket": "e"})}),
+            ],
+        }
+    )
 
 
-def test_no_multiple_snapshot_locations(path: Path) -> None:
+def test_multiple_snapshot_locations(path: Path) -> None:
     path.write_text("""
         timezone: a
         sources:
@@ -283,11 +305,38 @@ def test_no_multiple_snapshot_locations(path: Path) -> None:
           s3:
             bucket: d
     """)
-    with pytest.raises(InvalidConfigError):
-        load_from_path(path)
+    config = load_from_path(path)
+    assert config == Config(
+        {
+            "timezone": "a",
+            "sources": [
+                SourceConfig(
+                    {
+                        "path": "b",
+                        "snapshots": "c",
+                        "upload_to_remotes": [
+                            UploadToRemoteConfig({"id": "aws", "preserve": "1y 1m"})
+                        ],
+                    }
+                ),
+                SourceConfig(
+                    {
+                        "path": "x",
+                        "snapshots": "y",
+                        "upload_to_remotes": [
+                            UploadToRemoteConfig({"id": "aws", "preserve": "1y 1m"})
+                        ],
+                    }
+                ),
+            ],
+            "remotes": [
+                RemoteConfig({"id": "aws", "s3": S3RemoteConfig({"bucket": "d"})})
+            ],
+        }
+    )
 
 
-def test_no_multiple_preserves(path: Path) -> None:
+def test_multiple_preserves(path: Path) -> None:
     path.write_text("""
         timezone: a
         sources:
@@ -306,11 +355,38 @@ def test_no_multiple_preserves(path: Path) -> None:
           s3:
             bucket: d
     """)
-    with pytest.raises(InvalidConfigError):
-        load_from_path(path)
+    config = load_from_path(path)
+    assert config == Config(
+        {
+            "timezone": "a",
+            "sources": [
+                SourceConfig(
+                    {
+                        "path": "b",
+                        "snapshots": "c",
+                        "upload_to_remotes": [
+                            UploadToRemoteConfig({"id": "aws", "preserve": "1y 1m"})
+                        ],
+                    }
+                ),
+                SourceConfig(
+                    {
+                        "path": "x",
+                        "snapshots": "c",
+                        "upload_to_remotes": [
+                            UploadToRemoteConfig({"id": "aws", "preserve": "1y"})
+                        ],
+                    }
+                ),
+            ],
+            "remotes": [
+                RemoteConfig({"id": "aws", "s3": S3RemoteConfig({"bucket": "d"})})
+            ],
+        }
+    )
 
 
-def test_no_multiple_pipe_throughs(path: Path) -> None:
+def test_multiple_pipe_throughs(path: Path) -> None:
     path.write_text("""
         timezone: a
         sources:
@@ -333,5 +409,48 @@ def test_no_multiple_pipe_throughs(path: Path) -> None:
           s3:
             bucket: d
     """)
-    with pytest.raises(InvalidConfigError):
-        load_from_path(path)
+    config = load_from_path(path)
+    assert config == Config(
+        {
+            "timezone": "a",
+            "sources": [
+                SourceConfig(
+                    {
+                        "path": "b",
+                        "snapshots": "c",
+                        "upload_to_remotes": [
+                            UploadToRemoteConfig(
+                                {
+                                    "id": "aws",
+                                    "preserve": "1y 1m",
+                                    "pipe_through": [
+                                        ["gpg", "--encrypt", "-r", "a@example.com"]
+                                    ],
+                                }
+                            )
+                        ],
+                    }
+                ),
+                SourceConfig(
+                    {
+                        "path": "x",
+                        "snapshots": "c",
+                        "upload_to_remotes": [
+                            UploadToRemoteConfig(
+                                {
+                                    "id": "aws",
+                                    "preserve": "1y 1m",
+                                    "pipe_through": [
+                                        ["gpg", "--encrypt", "-r", "b@example.com"]
+                                    ],
+                                }
+                            )
+                        ],
+                    }
+                ),
+            ],
+            "remotes": [
+                RemoteConfig({"id": "aws", "s3": S3RemoteConfig({"bucket": "d"})})
+            ],
+        }
+    )
