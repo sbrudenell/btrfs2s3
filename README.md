@@ -154,58 +154,11 @@ TODO
 
 # Installation
 
-`btrfs2s3` requires:
-
-- `btrfs-progs`
-- python bindings for `btrfsutil`
-
-The `btrfsutil` python bindings are a compiled library against kernel interfaces. It
-isn't distributed in PyPI. You can find it in your distribution's software repo.
-
-[**Upcoming feature**](https://github.com/sbrudenell/btrfs2s3/issues/27): `btrfsutil`
-won't be required in the future.
-
-Ubuntu/debian:
+`btrfs2s3` is distributed on PyPI. You can install the latest version:
 
 ```sh
-apt-get install btrfs-progs python3-btrfsutil
-```
-
-Arch:
-
-```sh
-pacman -S btrfs-progs  # includes python3 btrfsutil
-```
-
-Alpine:
-
-```sh
-apk btrfs-progs py3-btrfs-progs
-```
-
-`btrfs2s3` is distributed on PyPI. You can install the latest version, either globally:
-
-```sh
-sudo pip install btrfs2s3
-```
-
-...or in a virtualenv.
-
-If you use a virtualenv, you must use `--system-site-packages`. This is due to the
-dependency on `btrfsutil`.
-
-```sh
-python -m virtualenv --system-site-packages v
-source v/bin/activate
 pip install btrfs2s3
 ```
-
-You might find that `--system-site-packages` can produce strange results, like failing
-to install or failures at runtime. This is because the virtualenv contains a mixture of
-package versions from both the system and the env. These version mixtures are uncommon
-and less tested. Python developers are not good at specifying versions of their
-dependencies for some reason, so these version mixtures often break things. The simplest
-fix for this is to use `pip install --ignore-installed`.
 
 # Versioning
 

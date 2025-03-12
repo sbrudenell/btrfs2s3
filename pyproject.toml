@@ -98,15 +98,6 @@ lint.per-file-ignores."tests/*" = [
   # whitebox testing.
   "SLF001",
 ]
-lint.per-file-ignores."typeshed/btrfsutil.pyi" = [
-  # btrfsutil uses "id" as an argument name.
-  "A002",
-  # FBT001 checks against positional booleans. btrfsutil uses these.
-  "FBT001",
-  # SLOT001 checks that subclasses of tuple should define __slots__ for
-  # performance reasons. This is irrelevant to *.pyi files.
-  "SLOT001",
-]
 lint.isort.force-single-line = true
 lint.isort.force-sort-within-sections = true
 lint.isort.order-by-type = false
@@ -153,7 +144,6 @@ legacy_tox_ini = """
 """
 
 [tool.mypy]
-mypy_path = "typeshed"
 strict = true
 
 [[tool.mypy.overrides]]

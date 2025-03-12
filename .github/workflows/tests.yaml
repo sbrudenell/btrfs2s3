@@ -11,15 +11,15 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-24.04, ubuntu-22.04]
+        py: ["3.9", "3.10", "3.11", "3.12", "3.13"]
     steps:
     - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.py }}
+        cache: pip
     - run: |
-        sudo apt update
-        sudo apt install python3-btrfsutil python3-virtualenv
-        python3 -m virtualenv /tmp/venv
-        source /tmp/venv/bin/activate
-        python3 -m pip install --upgrade pip
-        python3 -m pip install --upgrade tox
+        python -m pip install --upgrade tox
         sudo -E env PATH=$PATH tox
 
   pre-commit:

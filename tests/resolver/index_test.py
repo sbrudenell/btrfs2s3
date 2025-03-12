@@ -20,9 +20,9 @@ from __future__ import annotations
 from uuid import uuid4
 
 from btrfs2s3._internal.backups import BackupInfo
+from btrfs2s3._internal.btrfsioctl import SubvolInfo
 from btrfs2s3._internal.preservation import Policy
 from btrfs2s3._internal.resolver import _Index
-from btrfs2s3._internal.util import mksubvol
 
 
 def _u() -> bytes:
@@ -36,7 +36,7 @@ def test_get_nominal_none() -> None:
 
 
 def test_get_nominal_snapshot_one() -> None:
-    snapshot = mksubvol()
+    snapshot = SubvolInfo()
     index = _Index(policy=Policy.all(), items=(snapshot,))
     for timespan in Policy.all().iter_time_spans(snapshot.ctime):
         got = index.get_nominal(timespan)
@@ -44,8 +44,8 @@ def test_get_nominal_snapshot_one() -> None:
 
 
 def test_get_nominal_snapshot_one_of_many() -> None:
-    snapshot1 = mksubvol(ctransid=1)
-    snapshot2 = mksubvol(ctransid=2)
+    snapshot1 = SubvolInfo(ctransid=1)
+    snapshot2 = SubvolInfo(ctransid=2)
     index = _Index(policy=Policy.all(), items=(snapshot1, snapshot2))
     for timespan in Policy.all().iter_time_spans(snapshot1.ctime):
         got = index.get_nominal(timespan)
@@ -86,7 +86,7 @@ def test_get_none() -> None:
 
 
 def test_get_snapshot() -> None:
-    snapshot = mksubvol(uuid=_u())
+    snapshot = SubvolInfo(uuid=_u())
     index = _Index(policy=Policy(), items=(snapshot,))
     got = index.get(snapshot.uuid)
     assert got == snapshot
@@ -108,8 +108,8 @@ def test_get_most_recent_none() -> None:
 
 
 def test_get_most_recent_snapshot() -> None:
-    snapshot1 = mksubvol(uuid=_u(), ctransid=1)
-    snapshot2 = mksubvol(uuid=_u(), ctransid=2)
+    snapshot1 = SubvolInfo(uuid=_u(), ctransid=1)
+    snapshot2 = SubvolInfo(uuid=_u(), ctransid=2)
     index = _Index(policy=Policy(), items=(snapshot1, snapshot2))
     got = index.get_most_recent()
     assert got == snapshot2
@@ -122,7 +122,7 @@ def test_get_all_time_spans_empty() -> None:
 
 
 def test_get_all_time_spans() -> None:
-    snapshot = mksubvol(uuid=_u(), ctime=2000000000.0)
+    snapshot = SubvolInfo(uuid=_u(), ctime=2000000000.0)
     index = _Index(policy=Policy.all(), items=(snapshot,))
     got = index.get_all_time_spans()
     assert got == set(Policy.all().iter_time_spans(snapshot.ctime))
