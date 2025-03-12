@@ -278,11 +278,6 @@ class Policy:
         }
 
     @property
-    def tzinfo(self) -> tzinfo:
-        """Returns the time zone object used by this Policy."""
-        return self._tzinfo
-
-    @property
     def now(self) -> float:
         """Returns the current time used by this Policy."""
         return self._now

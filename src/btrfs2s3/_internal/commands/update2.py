@@ -305,7 +305,7 @@ def print_plan(*, console: Console, assessment: Assessment, actions: Actions) ->
         console.print()
 
 
-NAME = "update2"
+NAME = "update"
 
 
 if TYPE_CHECKING:
