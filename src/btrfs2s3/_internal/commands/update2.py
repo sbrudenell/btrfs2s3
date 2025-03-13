@@ -86,9 +86,7 @@ def _time_span_key(time_span: TS) -> tuple[float, float]:
 
 
 def _describe_time_spans(time_spans: Iterable[TS]) -> Text:
-    return describe_time_span(
-        sorted(time_spans, key=_time_span_key)[0], TZINFO.get(), bounds="[]"
-    )
+    return describe_time_span(sorted(time_spans, key=_time_span_key)[0], bounds="[]")
 
 
 def _describe_preserve(keep_meta: KeepMeta) -> Text:
@@ -386,10 +384,7 @@ class _Updater:
             snapshot_dir = self._get_snapshot_dir(Path(source_cfg["snapshots"]))
             for upload_to_remote in source_cfg["upload_to_remotes"]:
                 remote = self._get_remote(upload_to_remote["id"])
-                policy = Policy(
-                    tzinfo=self._tzinfo,
-                    params=Params.parse(upload_to_remote["preserve"]),
-                )
+                policy = Policy(params=Params.parse(upload_to_remote["preserve"]))
                 create_pipe = partial(
                     filter_pipe, upload_to_remote.get("pipe_through", [])
                 )

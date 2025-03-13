@@ -23,6 +23,8 @@ import arrow
 import pytest
 from rich.text import Span
 
+from btrfs2s3._internal.cvar import TZINFO
+from btrfs2s3._internal.cvar import use_tzinfo
 from btrfs2s3._internal.time_span_describer import describe_time_span
 
 
@@ -82,10 +84,10 @@ from btrfs2s3._internal.time_span_describer import describe_time_span
 def test_describe_time_span(
     a_str: str, b_str: str, expected_plain: str, expected_spans: set[Span], tzname: str
 ) -> None:
-    tzinfo = ZoneInfo(tzname)
-    a = arrow.get(a_str, tzinfo=tzinfo)
-    b = arrow.get(b_str, tzinfo=tzinfo)
-    got = describe_time_span((a.timestamp(), b.timestamp()), tzinfo, bounds="[]")
+    with use_tzinfo(ZoneInfo(tzname)):
+        a = arrow.get(a_str, tzinfo=TZINFO.get())
+        b = arrow.get(b_str, tzinfo=TZINFO.get())
+        got = describe_time_span((a.timestamp(), b.timestamp()), bounds="[]")
     assert got.plain == expected_plain
     # The rich-provided highlighter returns loads of spans like iso8601.year
     # which aren't used by our theme. Testing all spans is overfitting. Just

@@ -22,8 +22,9 @@ import arrow
 from rich.highlighter import ISO8601Highlighter
 from rich.text import Text
 
+from btrfs2s3._internal.cvar import TZINFO
+
 if TYPE_CHECKING:
-    from datetime import tzinfo
     from typing import Literal
 
     from typing_extensions import TypeAlias
@@ -35,13 +36,11 @@ if TYPE_CHECKING:
 _iso8601_highlight = ISO8601Highlighter()
 
 
-def describe_time_span(
-    time_span: TS, tzinfo: tzinfo, *, bounds: _Bounds = "[)"
-) -> Text:
+def describe_time_span(time_span: TS, *, bounds: _Bounds = "[)") -> Text:
     """Returns a highlighted summary of a time span in context of preservation."""
     a_timestamp, b_timestamp = time_span
-    a = arrow.get(a_timestamp, tzinfo=tzinfo)
-    b = arrow.get(b_timestamp, tzinfo=tzinfo)
+    a = arrow.get(a_timestamp, tzinfo=TZINFO.get())
+    b = arrow.get(b_timestamp, tzinfo=TZINFO.get())
     if (a, b) == a.span("year", bounds=bounds):
         return Text.from_markup(f"[iso8601.date]{a.year:04d}[/] yearly")
     if (a, b) == a.span("quarter", bounds=bounds):

@@ -40,12 +40,12 @@ def test_get_path_suffixes_with_real_timezone() -> None:
         uuid=UUID("3fd11d8e-8110-4cd0-b85c-bae3dda86a3d").bytes,
         parent_uuid=UUID("9d9d3bcb-4b62-46a3-b6e2-678eeb24f54e").bytes,
         ctransid=12345,
-        ctime=arrow.get("2006-01-01", tzinfo="US/Pacific").timestamp(),
+        ctime=arrow.get("2006-01-01").timestamp(),
         send_parent_uuid=UUID("3ae01eae-d50d-4187-b67f-cef0ef973e1f").bytes,
     )
-    got = info.get_path_suffixes(tzinfo="US/Pacific")
+    got = info.get_path_suffixes()
     expected = [
-        ".ctim2006-01-01T00:00:00-08:00",
+        ".ctim2006-01-01T00:00:00+00:00",
         ".ctid12345",
         ".uuid3fd11d8e-8110-4cd0-b85c-bae3dda86a3d",
         ".sndp3ae01eae-d50d-4187-b67f-cef0ef973e1f",

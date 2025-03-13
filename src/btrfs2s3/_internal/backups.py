@@ -30,9 +30,10 @@ import arrow
 from arrow import Arrow
 from typing_extensions import Self
 
+from btrfs2s3._internal.cvar import TZINFO
+
 if TYPE_CHECKING:
     from collections.abc import Sequence
-    from datetime import tzinfo
 
 _CTIM = "ctim"
 _CTID = "ctid"
@@ -61,7 +62,7 @@ class BackupInfo:
         # instance. Not sure if there's a better way to do this
         object.__setattr__(self, "ctime", floor(self.ctime))
 
-    def get_path_suffixes(self, *, tzinfo: tzinfo | str | None = None) -> Sequence[str]:
+    def get_path_suffixes(self) -> Sequence[str]:
         """Get path suffixes suitable for naming a backup as an S3 object.
 
         The intent is to encode a BackupInfo object as an S3 object key. The
@@ -85,14 +86,6 @@ class BackupInfo:
         As the intent is to construct S3 keys, the return values are "regular"
         unicode strings, not fsdecode()'ed strings.
 
-        Args:
-            tzinfo: A time zone for formatting the ctime of the backup. The
-                ctime will be output as an ISO 8601 string which always
-                includes the time zone, so any value may be specified and the
-                round-trip decoding won't be affected. For human readability,
-                it's best to use the same time zone used for defining our
-                preservation schedule.
-
         Returns:
             A sequence of suffix strings.
         """
@@ -103,6 +96,7 @@ class BackupInfo:
         )
         # arrow.get(float, tzinfo=None) raises an error, so we explicitly
         # default to UTC
+        tzinfo = TZINFO.get()
         ctime = arrow.get(self.ctime, tzinfo="UTC" if tzinfo is None else tzinfo)
         return [
             f".{_CTIM}{ctime.isoformat(timespec='seconds')}",

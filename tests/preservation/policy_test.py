@@ -26,6 +26,8 @@ import arrow
 import pytest
 
 from btrfs2s3._internal.arrowutil import convert_span
+from btrfs2s3._internal.cvar import TZINFO
+from btrfs2s3._internal.cvar import use_tzinfo
 from btrfs2s3._internal.preservation import Params
 from btrfs2s3._internal.preservation import Policy
 from btrfs2s3._internal.preservation import Timeframe
@@ -88,9 +90,11 @@ def test_alternate_now() -> None:
 
 
 def test_alternate_timezone() -> None:
-    tzinfo = ZoneInfo("America/Los_Angeles")
-    policy = Policy(params=Params(years=1), tzinfo=tzinfo)
-    time_span = convert_span(arrow.get(tzinfo=tzinfo).span("year", bounds="[]"))
+    with use_tzinfo(ZoneInfo("America/Los_Angeles")):
+        policy = Policy(params=Params(years=1))
+        time_span = convert_span(
+            arrow.get(tzinfo=TZINFO.get()).span("year", bounds="[]")
+        )
 
-    assert time_span in policy.iter_time_spans(time.time())
-    assert policy.should_preserve_for_time_span(time_span)
+        assert time_span in policy.iter_time_spans(time.time())
+        assert policy.should_preserve_for_time_span(time_span)

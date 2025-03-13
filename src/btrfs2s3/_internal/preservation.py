@@ -62,8 +62,6 @@ python slices). For example, the year 2006 in UTC is represented as (1136073600.
 from __future__ import annotations
 
 import dataclasses
-from datetime import timezone
-from datetime import tzinfo
 import re
 from typing import Generic
 from typing import Literal
@@ -77,6 +75,7 @@ from typing_extensions import TypedDict
 
 from btrfs2s3._internal.arrowutil import convert_span
 from btrfs2s3._internal.arrowutil import iter_time_spans
+from btrfs2s3._internal.cvar import TZINFO
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -226,20 +225,16 @@ class Policy:
     """
 
     @classmethod
-    def all(cls, *, tzinfo: tzinfo | None = None, now: float | None = None) -> Self:
+    def all(cls, *, now: float | None = None) -> Self:
         """Returns a Policy which preserves ALL snapshots or backups.
 
         This is mainly useful for testing (and not currently correct, until we
         implement infinite preservation).
         """
-        return cls(params=Params.all(), tzinfo=tzinfo, now=now)
+        return cls(params=Params.all(), now=now)
 
     def __init__(
-        self,
-        *,
-        params: Params | None = None,
-        tzinfo: tzinfo | None = None,
-        now: float | None = None,
+        self, *, params: Params | None = None, now: float | None = None
     ) -> None:
         """Creates a Policy.
 
@@ -250,20 +245,15 @@ class Policy:
         Args:
             params: The parameters which define the schedule of time spans for
                 which backups should be preserved.
-            tzinfo: The time zone in which to operate. This will change the
-                boundaries of all time spans. If None, defaults to UTC.
             now: A timestamp to use as the current time. If None, defaults to
                 the actual current time. This is mainly useful for testing.
         """
         if params is None:
             params = Params()
-        if tzinfo is None:
-            tzinfo = timezone.utc
         if now is None:
-            now = arrow.get(tzinfo=tzinfo).timestamp()
+            now = arrow.get(tzinfo=TZINFO.get()).timestamp()
 
         self._params = params
-        self._tzinfo = tzinfo
         self._now = now
 
         kwargs = {t: range(0, -getattr(params, t), -1) for t in TIMEFRAMES}
@@ -271,7 +261,7 @@ class Policy:
         self._preserve_for_time_spans = {
             convert_span(span)
             for span in iter_time_spans(
-                arrow.get(now, tzinfo=self._tzinfo),
+                arrow.get(now, tzinfo=TZINFO.get()),
                 bounds="[]",
                 **kwargs,  # type: ignore[misc]
             )
@@ -320,7 +310,7 @@ class Policy:
         kwargs = {t: (0,) if getattr(self._params, t) else () for t in TIMEFRAMES}
         # https://github.com/python/mypy/issues/10023
         for span in iter_time_spans(
-            arrow.get(timestamp, tzinfo=self._tzinfo),
+            arrow.get(timestamp, tzinfo=TZINFO.get()),
             bounds="[]",
             **kwargs,  # type: ignore[misc]
         ):

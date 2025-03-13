@@ -106,7 +106,7 @@ class Source:
         return f"{self.path.name}.{ctime_str}.{info.ctransid}"
 
     def get_backup_key(self, info: BackupInfo) -> str:
-        suffixes = info.get_path_suffixes(tzinfo=TZINFO.get())
+        suffixes = info.get_path_suffixes()
         return f"{self.path.name}{''.join(suffixes)}"
 
     def close(self) -> None:
