@@ -19,7 +19,6 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from contextvars import ContextVar
-from enum import IntFlag
 from typing import Protocol
 from typing import TYPE_CHECKING
 from typing import TypeVar
@@ -29,9 +28,6 @@ from btrfs2s3._internal.backups import BackupInfo
 if TYPE_CHECKING:
     from collections.abc import Iterator
     from datetime import tzinfo
-
-
-NULL_UUID = b"\0" * 16
 
 
 TZINFO: ContextVar[tzinfo] = ContextVar("tzinfo")
@@ -69,8 +65,3 @@ def backup_of_snapshot(snapshot: _S, send_parent: _S | None = None) -> BackupInf
         ctransid=snapshot.ctransid,
         ctime=snapshot.ctime,
     )
-
-
-class SubvolumeFlags(IntFlag):
-    ReadOnly = 1
-    Proposed = 2**30
