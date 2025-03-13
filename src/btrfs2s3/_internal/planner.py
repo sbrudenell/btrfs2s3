@@ -37,13 +37,13 @@ from btrfs2s3._internal.btrfsioctl import send
 from btrfs2s3._internal.btrfsioctl import subvol_info
 from btrfs2s3._internal.btrfsioctl import SubvolFlag
 from btrfs2s3._internal.btrfsioctl import SubvolInfo
+from btrfs2s3._internal.cvar import TZINFO
 from btrfs2s3._internal.resolver import Flags
 from btrfs2s3._internal.resolver import KeepMeta
 from btrfs2s3._internal.resolver import resolve
 from btrfs2s3._internal.s3 import iter_backups
 from btrfs2s3._internal.stream_uploader import upload_non_seekable_stream_via_tempfile
 from btrfs2s3._internal.util import backup_of_snapshot
-from btrfs2s3._internal.util import TZINFO
 
 if TYPE_CHECKING:
     from collections.abc import Collection

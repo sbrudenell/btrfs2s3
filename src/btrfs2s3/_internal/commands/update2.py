@@ -46,6 +46,8 @@ from rich.tree import Tree
 
 from btrfs2s3._internal.config import Config
 from btrfs2s3._internal.config import load_from_path
+from btrfs2s3._internal.cvar import TZINFO
+from btrfs2s3._internal.cvar import use_tzinfo
 from btrfs2s3._internal.piper import filter_pipe
 from btrfs2s3._internal.planner import Actions
 from btrfs2s3._internal.planner import assess
@@ -65,8 +67,6 @@ from btrfs2s3._internal.resolver import Flags
 from btrfs2s3._internal.resolver import KeepMeta
 from btrfs2s3._internal.resolver import Reasons
 from btrfs2s3._internal.time_span_describer import describe_time_span
-from btrfs2s3._internal.util import TZINFO
-from btrfs2s3._internal.util import use_tzinfo
 
 if TYPE_CHECKING:
     import argparse

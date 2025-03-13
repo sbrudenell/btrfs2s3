@@ -36,7 +36,7 @@ import pytest
 from rich.console import Console
 
 from btrfs2s3._internal.console import THEME
-from btrfs2s3._internal.util import use_tzinfo
+from btrfs2s3._internal.cvar import use_tzinfo
 
 if TYPE_CHECKING:
     from collections.abc import Iterator

@@ -17,29 +17,10 @@
 
 from __future__ import annotations
 
-from contextlib import contextmanager
-from contextvars import ContextVar
 from typing import Protocol
-from typing import TYPE_CHECKING
 from typing import TypeVar
 
 from btrfs2s3._internal.backups import BackupInfo
-
-if TYPE_CHECKING:
-    from collections.abc import Iterator
-    from datetime import tzinfo
-
-
-TZINFO: ContextVar[tzinfo] = ContextVar("tzinfo")
-
-
-@contextmanager
-def use_tzinfo(tz: tzinfo) -> Iterator[None]:
-    token = TZINFO.set(tz)
-    try:
-        yield
-    finally:
-        TZINFO.reset(token)
 
 
 class SubvolumeLike(Protocol):
