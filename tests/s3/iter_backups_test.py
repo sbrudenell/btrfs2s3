@@ -27,7 +27,7 @@ from btrfs2s3._internal.backups import BackupInfo
 from btrfs2s3._internal.s3 import iter_backups
 
 if TYPE_CHECKING:
-    from mypy_boto3_s3.client import S3Client
+    from types_boto3_s3.client import S3Client
 
 
 def _u() -> bytes:

@@ -26,9 +26,9 @@ from btrfs2s3._internal.backups import BackupInfo
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-    from mypy_boto3_s3.client import S3Client
-    from mypy_boto3_s3.type_defs import ListObjectsV2RequestTypeDef
-    from mypy_boto3_s3.type_defs import ObjectTypeDef
+    from types_boto3_s3.client import S3Client
+    from types_boto3_s3.type_defs import ListObjectsV2RequestTypeDef
+    from types_boto3_s3.type_defs import ObjectTypeDef
 
 
 def iter_backups(

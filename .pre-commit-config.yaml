@@ -55,7 +55,7 @@ repos:
     additional_dependencies:
     # primary dependencies (corresponds to pyproject.toml)
     - arrow>=1,<2
-    - boto3-stubs[boto3,s3]>=1,<2
+    - types-boto3[boto3,s3]>=1,<2
     - cfgv>=3,<4
     - types-pyyaml>=6,<7
     - rich>=13,<14

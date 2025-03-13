@@ -39,7 +39,7 @@ from btrfs2s3._internal.util import backup_of_snapshot
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from mypy_boto3_s3.client import S3Client
+    from types_boto3_s3.client import S3Client
 
     from tests.conftest import DownloadAndPipe
 

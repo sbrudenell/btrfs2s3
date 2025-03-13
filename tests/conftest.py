@@ -43,7 +43,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
     from typing import IO
 
-    from mypy_boto3_s3.client import S3Client
+    from types_boto3_s3.client import S3Client
 
 
 @pytest.fixture(autouse=True, scope="session")

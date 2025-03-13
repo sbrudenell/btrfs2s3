@@ -27,7 +27,7 @@ from btrfs2s3._internal.stream_uploader import upload_non_seekable_stream_via_te
 if TYPE_CHECKING:
     from typing import IO
 
-    from mypy_boto3_s3.client import S3Client
+    from types_boto3_s3.client import S3Client
 
 
 def test_file_is_uploaded(

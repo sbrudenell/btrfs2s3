@@ -28,8 +28,8 @@ if TYPE_CHECKING:
     from typing import AnyStr
     from typing import IO
 
-    from mypy_boto3_s3.client import S3Client
-    from mypy_boto3_s3.type_defs import CompletedPartTypeDef
+    from types_boto3_s3.client import S3Client
+    from types_boto3_s3.type_defs import CompletedPartTypeDef
 
 _COPY_BUFFER_SIZE = 2**20
 
