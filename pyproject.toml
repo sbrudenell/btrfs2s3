@@ -46,7 +46,7 @@ dependencies = [
   "boto3[crt]>=1,<2",
   "cfgv>=3,<4",
   "pyyaml>=6,<7",
-  "rich>=13,<14",
+  "rich>=13,<15",
   "typing-extensions>=4.4,<5",
   "tzdata",
 ]
