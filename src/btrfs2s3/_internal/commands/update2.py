@@ -21,10 +21,12 @@ from __future__ import annotations
 
 from collections import defaultdict
 from contextlib import ExitStack
+from datetime import timezone
 from enum import auto
 from enum import Enum
 from functools import partial
 from pathlib import Path
+from time import time
 from typing import cast
 from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
@@ -46,8 +48,10 @@ from rich.text import Text
 from rich.tree import Tree
 
 from btrfs2s3._internal.config import load_from_path
+from btrfs2s3._internal.cost import BYTES_ABBREV_TO_MULT
 from btrfs2s3._internal.cvar import TZINFO
 from btrfs2s3._internal.cvar import use_tzinfo
+from btrfs2s3._internal.durations import Duration
 from btrfs2s3._internal.piper import filter_pipe
 from btrfs2s3._internal.planner import Actions
 from btrfs2s3._internal.planner import assess
@@ -66,6 +70,10 @@ from btrfs2s3._internal.preservation import TS
 from btrfs2s3._internal.resolver import Flags
 from btrfs2s3._internal.resolver import KeepMeta
 from btrfs2s3._internal.resolver import Reasons
+from btrfs2s3._internal.s3 import CostPerByteAndTime
+from btrfs2s3._internal.s3 import Costs
+from btrfs2s3._internal.s3 import StorageClassCost
+from btrfs2s3._internal.s3 import Timespan
 from btrfs2s3._internal.time_span_describer import describe_time_span
 
 if TYPE_CHECKING:
@@ -171,6 +179,7 @@ def _backup_key(backup: AssessedBackup) -> tuple[Path, int, float]:
 
 
 def _make_backups_tree(backups: Collection[AssessedBackup]) -> Tree:
+    now = time()
     uuid_to_children: dict[tuple[Remote, bytes], list[AssessedBackup]] = defaultdict(
         list
     )
@@ -199,6 +208,20 @@ def _make_backups_tree(backups: Collection[AssessedBackup]) -> Tree:
         storage_class = backup.stat and backup.stat.storage_class
         if storage_class:
             stats.append(Text(storage_class, style="cost"))
+        if backup.remote.costs and storage_class and size:
+            billing_timespan = Timespan(
+                *arrow.get(now, tzinfo=backup.remote.costs.tzinfo).span(
+                    backup.remote.costs.billing_period, bounds="[]"
+                )
+            )
+            cost = backup.remote.costs.get_storage_cost(
+                size=size, storage_class=storage_class, timespan=billing_timespan
+            )
+            stats.append(
+                Text(str(cost), style="cost").append(
+                    Text(f"/{backup.remote.costs.billing_period}")
+                )
+            )
         info = Columns(stats)
         node = parent.add(Group(key, info))
         children = uuid_to_children.get((backup.remote, backup.info.uuid), ())
@@ -380,8 +403,32 @@ class _Updater:
                 verify=s3_endpoint.get("verify"),
                 endpoint_url=s3_endpoint.get("endpoint_url"),
             )
+            s3_cost_cfg = s3_cfg.get("costs")
+            if s3_cost_cfg is not None:
+                storage_classes = []
+                for storage_class_cfg in s3_cost_cfg["storage_classes"]:
+                    storage_cost_cfg = storage_class_cfg["storage"]
+                    storage_cost = CostPerByteAndTime(
+                        cost=storage_cost_cfg["cost"],
+                        per_bytes=BYTES_ABBREV_TO_MULT[storage_cost_cfg["per_bytes"]],
+                        per_time=storage_cost_cfg["per_time"],
+                    )
+                    storage_class = StorageClassCost(
+                        name=storage_class_cfg["name"],
+                        storage_cost=storage_cost,
+                        min_time=Duration.parse(storage_class_cfg["min_time"]),
+                    )
+                    storage_classes.append(storage_class)
+                costs = Costs(
+                    tzinfo=timezone.utc,
+                    storage_classes=storage_classes,
+                    storage_time_granularity=s3_cost_cfg["storage_time_granularity"],
+                    billing_period=s3_cost_cfg["billing_period"],
+                )
+            else:
+                costs = None
             self._id_to_remote[remote_id] = Remote.create(
-                name=remote_id, s3=s3, bucket=s3_cfg["bucket"]
+                name=remote_id, s3=s3, bucket=s3_cfg["bucket"], costs=costs
             )
         return self._id_to_remote[remote_id]
 

@@ -29,6 +29,7 @@ from btrfs2s3._internal.btrfsioctl import subvol_info
 from btrfs2s3._internal.commands.update2 import NAME
 from btrfs2s3._internal.console import THEME
 from btrfs2s3._internal.main import main
+from tests.cost_fixtures import AWS_COSTS_YAML
 from btrfs2s3._internal.s3 import iter_backups
 
 if TYPE_CHECKING:
@@ -242,6 +243,57 @@ def test_execute_with_multiple_sources(
         subvol_info(source1).uuid,
         subvol_info(source2).uuid,
     }
+    ((obj1, backup1), (obj2, backup2)) = iter_backups(s3, bucket)
+    assert {backup1.uuid, backup2.uuid} == {info1.uuid, info2.uuid}
+    assert backup1.send_parent_uuid is None
+    assert backup2.send_parent_uuid is None
+    download_and_pipe(obj1["Key"], ["btrfs", "receive", "--dump"])
+    download_and_pipe(obj2["Key"], ["btrfs", "receive", "--dump"])
+
+
+@pytest.mark.parametrize("with_created_snapshots", [(True,), (False,)])
+def test_execute_with_costs(
+    tmp_path: Path,
+    btrfs_mountpoint: Path,
+    s3: S3Client,
+    bucket: str,
+    download_and_pipe: DownloadAndPipe,
+    with_created_snapshots: bool,  # noqa: FBT001
+) -> None:
+    # Create subvolumes
+    source = btrfs_mountpoint / "source1"
+    create_subvol(source)
+    # Snapshot dir, but no snapshots
+    snapshot_dir = btrfs_mountpoint / "snapshots"
+    snapshot_dir.mkdir()
+    # Modify some data in the source
+    (source / "dummy-file").write_bytes(b"dummy")
+    TODr
+    if not with_created_snapshots:
+        create_snap(src=source, dst=snapshot_dir / "snapshot", read_only=True)
+
+    console = Console(force_terminal=False, theme=THEME, width=88, height=30)
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(f"""
+      timezone: UTC
+      sources:
+      - path: {source}
+        snapshots: {snapshot_dir}
+        upload_to_remotes:
+        - id: aws
+          preserve: 1y 1m
+      remotes:
+      - id: aws
+        s3:
+          bucket: {bucket}
+          costs: {AWS_COSTS_YAML}
+    """)
+    assert main(console=console, argv=[NAME, "--force", str(config_path)]) == 0
+
+    (snapshot1, snapshot2) = snapshot_dir.iterdir()
+    info1 = subvol_info(snapshot1)
+    info2 = subvol_info(snapshot2)
+    assert {info1.parent_uuid, info2.parent_uuid} == {subvol_info(source).uuid}
     ((obj1, backup1), (obj2, backup2)) = iter_backups(s3, bucket)
     assert {backup1.uuid, backup2.uuid} == {info1.uuid, info2.uuid}
     assert backup1.send_parent_uuid is None

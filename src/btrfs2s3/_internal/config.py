@@ -26,11 +26,13 @@ from typing import TYPE_CHECKING
 from typing import TypedDict
 
 from cfgv import Array
+from cfgv import check_and
 from cfgv import check_array
 from cfgv import check_string
 from cfgv import check_type
 from cfgv import load_from_filename
 from cfgv import Map
+from cfgv import Optional
 from cfgv import OptionalNoDefault
 from cfgv import OptionalRecurse
 from cfgv import Required
@@ -38,10 +40,15 @@ from cfgv import RequiredRecurse
 from typing_extensions import NotRequired
 from yaml import safe_load
 
+from btrfs2s3._internal.cost import BYTES_ABBREV_TO_MULT
+from btrfs2s3._internal.cost import TIMEFRAMES
+from btrfs2s3._internal.durations import Duration
 from btrfs2s3._internal.preservation import Params
 
 if TYPE_CHECKING:
     from os import PathLike
+
+    from btrfs2s3._internal.cost import Timeframe
 
 
 class Error(Exception):
@@ -61,14 +68,51 @@ def _check_preserve(v: Any) -> None:  # noqa: ANN401
         raise InvalidConfigError(msg) from ex
 
 
+def _check_bytes(v: Any) -> None:  # noqa: ANN401
+    check_string(v)
+    if v not in BYTES_ABBREV_TO_MULT:
+        msg = f"Expected a bytes value ({'|'.join(BYTES_ABBREV_TO_MULT.keys())})"
+        raise InvalidConfigError(msg)
+
+
+def _check_nonzero_duration(v: Any) -> None:  # noqa: ANN401
+    check_string(v)
+    try:
+        d = Duration.parse(v)
+    except ValueError as ex:
+        msg = "Expected a valid ISO8601 duration"
+        raise InvalidConfigError(msg) from ex
+    if not d.is_nonzero():
+        msg = "Duration cannot be zero"
+        raise InvalidConfigError(msg)
+
+
+def _check_timeframe(v: Any) -> None:  # noqa: ANN401
+    check_string(v)
+    if v not in TIMEFRAMES:
+        msg = f"Timeframe must be one of {', '.join(TIMEFRAMES)}"
+        raise InvalidConfigError(msg)
+
+
+def _check_gt0(v: float) -> None:
+    if v <= 0:
+        msg = "Must be greater than 0"
+        raise InvalidConfigError(msg)
+
+
+def _apply_default_optional_recurse_no_default(self: Any, dct: dict[Any, Any]) -> None:  # noqa: ANN401
+    if self.key in dct:
+        RequiredRecurse.apply_default(self, dct)
+
+
 # this is the same style used in cfgv
 _OptionalRecurseNoDefault = namedtuple(  # noqa: PYI024
     "_OptionalRecurseNoDefault", ("key", "schema")
 )
 _OptionalRecurseNoDefault.check = OptionalRecurse.check  # type: ignore[attr-defined]
 _OptionalRecurseNoDefault.check_fn = OptionalRecurse.check_fn  # type: ignore[attr-defined]
-_OptionalRecurseNoDefault.apply_default = OptionalNoDefault.apply_default  # type: ignore[attr-defined]
-_OptionalRecurseNoDefault.remove_default = OptionalNoDefault.remove_default  # type: ignore[attr-defined]
+_OptionalRecurseNoDefault.apply_default = _apply_default_optional_recurse_no_default  # type: ignore[attr-defined]
+_OptionalRecurseNoDefault.remove_default = OptionalRecurse.remove_default  # type: ignore[attr-defined]
 
 
 class S3EndpointConfig(TypedDict):
@@ -94,11 +138,58 @@ _S3_ENDPOINT_SCHEMA = Map(
 )
 
 
+class CostPerByteAndTimeConfig(TypedDict):
+    cost: float
+    per_bytes: str
+    per_time: Timeframe
+
+
+_COST_PER_BYTES_AND_TIME_SCHEMA = Map(
+    "CostPerTimeConfig",
+    None,
+    Required("cost", check_and(check_type(float), _check_gt0)),
+    Optional("per_bytes", _check_bytes, "GB"),
+    Optional("per_time", _check_timeframe, "month"),
+)
+
+
+class S3StorageClassCostConfig(TypedDict):
+    name: str
+    storage: CostPerByteAndTimeConfig
+    min_time: NotRequired[str]
+
+
+_S3_STORAGE_CLASS_COST_SCHEMA = Map(
+    "S3StorageClassCostConfig",
+    "name",
+    RequiredRecurse("storage", _COST_PER_BYTES_AND_TIME_SCHEMA),
+    OptionalNoDefault("min_time", _check_nonzero_duration),
+)
+
+
+class S3CostsConfig(TypedDict):
+    storage_classes: list[S3StorageClassCostConfig]
+    storage_time_granularity: Timeframe
+    billing_period: Timeframe
+
+
+_S3_COSTS_SCHEMA = Map(
+    "S3CostsConfig",
+    None,
+    RequiredRecurse(
+        "storage_classes", Array(_S3_STORAGE_CLASS_COST_SCHEMA, allow_empty=False)
+    ),
+    Optional("storage_time_granularity", _check_timeframe, "hour"),
+    Optional("billing_period", _check_timeframe, "month"),
+)
+
+
 class S3RemoteConfig(TypedDict):
     """A config dict for how to access an S3 remote."""
 
     bucket: str
     endpoint: NotRequired[S3EndpointConfig]
+    costs: NotRequired[S3CostsConfig]
 
 
 _S3_SCHEMA = Map(
@@ -106,6 +197,7 @@ _S3_SCHEMA = Map(
     None,
     Required("bucket", check_string),
     _OptionalRecurseNoDefault("endpoint", _S3_ENDPOINT_SCHEMA),
+    _OptionalRecurseNoDefault("costs", _S3_COSTS_SCHEMA),
 )
 
 
