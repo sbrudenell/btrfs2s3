@@ -36,8 +36,16 @@ from moto import mock_aws
 import pytest
 from rich.console import Console
 
+from btrfs2s3._internal.config import S3CostsConfig
+from btrfs2s3._internal.config import S3StorageClassCostsConfig
+from btrfs2s3._internal.config import S3StorageCostConfig
 from btrfs2s3._internal.console import THEME
 from btrfs2s3._internal.cvar import use_tzinfo
+from btrfs2s3._internal.durations import Duration
+from btrfs2s3._internal.s3 import BillingPerTime
+from btrfs2s3._internal.s3 import CostPerByteAndTime
+from btrfs2s3._internal.s3 import Costs
+from btrfs2s3._internal.s3 import StorageClassCosts
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -207,3 +215,89 @@ def goldifyconsole(
 def _utc() -> Iterator[None]:
     with use_tzinfo(timezone.utc):
         yield
+
+
+AWS_STORAGE_COST_RATE_STANDARD = CostPerByteAndTime(
+    cost=0.023,
+    per_bytes=10**9,
+    per_time=BillingPerTime(
+        period=Duration(months=1), tzinfo=timezone.utc, granularity=Duration(hours=1)
+    ),
+)
+AWS_STORAGE_COST_RATE_STANDARD_CFG = S3StorageCostConfig(
+    cost=AWS_STORAGE_COST_RATE_STANDARD.cost, per_bytes="GB", per_time="P1M"
+)
+AWS_STORAGE_COST_RATE_DEEP_ARCHIVE = CostPerByteAndTime(
+    cost=0.00099,
+    per_bytes=10**9,
+    per_time=BillingPerTime(
+        period=Duration(months=1),
+        tzinfo=timezone.utc,
+        minimum=Duration(days=180),
+        granularity=Duration(hours=1),
+    ),
+)
+AWS_STORAGE_COST_RATE_DEEP_ARCHIVE_CFG = S3StorageCostConfig(
+    cost=AWS_STORAGE_COST_RATE_DEEP_ARCHIVE.cost,
+    per_bytes="GB",
+    per_time="P1M",
+    min_time="P180D",
+)
+AWS_STORAGE_COST_STANDARD = StorageClassCosts(
+    name="STANDARD", storage_cost=AWS_STORAGE_COST_RATE_STANDARD
+)
+AWS_STORAGE_COST_STANDARD_CFG = S3StorageClassCostsConfig(
+    name=AWS_STORAGE_COST_STANDARD.name, storage=AWS_STORAGE_COST_RATE_STANDARD_CFG
+)
+AWS_STORAGE_COST_DEEP_ARCHIVE = StorageClassCosts(
+    name="DEEP_ARCHIVE", storage_cost=AWS_STORAGE_COST_RATE_DEEP_ARCHIVE
+)
+AWS_STORAGE_COST_DEEP_ARCHIVE_CFG = S3StorageClassCostsConfig(
+    name=AWS_STORAGE_COST_DEEP_ARCHIVE.name,
+    storage=AWS_STORAGE_COST_RATE_DEEP_ARCHIVE_CFG,
+)
+AWS_COSTS = Costs(
+    storage_classes=[AWS_STORAGE_COST_STANDARD, AWS_STORAGE_COST_DEEP_ARCHIVE],
+    tzinfo=timezone.utc,
+    billing_period=Duration(months=1),
+)
+AWS_COSTS_CFG = S3CostsConfig(
+    storage_classes=[AWS_STORAGE_COST_STANDARD_CFG, AWS_STORAGE_COST_DEEP_ARCHIVE_CFG],
+    storage_time_granularity="PT1H",
+    billing_period="P1M",
+)
+AWS_COSTS_YAML = (
+    "{storage_classes: ["
+    "{name: STANDARD, storage: {cost: 0.023}}, "
+    "{name: DEEP_ARCHIVE, storage: {cost: 0.00099, min_time: P180D}}]}"
+)
+
+B2_STORAGE_COST_RATE_STANDARD = CostPerByteAndTime(
+    cost=0.006,
+    per_bytes=10**9,
+    per_time=BillingPerTime(
+        period=Duration(days=30), tzinfo=timezone.utc, granularity=Duration(hours=1)
+    ),
+)
+B2_STORAGE_COST_RATE_STANDARD_CFG = S3StorageCostConfig(
+    cost=B2_STORAGE_COST_RATE_STANDARD.cost, per_bytes="GB", per_time="P30D"
+)
+B2_STORAGE_COST_STANDARD = StorageClassCosts(
+    name="STANDARD", storage_cost=B2_STORAGE_COST_RATE_STANDARD
+)
+B2_STORAGE_COST_STANDARD_CFG = S3StorageClassCostsConfig(
+    name=B2_STORAGE_COST_STANDARD.name, storage=B2_STORAGE_COST_RATE_STANDARD_CFG
+)
+B2_COSTS = Costs(
+    storage_classes=[B2_STORAGE_COST_STANDARD],
+    tzinfo=timezone.utc,
+    billing_period=Duration(months=1),
+)
+B2_COSTS_CFG = S3CostsConfig(
+    storage_classes=[B2_STORAGE_COST_STANDARD_CFG],
+    storage_time_granularity="PT1H",
+    billing_period="P1M",
+)
+B2_COSTS_YAML = (
+    "{storage_classes: [{name: STANDARD, storage: {cost: 0.006, per_time: P30D}}]}"
+)

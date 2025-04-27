@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 from contextlib import ExitStack
+from datetime import timezone
 from enum import auto
 from enum import Enum
 from functools import partial
@@ -35,8 +36,10 @@ from rich.prompt import Prompt
 
 from btrfs2s3._internal.commands.printing import print_plan
 from btrfs2s3._internal.config import load_from_path
+from btrfs2s3._internal.cost import BYTES_ABBREV_TO_MULT
 from btrfs2s3._internal.cvar import use_now
 from btrfs2s3._internal.cvar import use_tzinfo
+from btrfs2s3._internal.durations import Duration
 from btrfs2s3._internal.piper import filter_pipe
 from btrfs2s3._internal.planner import Actions
 from btrfs2s3._internal.planner import assess
@@ -50,6 +53,10 @@ from btrfs2s3._internal.planner import Source
 from btrfs2s3._internal.preservation import Params
 from btrfs2s3._internal.preservation import Policy
 from btrfs2s3._internal.resolver import Flags
+from btrfs2s3._internal.s3 import BillingPerTime
+from btrfs2s3._internal.s3 import CostPerByteAndTime
+from btrfs2s3._internal.s3 import Costs
+from btrfs2s3._internal.s3 import StorageClassCosts
 
 if TYPE_CHECKING:
     import argparse
@@ -131,8 +138,41 @@ class _Updater:
                 verify=s3_endpoint.get("verify"),
                 endpoint_url=s3_endpoint.get("endpoint_url"),
             )
+            s3_cost_cfg = s3_cfg.get("costs")
+            if s3_cost_cfg is not None:
+                storage_time_granularity = Duration(
+                    s3_cost_cfg["storage_time_granularity"]
+                )
+                storage_classes = []
+                for storage_class_cfg in s3_cost_cfg["storage_classes"]:
+                    storage_cost_cfg = storage_class_cfg["storage"]
+                    if "min_time" in storage_cost_cfg:
+                        min_time = Duration(storage_cost_cfg["min_time"])
+                    else:
+                        min_time = None
+                    storage_cost = CostPerByteAndTime(
+                        cost=storage_cost_cfg["cost"],
+                        per_bytes=BYTES_ABBREV_TO_MULT[storage_cost_cfg["per_bytes"]],
+                        per_time=BillingPerTime(
+                            period=Duration(storage_cost_cfg["per_time"]),
+                            tzinfo=timezone.utc,
+                            minimum=min_time,
+                            granularity=storage_time_granularity,
+                        ),
+                    )
+                    storage_class = StorageClassCosts(
+                        name=storage_class_cfg["name"], storage_cost=storage_cost
+                    )
+                    storage_classes.append(storage_class)
+                costs = Costs(
+                    tzinfo=timezone.utc,
+                    storage_classes=storage_classes,
+                    billing_period=Duration(s3_cost_cfg["billing_period"]),
+                )
+            else:
+                costs = None
             self._id_to_remote[remote_id] = Remote.create(
-                name=remote_id, s3=s3, bucket=s3_cfg["bucket"]
+                name=remote_id, s3=s3, bucket=s3_cfg["bucket"], costs=costs
             )
         return self._id_to_remote[remote_id]
 

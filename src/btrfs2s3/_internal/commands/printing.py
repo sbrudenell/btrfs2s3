@@ -35,7 +35,9 @@ from rich.table import Table
 from rich.text import Text
 from rich.tree import Tree
 
+from btrfs2s3._internal.cvar import NOW
 from btrfs2s3._internal.cvar import TZINFO
+from btrfs2s3._internal.planner import get_extended_storage_cost
 from btrfs2s3._internal.resolver import Flags
 from btrfs2s3._internal.resolver import KeepMeta
 from btrfs2s3._internal.resolver import Reasons
@@ -175,6 +177,15 @@ def _make_backups_tree(backups: Collection[AssessedBackup]) -> Tree:
         storage_class = backup.stat and backup.stat.storage_class
         if storage_class:
             stats.append(Text(storage_class, style="cost"))
+        if backup.remote.costs:
+            billing_timespan = backup.remote.costs.get_billing_timespan(NOW.get())
+            cost = get_extended_storage_cost(backup, timespan=billing_timespan)
+            if cost is not None:
+                stats.append(
+                    Text(f"{cost:.2f}", style="cost").append(
+                        Text(f"/{backup.remote.costs.billing_period}")
+                    )
+                )
         info = Columns(stats)
         node = parent.add(Group(key, info))
         children = uuid_to_children.get((backup.remote, backup.info.uuid), ())

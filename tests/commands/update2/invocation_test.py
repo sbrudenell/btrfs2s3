@@ -30,6 +30,8 @@ from btrfs2s3._internal.commands.update2 import NAME
 from btrfs2s3._internal.console import THEME
 from btrfs2s3._internal.main import main
 from btrfs2s3._internal.s3 import iter_backups
+from tests.conftest import AWS_COSTS_YAML
+from tests.conftest import B2_COSTS_YAML
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -251,3 +253,50 @@ def test_execute_with_multiple_sources(
     assert backup2.send_parent_uuid is None
     download_and_pipe(obj1["Key"], ["btrfs", "receive", "--dump"])
     download_and_pipe(obj2["Key"], ["btrfs", "receive", "--dump"])
+
+
+@pytest.mark.parametrize(
+    "costs_yaml", [AWS_COSTS_YAML, B2_COSTS_YAML], ids=["aws", "b2"]
+)
+def test_execute_with_costs(
+    tmp_path: Path,
+    btrfs_mountpoint: Path,
+    s3: S3Client,
+    bucket: str,
+    download_and_pipe: DownloadAndPipe,
+    costs_yaml: str,
+) -> None:
+    # Create subvolumes
+    source = btrfs_mountpoint / "source1"
+    create_subvol(source)
+    # Snapshot dir, but no snapshots
+    snapshot_dir = btrfs_mountpoint / "snapshots"
+    snapshot_dir.mkdir()
+    # Modify some data in the source
+    (source / "dummy-file").write_bytes(b"dummy")
+
+    console = Console(force_terminal=False, theme=THEME, width=88, height=30)
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(f"""
+      timezone: UTC
+      sources:
+      - path: {source}
+        snapshots: {snapshot_dir}
+        upload_to_remotes:
+        - id: aws
+          preserve: 1y
+      remotes:
+      - id: aws
+        s3:
+          bucket: {bucket}
+          costs: {costs_yaml}
+    """)
+    assert main(console=console, argv=[NAME, "--force", str(config_path)]) == 0
+
+    (snapshot,) = snapshot_dir.iterdir()
+    info = subvol_info(snapshot)
+    assert {info.parent_uuid} == {subvol_info(source).uuid}
+    ((obj, backup),) = iter_backups(s3, bucket)
+    assert {backup.uuid} == {info.uuid}
+    assert backup.send_parent_uuid is None
+    download_and_pipe(obj["Key"], ["btrfs", "receive", "--dump"])

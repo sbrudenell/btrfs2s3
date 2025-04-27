@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from functools import partial
 from pathlib import Path
+from typing import cast
 from typing import TYPE_CHECKING
 
 import arrow
@@ -26,6 +27,7 @@ import pytest
 
 from btrfs2s3._internal.btrfsioctl import SubvolInfo
 from btrfs2s3._internal.commands.printing import print_plan
+from btrfs2s3._internal.cvar import use_now
 from btrfs2s3._internal.piper import filter_pipe
 from btrfs2s3._internal.planner import AssessedBackup
 from btrfs2s3._internal.planner import AssessedSnapshot
@@ -40,8 +42,11 @@ from btrfs2s3._internal.resolver import Flags
 from btrfs2s3._internal.resolver import KeepMeta
 from btrfs2s3._internal.resolver import Reasons
 from btrfs2s3._internal.util import backup_of_snapshot
+from tests.conftest import AWS_COSTS
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from rich.console import Console
     from types_boto3_s3.client import S3Client
 
@@ -53,8 +58,17 @@ def _t(t: str) -> float:
 noop_pipe = partial(filter_pipe, [])
 
 
-@pytest.fixture
-def golden_asmt(s3: S3Client) -> Assessment:
+@pytest.fixture(autouse=True)
+def _now() -> Iterator[None]:
+    # print_plan keys on the current time to print how much each backup costs in the
+    # current month
+    with use_now(_t("2006-01-01")):
+        yield
+
+
+@pytest.fixture(params=[False, True], ids=["no_costs", "with_costs"])
+def golden_asmt(s3: S3Client, request: pytest.FixtureRequest) -> Assessment:
+    with_costs = cast("bool", request.param)
     source1 = Source(
         path=Path("/path/to/source1"),
         info=SubvolInfo(
@@ -155,7 +169,7 @@ def golden_asmt(s3: S3Client) -> Assessment:
     obj2_1 = BackupObject(
         key=source2.get_backup_key(backup2_1),
         info=backup2_1,
-        stat=ObjectStat(size=3 * 2**30, storage_class="DEEP_ARCHIVE"),
+        stat=ObjectStat(size=3 * 2**30, storage_class="UNKNOWN"),
     )
     obj2_2 = BackupObject(
         key=source2.get_backup_key(backup2_2),
@@ -176,6 +190,7 @@ def golden_asmt(s3: S3Client) -> Assessment:
         s3=s3,
         bucket="bucket1",
         objects=[obj1_1, obj1_2, obj2_1, obj2_2],
+        costs=AWS_COSTS if with_costs else None,
     )
     remote2 = Remote(name="remote2", s3=s3, bucket="bucket2", objects=[obj3_1, obj3_2])
 
