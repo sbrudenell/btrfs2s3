@@ -22,13 +22,20 @@ from typing import TYPE_CHECKING
 import pytest
 
 from btrfs2s3._internal.config import Config
+from btrfs2s3._internal.config import CostPerByteAndTimeConfig
 from btrfs2s3._internal.config import InvalidConfigError
 from btrfs2s3._internal.config import load_from_path
 from btrfs2s3._internal.config import RemoteConfig
+from btrfs2s3._internal.config import S3CostsConfig
 from btrfs2s3._internal.config import S3EndpointConfig
 from btrfs2s3._internal.config import S3RemoteConfig
+from btrfs2s3._internal.config import S3StorageClassCostConfig
 from btrfs2s3._internal.config import SourceConfig
 from btrfs2s3._internal.config import UploadToRemoteConfig
+from tests.conftest import AWS_COSTS_CFG
+from tests.conftest import AWS_COSTS_YAML
+from tests.conftest import B2_COSTS_CFG
+from tests.conftest import B2_COSTS_YAML
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -454,3 +461,342 @@ def test_multiple_pipe_throughs(path: Path) -> None:
             ],
         }
     )
+
+
+def test_costs_with_defaults(path: Path) -> None:
+    path.write_text("""
+        timezone: a
+        sources:
+        - path: b
+          snapshots: c
+          upload_to_remotes:
+          - id: aws
+            preserve: 1y 1m
+        remotes:
+        - id: aws
+          s3:
+            bucket: d
+            costs:
+              storage_classes:
+              - name: DEEP_ARCHIVE
+                storage:
+                  cost: 0.00099
+    """)
+    config = load_from_path(path)
+    assert config == Config(
+        timezone="a",
+        sources=[
+            SourceConfig(
+                path="b",
+                snapshots="c",
+                upload_to_remotes=[UploadToRemoteConfig(id="aws", preserve="1y 1m")],
+            )
+        ],
+        remotes=[
+            RemoteConfig(
+                id="aws",
+                s3=S3RemoteConfig(
+                    bucket="d",
+                    costs=S3CostsConfig(
+                        billing_period="P1M",
+                        storage_time_granularity="PT1H",
+                        storage_classes=[
+                            S3StorageClassCostConfig(
+                                name="DEEP_ARCHIVE",
+                                storage=CostPerByteAndTimeConfig(
+                                    cost=0.00099, per_bytes="GB", per_time="P1M"
+                                ),
+                            )
+                        ],
+                    ),
+                ),
+            )
+        ],
+    )
+
+
+def test_costs_with_explicit_settings(path: Path) -> None:
+    path.write_text("""
+        timezone: a
+        sources:
+        - path: b
+          snapshots: c
+          upload_to_remotes:
+          - id: aws
+            preserve: 1y 1m
+        remotes:
+        - id: aws
+          s3:
+            bucket: d
+            costs:
+              billing_period: P1Y
+              storage_classes:
+              - name: DEEP_ARCHIVE
+                min_time: P180D
+                storage:
+                  cost: 0.99
+                  per_bytes: TB
+                  per_time: PT1H
+              storage_time_granularity: P1W
+    """)
+    config = load_from_path(path)
+    assert config == Config(
+        timezone="a",
+        sources=[
+            SourceConfig(
+                path="b",
+                snapshots="c",
+                upload_to_remotes=[UploadToRemoteConfig(id="aws", preserve="1y 1m")],
+            )
+        ],
+        remotes=[
+            RemoteConfig(
+                id="aws",
+                s3=S3RemoteConfig(
+                    bucket="d",
+                    costs=S3CostsConfig(
+                        billing_period="P1Y",
+                        storage_time_granularity="P1W",
+                        storage_classes=[
+                            S3StorageClassCostConfig(
+                                name="DEEP_ARCHIVE",
+                                min_time="P180D",
+                                storage=CostPerByteAndTimeConfig(
+                                    cost=0.99, per_bytes="TB", per_time="PT1H"
+                                ),
+                            )
+                        ],
+                    ),
+                ),
+            )
+        ],
+    )
+
+
+@pytest.mark.parametrize(
+    ("costs_yaml", "expected_costs"),
+    [(AWS_COSTS_YAML, AWS_COSTS_CFG), (B2_COSTS_YAML, B2_COSTS_CFG)],
+    ids=["aws", "b2"],
+)
+def test_costs_from_fixtures(
+    path: Path, costs_yaml: str, expected_costs: S3CostsConfig
+) -> None:
+    path.write_text(f"""
+        timezone: a
+        sources:
+        - path: b
+          snapshots: c
+          upload_to_remotes:
+          - id: aws
+            preserve: 1y 1m
+        remotes:
+        - id: aws
+          s3:
+            bucket: d
+            costs: {costs_yaml}
+    """)
+    config = load_from_path(path)
+    assert config == Config(
+        timezone="a",
+        sources=[
+            SourceConfig(
+                path="b",
+                snapshots="c",
+                upload_to_remotes=[UploadToRemoteConfig(id="aws", preserve="1y 1m")],
+            )
+        ],
+        remotes=[
+            RemoteConfig(id="aws", s3=S3RemoteConfig(bucket="d", costs=expected_costs))
+        ],
+    )
+
+
+def test_bad_bytes_value(path: Path) -> None:
+    path.write_text("""
+        timezone: a
+        sources:
+        - path: b
+          snapshots: c
+          upload_to_remotes:
+          - id: aws
+            preserve: 1y 1m
+        remotes:
+        - id: aws
+          s3:
+            bucket: d
+            costs:
+              storage_classes:
+              - name: DEEP_ARCHIVE
+                storage:
+                  cost: 0.00099
+                  per_bytes: invalid
+    """)
+    with pytest.raises(InvalidConfigError):
+        load_from_path(path)
+
+
+def test_invalid_duration(path: Path) -> None:
+    path.write_text("""
+        timezone: a
+        sources:
+        - path: b
+          snapshots: c
+          upload_to_remotes:
+          - id: aws
+            preserve: 1y 1m
+        remotes:
+        - id: aws
+          s3:
+            bucket: d
+            costs:
+              storage_classes:
+              - name: DEEP_ARCHIVE
+                min_time: invalid
+                storage:
+                  cost: 0.00099
+    """)
+    with pytest.raises(InvalidConfigError):
+        load_from_path(path)
+
+
+def test_zero_duration(path: Path) -> None:
+    path.write_text("""
+        timezone: a
+        sources:
+        - path: b
+          snapshots: c
+          upload_to_remotes:
+          - id: aws
+            preserve: 1y 1m
+        remotes:
+        - id: aws
+          s3:
+            bucket: d
+            costs:
+              storage_classes:
+              - name: DEEP_ARCHIVE
+                min_time: P0D
+                storage:
+                  cost: 0.00099
+    """)
+    with pytest.raises(InvalidConfigError):
+        load_from_path(path)
+
+
+def test_invalid_per_time(path: Path) -> None:
+    path.write_text("""
+        timezone: a
+        sources:
+        - path: b
+          snapshots: c
+          upload_to_remotes:
+          - id: aws
+            preserve: 1y 1m
+        remotes:
+        - id: aws
+          s3:
+            bucket: d
+            costs:
+              storage_classes:
+              - name: DEEP_ARCHIVE
+                storage:
+                  cost: 0.00099
+                  per_time: invalid
+    """)
+    with pytest.raises(InvalidConfigError):
+        load_from_path(path)
+
+
+def test_multiple_items_in_per_time(path: Path) -> None:
+    path.write_text("""
+        timezone: a
+        sources:
+        - path: b
+          snapshots: c
+          upload_to_remotes:
+          - id: aws
+            preserve: 1y 1m
+        remotes:
+        - id: aws
+          s3:
+            bucket: d
+            costs:
+              storage_classes:
+              - name: DEEP_ARCHIVE
+                storage:
+                  cost: 0.00099
+                  per_time: P1M1D
+    """)
+    with pytest.raises(InvalidConfigError):
+        load_from_path(path)
+
+
+def test_non_unit_billing_period(path: Path) -> None:
+    path.write_text("""
+        timezone: a
+        sources:
+        - path: b
+          snapshots: c
+          upload_to_remotes:
+          - id: aws
+            preserve: 1y 1m
+        remotes:
+        - id: aws
+          s3:
+            bucket: d
+            costs:
+              billing_period: P2M
+              storage_classes:
+              - name: DEEP_ARCHIVE
+                storage:
+                  cost: 0.00099
+    """)
+    with pytest.raises(InvalidConfigError):
+        load_from_path(path)
+
+
+def test_non_unit_storage_time_granularity(path: Path) -> None:
+    path.write_text("""
+        timezone: a
+        sources:
+        - path: b
+          snapshots: c
+          upload_to_remotes:
+          - id: aws
+            preserve: 1y 1m
+        remotes:
+        - id: aws
+          s3:
+            bucket: d
+            costs:
+              storage_time_granularity: PT30M
+              storage_classes:
+              - name: DEEP_ARCHIVE
+                storage:
+                  cost: 0.00099
+    """)
+    with pytest.raises(InvalidConfigError):
+        load_from_path(path)
+
+
+def test_negative_cost(path: Path) -> None:
+    path.write_text("""
+        timezone: a
+        sources:
+        - path: b
+          snapshots: c
+          upload_to_remotes:
+          - id: aws
+            preserve: 1y 1m
+        remotes:
+        - id: aws
+          s3:
+            bucket: d
+            costs:
+              storage_classes:
+              - name: DEEP_ARCHIVE
+                storage:
+                  cost: -1.0
+    """)
+    with pytest.raises(InvalidConfigError):
+        load_from_path(path)

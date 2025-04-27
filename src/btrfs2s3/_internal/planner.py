@@ -58,6 +58,7 @@ if TYPE_CHECKING:
     from typing_extensions import Self
 
     from btrfs2s3._internal.preservation import Policy
+    from btrfs2s3._internal.s3 import Costs
 
 _LOG = logging.getLogger(__name__)
 
@@ -273,7 +274,9 @@ class BackupObject(NamedTuple):
 
 class Remote:
     @classmethod
-    def create(cls, *, name: str, s3: S3Client, bucket: str) -> Self:
+    def create(
+        cls, *, name: str, s3: S3Client, bucket: str, costs: Costs | None = None
+    ) -> Self:
         return cls(
             name=name,
             s3=s3,
@@ -282,14 +285,22 @@ class Remote:
                 BackupObject(key=obj["Key"], info=info, stat=ObjectStat.from_obj(obj))
                 for obj, info in iter_backups(s3, bucket)
             ],
+            costs=costs,
         )
 
     def __init__(
-        self, *, name: str, s3: S3Client, bucket: str, objects: Collection[BackupObject]
+        self,
+        *,
+        name: str,
+        s3: S3Client,
+        bucket: str,
+        objects: Collection[BackupObject],
+        costs: Costs | None = None,
     ) -> None:
         self._name = name
         self._s3 = s3
         self._bucket = bucket
+        self._costs = costs
         self._p_to_u_to_obj: dict[bytes, dict[bytes, BackupObject]] = defaultdict(dict)
         self._u_to_obj: dict[bytes, BackupObject] = {}
         for obj in objects:
@@ -319,6 +330,10 @@ class Remote:
     @property
     def bucket(self) -> str:
         return self._bucket
+
+    @property
+    def costs(self) -> Costs | None:
+        return self._costs
 
     def get_objects(self, source: Source) -> Mapping[bytes, BackupObject]:
         return self._p_to_u_to_obj.get(source.info.uuid, {})

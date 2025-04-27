@@ -40,6 +40,7 @@ from btrfs2s3._internal.resolver import Flags
 from btrfs2s3._internal.resolver import KeepMeta
 from btrfs2s3._internal.resolver import Reasons
 from btrfs2s3._internal.util import backup_of_snapshot
+from tests.conftest import AWS_COSTS
 
 if TYPE_CHECKING:
     from rich.console import Console
@@ -176,6 +177,7 @@ def golden_asmt(s3: S3Client) -> Assessment:
         s3=s3,
         bucket="bucket1",
         objects=[obj1_1, obj1_2, obj2_1, obj2_2],
+        costs=AWS_COSTS,
     )
     remote2 = Remote(name="remote2", s3=s3, bucket="bucket2", objects=[obj3_1, obj3_2])
 

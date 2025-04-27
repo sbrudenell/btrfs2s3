@@ -44,6 +44,7 @@ one-to-one correspondence is required for differential backups.
 - [Versioning](#versioning)
 - [Config](#config)
 - [Preservation Policy](#preservation-policy)
+- [Cost Structures](#cost-structures)
 - [Usage](#usage)
 - [Design](#design)
 - [Differential Tree](#differential-tree)
@@ -251,6 +252,36 @@ remotes:
         # certificate verification, or a path to a combined .pem file to
         # validate against a custom certificate store.
         verify: false
+      # A cost structure for the remote (for more information, see the section
+      # on cost structures). By default, no cost information is provided.
+      costs:
+        # A single-element ISO 8601 duration representing the billing period
+        # for the provider. Defaults to P1M.
+        billing_period: P1M
+        # Per-storage-class cost structures. Defaults to empty.
+        storage_classes:
+          # The name of the storage class. Must match the value used for the
+          # storage class in the provider's API.
+          - name: DEEP_ARCHIVE
+          # The minimum billable duration for storage costs. Defaults to no
+          # minimum.
+            min_time: P180D
+          # The storage cost for this storage class. This is expressed as a
+          # cost per byte and unit time. For example, {cost: 0.023,
+          # per_bytes: GB, per_time: P1M} means 0.023 per 10**9 bytes per
+          # calendar month.
+            storage:
+            # A unit-less cost. Required.
+              cost: 0.023
+            # A prefix abbreviation (SI decimal or IEC binary -- GB, GiB, TB,
+            # TiB, etc) for the number of bytes. Defaults to GB.
+              per_bytes: GB
+            # A single-element ISO 8601 duration for the time unit. Defaults to
+            # P1M.
+              per_time: P1M
+        # A single-element ISO 8601 duration representing the minimum billable
+        # storage time. Defaults to PT1H.
+        storage_time_granularity: PT1H
 ```
 
 # Preservation Policy
@@ -316,6 +347,92 @@ like minutes or seconds. This may produce some small differential backups, but t
 within them will eventually migrate up the tree as new longer-timeframe backups are
 created. In theory, the shortest timeframe you can use in practice is equal to your
 commit interval (the `-o commit=` mount option). This defaults to 30 seconds.
+
+# Cost Structures
+
+`btrfs2s3` is aware of costs charged by S3 storage providers.
+
+Currently, the cost structure information is used for display purposes.
+
+Cost structures and values must be supplied in the config file. `btrfs2s3` does **not**
+provide defaults, nor does it query the remote API for any cost information.
+
+(AWS provides some limited "pricing" APIs; however the S3 sections lack essential data
+like the minimum billable storage period, as well as any mapping from pricing structure
+to S3 API values for each storage class)
+
+Below is cost structure information for a selection of object storage providers. This
+configuration is **valid**, but may not be **accurate**. I gathered this data as of
+2025-05-15 but **it is untested**. I won't be keeping it up-to-date. This is meant to
+compare and illustrate the quirks of different providers.
+
+Note that most providers charge a storage cost per byte per calendar month (i.e.
+`per_time: P1M`, the default). Months have different lengths, so this means storage is
+~10% more expensive (per hour) in February than in March.
+
+```yaml
+remotes:
+  - id: aws
+    s3:
+      cost:
+      # us-west-2
+        storage_classes:
+          - {name: STANDARD, storage: {cost: 0.023}}
+          - {name: STANDARD_IA, storage: {cost: 0.0125}, min_time: P30D}
+          - {name: ONEZONE_IA, storage: {cost: 0.01}, min_time: P30D}
+          - {name: GLACIER_IR, storage: {cost: 0.004}, min_time: P30D}
+          - {name: GLACIER, storage: {cost: 0.0036}, min_time: P90D}
+          - {name: DEEP_ARCHIVE, storage: {cost: 0.00099}, min_time: P180D}
+  - id: b2
+    s3:
+      cost:
+      # B2's storage cost is per P30D not P1M, per
+      # https://www.reddit.com/r/backblaze/comments/17od5iu/comment/k7ycrgv/?context=3
+        storage_classes:
+          - {name: STANDARD, storage: {cost: 0.006, per_time: P30D}}
+  - id: azure
+    s3:
+      cost:
+      # West US 2
+      # Azure does not have native S3 API support. Using azure as a remote will
+      # require a proxy like https://github.com/gaul/s3proxy. The following
+      # storage class names are my best guess for use with s3proxy.
+        storage_classes:
+          - {name: STANDARD, storage: {cost: 0.0184}}
+          - {name: STANDARD_IA, storage: {cost: 0.01}, min_time: P30D}
+          - {name: GLACIER_IR, storage: {cost: 0.0036}, min_time: P90D}
+          - {name: DEEP_ARCHIVE, storage: {cost: 0.00099}, min_time: P180D}
+  - id: gcp
+    s3:
+      cost:
+      # us-west1
+        storage_classes:
+          - {name: STANDARD, storage: {cost: 0.02}}
+          - {name: NEARLINE, storage: {cost: 0.01}, min_time: P30D}
+          - {name: COLDLINE, storage: {cost: 0.004}, min_time: P90D}
+          - {name: ARCHIVE, storage: {cost: 0.0012}, min_time: P365D}
+  - id: ovh
+    s3:
+      cost:
+      # roubaix
+        storage_classes:
+          - {name: STANDARD, storage: {cost: 0.00001111, per_time: PT1H}}
+          - {name: GLACIER, storage: {cost: 0.00000189, per_time: PT1H}, min_time: P180D}
+  - id: scaleway
+    s3:
+      cost:
+        storage_classes:
+          - {name: STANDARD, storage: {cost: 0.00002, per_time: PT1H}}
+          - {name: ONEZONE_IA, storage: {cost: 0.0000165, per_time: PT1H}}
+          - {name: GLACIER, storage: {cost: 0.00000348, per_time: PT1H}}
+  - id: oracle
+    s3:
+      cost:
+        storage_classes:
+          - {name: STANDARD, storage: {cost: 0.0255}}
+          - {name: STANDARD_IA, storage: {cost: 0.01}}
+          - {name: GLACIER, storage: {cost: 0.0026}}
+```
 
 # Usage
 

@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from time import time
 from typing import TYPE_CHECKING
 
 import arrow
@@ -39,6 +40,7 @@ from btrfs2s3._internal.cvar import TZINFO
 from btrfs2s3._internal.resolver import Flags
 from btrfs2s3._internal.resolver import KeepMeta
 from btrfs2s3._internal.resolver import Reasons
+from btrfs2s3._internal.s3 import Timespan
 from btrfs2s3._internal.time_span_describer import describe_time_span
 
 if TYPE_CHECKING:
@@ -147,6 +149,7 @@ def _backup_key(backup: AssessedBackup) -> tuple[Path, int, float]:
 
 
 def _make_backups_tree(backups: Collection[AssessedBackup]) -> Tree:
+    now = time()
     uuid_to_children: dict[tuple[Remote, bytes], list[AssessedBackup]] = defaultdict(
         list
     )
@@ -175,6 +178,21 @@ def _make_backups_tree(backups: Collection[AssessedBackup]) -> Tree:
         storage_class = backup.stat and backup.stat.storage_class
         if storage_class:
             stats.append(Text(storage_class, style="cost"))
+        if backup.remote.costs and storage_class and size:
+            assert list(backup.remote.costs.billing_period.values()) == [1]
+            billing_timespan = Timespan(
+                *arrow.get(now, tzinfo=backup.remote.costs.tzinfo).span(
+                    next(iter(backup.remote.costs.billing_period)), bounds="[]"
+                )
+            )
+            cost = backup.remote.costs.get_storage_cost(
+                size=size, storage_class=storage_class, timespan=billing_timespan
+            )
+            stats.append(
+                Text(f"{cost:.2f}", style="cost").append(
+                    Text(f"/{backup.remote.costs.billing_period}")
+                )
+            )
         info = Columns(stats)
         node = parent.add(Group(key, info))
         children = uuid_to_children.get((backup.remote, backup.info.uuid), ())
