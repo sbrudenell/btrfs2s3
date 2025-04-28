@@ -145,7 +145,7 @@ def golden_asmt(s3: S3Client) -> Assessment:
     obj1_1 = BackupObject(
         key=source1.get_backup_key(backup1_1),
         info=backup1_1,
-        stat=ObjectStat(size=1 * 2**30, storage_class="STANDARD"),
+        stat=ObjectStat(size=1 * 2**30, storage_class="DEEP_ARCHIVE"),
     )
     obj1_2 = BackupObject(
         key=source1.get_backup_key(backup1_2),
@@ -155,22 +155,20 @@ def golden_asmt(s3: S3Client) -> Assessment:
     obj2_1 = BackupObject(
         key=source2.get_backup_key(backup2_1),
         info=backup2_1,
-        stat=ObjectStat(size=3 * 2**30, storage_class="STANDARD"),
+        stat=ObjectStat(size=3 * 2**30, storage_class="DEEP_ARCHIVE"),
     )
     obj2_2 = BackupObject(
         key=source2.get_backup_key(backup2_2),
         info=backup2_2,
-        stat=ObjectStat(size=4 * 2**30, storage_class="STANDARD"),
+        stat=ObjectStat(size=4 * 2**30),
     )
     obj3_1 = BackupObject(
         key=source3.get_backup_key(backup3_1),
         info=backup3_1,
-        stat=ObjectStat(size=5 * 2**30, storage_class="STANDARD"),
+        stat=ObjectStat(storage_class="DEEP_ARCHIVE"),
     )
     obj3_2 = BackupObject(
-        key=source3.get_backup_key(backup3_2),
-        info=backup3_2,
-        stat=ObjectStat(size=6 * 2**30, storage_class="STANDARD"),
+        key=source3.get_backup_key(backup3_2), info=backup3_2, stat=ObjectStat()
     )
 
     remote1 = Remote(

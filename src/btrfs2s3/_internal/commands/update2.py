@@ -35,6 +35,7 @@ from rich.box import HORIZONTALS
 from rich.columns import Columns
 from rich.console import Console
 from rich.console import Group
+from rich.filesize import decimal
 from rich.highlighter import ISO8601Highlighter
 from rich.markup import escape
 from rich.prompt import Confirm
@@ -186,13 +187,18 @@ def _make_backups_tree(backups: Collection[AssessedBackup]) -> Tree:
                 escape(backup.key), style="key" if backup.meta.reasons else "delete"
             )
         )
-        info = Columns(
-            (
-                _describe_preserve(backup.meta),
-                _describe_time(backup.info.ctime),
-                Text(str(backup.info.ctransid), style="ctransid"),
-            )
-        )
+        stats = [
+            _describe_preserve(backup.meta),
+            _describe_time(backup.info.ctime),
+            Text(str(backup.info.ctransid), style="ctransid"),
+        ]
+        size = backup.stat and backup.stat.size
+        if size is not None:
+            stats.append(Text(decimal(size), style="cost"))
+        storage_class = backup.stat and backup.stat.storage_class
+        if storage_class:
+            stats.append(Text(storage_class, style="cost"))
+        info = Columns(stats)
         node = parent.add(Group(key, info))
         children = uuid_to_children.get((backup.remote, backup.info.uuid), ())
         for child in sorted(children, key=_backup_key):

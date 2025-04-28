@@ -28,6 +28,8 @@ STYLE_KEEP = Style.parse("green")
 STYLE_NOT_KEEPING = Style.parse("bold bright_red")
 STYLE_CTRANSID = Style.parse("cyan")
 
+STYLE_COST = Style.parse("yellow")
+
 STYLE_CREATE = Style.parse("green")
 STYLE_MODIFY = Style.parse("green")
 STYLE_DELETE = Style.parse("red")
@@ -38,6 +40,7 @@ THEME = Theme(
         "keep": STYLE_KEEP,
         "not_keeping": STYLE_NOT_KEEPING,
         "ctransid": STYLE_CTRANSID,
+        "cost": STYLE_COST,
         "create": STYLE_CREATE,
         "modify": STYLE_MODIFY,
         "delete": STYLE_DELETE,
