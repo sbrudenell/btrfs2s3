@@ -32,12 +32,12 @@ if TYPE_CHECKING:
 
 @pytest.fixture(params=[5 * 2**20, 5 * 2**20 + 512, 10 * 2**20])
 def data_size(request: pytest.FixtureRequest) -> int:
-    return cast(int, request.param)
+    return cast("int", request.param)
 
 
 @pytest.fixture(params=[5 * 2**20, 5 * 2**20 + 512, 10 * 2**20])
 def part_size(request: pytest.FixtureRequest) -> int:
-    return cast(int, request.param)
+    return cast("int", request.param)
 
 
 @pytest.fixture
@@ -47,12 +47,12 @@ def stream_data(data_size: int) -> bytes:
 
 @pytest.fixture(params=[-1, 0], ids=["buffered", "unbuffered"])
 def buffering(request: pytest.FixtureRequest) -> int:
-    return cast(int, request.param)
+    return cast("int", request.param)
 
 
 @pytest.fixture(params=[False, True], ids=["nonseekable", "seekable"])
 def seekable(request: pytest.FixtureRequest) -> bool:
-    return cast(bool, request.param)
+    return cast("bool", request.param)
 
 
 @pytest.fixture

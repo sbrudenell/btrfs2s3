@@ -197,7 +197,8 @@ def load_from_path(path: str | PathLike[str]) -> Config:
         InvalidConfigError: If the config does not pass validation.
     """
     config = cast(
-        Config, load_from_filename(path, _SCHEMA, safe_load, exc_tp=InvalidConfigError)
+        "Config",
+        load_from_filename(path, _SCHEMA, safe_load, exc_tp=InvalidConfigError),
     )
 
     remote_ids = {remote["id"] for remote in config["remotes"]}

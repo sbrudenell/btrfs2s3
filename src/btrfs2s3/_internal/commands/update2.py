@@ -57,6 +57,7 @@ if TYPE_CHECKING:
     from rich.console import Console
 
     from btrfs2s3._internal.commands.shared import Args
+    from btrfs2s3._internal.config import Config
 
 
 NAME = "update"
@@ -203,6 +204,6 @@ def command(*, console: Console, args: argparse.Namespace) -> int:
         console.print("to run in unattended mode, use --force")
         return 1
 
-    _Updater(cast(Config, args.config_file), force=args.force).update(console)
+    _Updater(cast("Config", args.config_file), force=args.force).update(console)
 
     return 0

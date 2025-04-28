@@ -20,6 +20,7 @@ from __future__ import annotations
 from random import uniform
 import time
 from typing import cast
+from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
 
 import arrow
@@ -30,8 +31,10 @@ from btrfs2s3._internal.cvar import TZINFO
 from btrfs2s3._internal.cvar import use_tzinfo
 from btrfs2s3._internal.preservation import Params
 from btrfs2s3._internal.preservation import Policy
-from btrfs2s3._internal.preservation import Timeframe
 from btrfs2s3._internal.preservation import TIMEFRAMES
+
+if TYPE_CHECKING:
+    from btrfs2s3._internal.preservation import Timeframe
 
 
 def _random_timestamp() -> float:
@@ -40,7 +43,7 @@ def _random_timestamp() -> float:
 
 @pytest.fixture(params=TIMEFRAMES)
 def timeframe(request: pytest.FixtureRequest) -> Timeframe:
-    return cast(Timeframe, request.param)
+    return cast("Timeframe", request.param)
 
 
 def test_empty_iter_time_spans(timeframe: Timeframe) -> None:
