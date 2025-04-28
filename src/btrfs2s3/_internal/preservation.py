@@ -179,7 +179,7 @@ class Params:
         It's also not currently correct, until we implement infinite
         preservation.
         """
-        kwargs = {t: 1 for t in TIMEFRAMES}
+        kwargs = dict.fromkeys(TIMEFRAMES, 1)
         # https://github.com/python/mypy/issues/10023
         return cls(**kwargs)  # type: ignore[misc]
 

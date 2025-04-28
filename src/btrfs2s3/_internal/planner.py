@@ -120,7 +120,7 @@ class Source:
 
 
 def _is_subvol(fd: int) -> bool:
-    return os.stat(fd).st_ino == FIRST_FREE_OBJECTID  # noqa: PTH116
+    return os.stat(fd).st_ino == FIRST_FREE_OBJECTID
 
 
 def _iter_snapshots(dir_fd: int) -> Iterator[tuple[str, SubvolInfo]]:
@@ -215,7 +215,7 @@ class SnapshotDir:
     def rename_snapshot(self, snapshot_id: int, target: str) -> None:
         name = self.get_name(snapshot_id)
         _LOG.info("renaming %s -> %s", self.path / name, self.path / target)
-        os.rename(name, target, src_dir_fd=self._dir_fd, dst_dir_fd=self._dir_fd)  # noqa: PTH104
+        os.rename(name, target, src_dir_fd=self._dir_fd, dst_dir_fd=self._dir_fd)
         self._id_to_name[snapshot_id] = target
 
     def send(

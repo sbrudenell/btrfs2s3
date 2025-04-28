@@ -53,7 +53,7 @@ def test_noop(length: int) -> None:
 
 @pytest.fixture(params=[(length, i) for length in range(1, 4) for i in range(length)])
 def pipeline_that_fails(request: pytest.FixtureRequest) -> Sequence[Sequence[str]]:
-    length, fail_position = cast(tuple[int, int], request.param)
+    length, fail_position = cast("tuple[int, int]", request.param)
     cmds = [["cat"]] * length
     cmds[fail_position] = ["sh", "-c", "exit 1"]
     return cmds

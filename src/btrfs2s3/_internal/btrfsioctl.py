@@ -146,7 +146,7 @@ class TimeSpec(Structure):
     _fields_ = (("sec", c_uint64), ("nsec", c_uint32))
 
     def to_float(self) -> float:
-        return cast(int, self.sec) + cast(int, self.nsec) * 1e-9
+        return cast("int", self.sec) + cast("int", self.nsec) * 1e-9
 
 
 class SendFlag(IntFlag):

@@ -45,7 +45,6 @@ from rich.table import Table
 from rich.text import Text
 from rich.tree import Tree
 
-from btrfs2s3._internal.config import Config
 from btrfs2s3._internal.config import load_from_path
 from btrfs2s3._internal.cvar import TZINFO
 from btrfs2s3._internal.cvar import use_tzinfo
@@ -76,6 +75,8 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
     from collections.abc import Sequence
     from typing import TypedDict
+
+    from btrfs2s3._internal.config import Config
 
 
 _iso8601_highlight = ISO8601Highlighter()
@@ -462,6 +463,6 @@ def command(*, console: Console, args: argparse.Namespace) -> int:
         console.print("to run in unattended mode, use --force")
         return 1
 
-    _Updater(cast(Config, args.config_file), force=args.force).update(console)
+    _Updater(cast("Config", args.config_file), force=args.force).update(console)
 
     return 0
