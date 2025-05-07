@@ -134,7 +134,6 @@ legacy_tox_ini = """
       py
 
   [testenv]
-  system_site_packages = true
   deps =
       -r test-requirements.txt
   commands =
