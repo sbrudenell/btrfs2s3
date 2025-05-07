@@ -55,6 +55,7 @@ optional-dependencies.test = [
   "coverage>=7,<8",
   "moto[s3]>=5,<6",
   "pytest>=8,<9",
+  "pytest-cov>=6,<7",
 ]
 
 urls.homepage = "https://github.com/sbrudenell/btrfs2s3"
@@ -111,6 +112,15 @@ lint.isort.order-by-type = false
 lint.pydocstyle.convention = "google"
 
 [tool.pytest.ini_options]
+# NB: --cov takes an optional argument. So addopts = ["--cov"] would break when
+# adding more arguments, e.g. to run a specific test.
+addopts = [
+  "--cov",
+  "--cov-report",
+  "term-missing:skip-covered",
+  "--cov-report",
+  "html",
+]
 filterwarnings = [
   "error",
   "ignore::DeprecationWarning:botocore.crt.auth",
@@ -142,10 +152,7 @@ legacy_tox_ini = """
 
   [testenv]
   extras = test
-  commands =
-      coverage erase
-      coverage run -m pytest {posargs}
-      coverage report
+  commands = pytest {posargs}
 """
 
 [tool.mypy]
