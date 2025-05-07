@@ -42,6 +42,7 @@ repos:
     additional_dependencies:
     - mdformat-config
     - mdformat-toc
+    - mdformat-pyproject
 - repo: https://github.com/astral-sh/ruff-pre-commit
   rev: v0.11.8
   hooks:
