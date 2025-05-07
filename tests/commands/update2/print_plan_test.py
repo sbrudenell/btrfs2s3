@@ -25,7 +25,7 @@ import arrow
 import pytest
 
 from btrfs2s3._internal.btrfsioctl import SubvolInfo
-from btrfs2s3._internal.commands.update2 import print_plan
+from btrfs2s3._internal.commands.printing import print_plan
 from btrfs2s3._internal.piper import filter_pipe
 from btrfs2s3._internal.planner import AssessedBackup
 from btrfs2s3._internal.planner import AssessedSnapshot
