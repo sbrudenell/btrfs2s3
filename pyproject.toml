@@ -142,18 +142,14 @@ source = [
 ]
 
 [tool.tox]
-legacy_tox_ini = """
-  [tox]
-  requires =
-      tox>=4.2
-      tox<5
-  env_list =
-      py
+requires = [ "tox>=4.21", "tox<5" ]
+env_list = [ "py" ]
 
-  [testenv]
-  extras = test
-  commands = pytest {posargs}
-"""
+[tool.tox.env_run_base]
+extras = [ "test" ]
+# The following replicates "commands = pytest {posargs}".
+# When posargs aren't supplied, it evaluates to just [["pytest"]].
+commands = [ [ "pytest", { replace = "posargs", default = [  ], extend = true } ] ]
 
 [tool.mypy]
 strict = true
