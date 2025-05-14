@@ -122,7 +122,9 @@ def test_execute(
 
 
 def test_refuse_to_run_unattended_without_force(
-    tmp_path: Path, goldifyconsole: Console
+    tmp_path: Path,
+    goldifyconsole: Console,
+    force_terminal: bool,  # noqa: FBT001
 ) -> None:
     # This shouldn't get to the point of verifying arguments
     config_path = tmp_path / "config.yaml"
@@ -139,7 +141,8 @@ def test_refuse_to_run_unattended_without_force(
         s3:
           bucket: dummy_bucket
     """)
-    assert main(argv=[NAME, str(config_path)], console=goldifyconsole) == 1
+    if not force_terminal:
+        assert main(argv=[NAME, str(config_path)], console=goldifyconsole) == 1
 
 
 @pytest.mark.parametrize(

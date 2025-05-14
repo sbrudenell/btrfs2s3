@@ -26,6 +26,7 @@ from subprocess import DEVNULL
 from subprocess import PIPE
 from subprocess import Popen
 import tempfile
+from typing import cast
 from typing import Protocol
 from typing import TYPE_CHECKING
 from warnings import warn
@@ -165,25 +166,39 @@ def goldify(request: pytest.FixtureRequest, touched_golden: set[Path]) -> Goldif
 
 
 class ConsoleFactory(Protocol):
-    def __call__(self, file: IO[str] | None = None) -> Console: ...
+    def __call__(
+        self, *, force_terminal: bool, file: IO[str] | None = None
+    ) -> Console: ...
 
 
 @pytest.fixture
 def console_factory() -> ConsoleFactory:
-    def inner(file: IO[str] | None = None) -> Console:
+    def inner(*, force_terminal: bool, file: IO[str] | None = None) -> Console:
         return Console(
-            file=file, theme=THEME, width=88, height=30, color_system="truecolor"
+            file=file,
+            theme=THEME,
+            width=88,
+            height=30,
+            color_system="truecolor",
+            force_terminal=force_terminal,
         )
 
     return inner
 
 
+@pytest.fixture(params=[False, True], ids=["no_force_terminal", "force_terminal"])
+def force_terminal(request: pytest.FixtureRequest) -> bool:
+    return cast("bool", request.param)
+
+
 @pytest.fixture
 def goldifyconsole(
-    console_factory: ConsoleFactory, goldify: Goldify
+    console_factory: ConsoleFactory,
+    goldify: Goldify,
+    force_terminal: bool,  # noqa: FBT001
 ) -> Iterator[Console]:
     file = StringIO()
-    console = console_factory(file=file)
+    console = console_factory(file=file, force_terminal=force_terminal)
     yield console
     goldify(file.getvalue())
 
