@@ -35,6 +35,7 @@ repos:
   rev: v1.37.1
   hooks:
   - id: yamllint
+    args: [--strict]
 - repo: https://github.com/executablebooks/mdformat
   rev: 0.7.22
   hooks:

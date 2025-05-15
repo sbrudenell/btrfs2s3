@@ -3,7 +3,7 @@ name: tests
 permissions:
   contents: read
 
-on:
+"on":
   pull_request:
   push:
     branches: [master]
