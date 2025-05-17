@@ -18,23 +18,41 @@
 from __future__ import annotations
 
 import re
-from typing import NamedTuple
+from typing import cast
+from typing import Literal
+from typing import overload
 from typing import TYPE_CHECKING
 from typing import TypedDict
 
 if TYPE_CHECKING:
-    from typing_extensions import NotRequired
-    from typing_extensions import Self
+    from collections.abc import Collection
+
+    from typing_extensions import TypeAlias
+    from typing_extensions import Unpack
 
 
-class Kwargs(TypedDict):
-    years: NotRequired[int]
-    months: NotRequired[int]
-    weeks: NotRequired[int]
-    days: NotRequired[int]
-    hours: NotRequired[int]
-    minutes: NotRequired[int]
-    seconds: NotRequired[int]
+class Kwargs(TypedDict, total=False):
+    years: int
+    months: int
+    weeks: int
+    days: int
+    hours: int
+    minutes: int
+    seconds: int
+
+
+Key: TypeAlias = Literal[
+    "years", "months", "weeks", "days", "hours", "minutes", "seconds"
+]
+KEYS: Collection[Key] = {
+    "years",
+    "months",
+    "weeks",
+    "days",
+    "hours",
+    "minutes",
+    "seconds",
+}
 
 
 _REGEX = re.compile(
@@ -50,79 +68,45 @@ _REGEX = re.compile(
 )
 
 
-class Duration(NamedTuple):
-    @classmethod
-    def parse(cls, value: str) -> Self:
-        m = _REGEX.match(value)
-        if not m:
-            msg = "Not a valid ISO 8601 duration"
-            raise ValueError(msg)
-        years = int(y) if (y := m.group("years")) else None
-        months = int(mo) if (mo := m.group("months")) else None
-        weeks = int(w) if (w := m.group("weeks")) else None
-        days = int(d) if (d := m.group("days")) else None
-        hours = int(h) if (h := m.group("hours")) else None
-        minutes = int(mi) if (mi := m.group("minutes")) else None
-        seconds = int(s) if (s := m.group("seconds")) else None
-        return cls(
-            years=years,
-            months=months,
-            weeks=weeks,
-            days=days,
-            hours=hours,
-            minutes=minutes,
-            seconds=seconds,
-        )
+class Duration(dict[Key, int]):
+    @overload
+    def __init__(self, /, value: str) -> None: ...
+    @overload
+    def __init__(self, **kwargs: Unpack[Kwargs]) -> None: ...
+    def __init__(self, value: str | None = None, **kwargs: Unpack[Kwargs]) -> None:
+        if value is not None:
+            m = _REGEX.match(value)
+            if not m:
+                msg = "Not a valid ISO 8601 duration"
+                raise ValueError(msg)
+            kwargs = Kwargs()
+            for key in KEYS:
+                if (v := m.group(key)) is not None:
+                    kwargs[key] = int(v)
+        # Should validate kwargs thoroughly here
+        super().__init__(cast("dict[Key, int]", kwargs))
 
-    years: int | None = None
-    months: int | None = None
-    weeks: int | None = None
-    days: int | None = None
-    hours: int | None = None
-    minutes: int | None = None
-    seconds: int | None = None
-
-    def is_nonzero(self) -> bool:
-        return any((v or 0) > 0 for v in self)
+    # Should overload __setitem__ etc to validate
 
     def __str__(self) -> str:
         parts = ["P"]
-        if self.years is not None:
-            parts.extend((str(self.years), "Y"))
-        if self.months is not None:
-            parts.extend((str(self.months), "M"))
-        if self.weeks is not None:
-            parts.extend((str(self.weeks), "W"))
-        if self.days is not None:
-            parts.extend((str(self.days), "D"))
-        if (
-            self.hours is not None
-            or self.minutes is not None
-            or self.seconds is not None
-        ):
+        if (v := self.get("years")) is not None:
+            parts.extend((str(v), "Y"))
+        if (v := self.get("months")) is not None:
+            parts.extend((str(v), "M"))
+        if (v := self.get("weeks")) is not None:
+            parts.extend((str(v), "W"))
+        if (v := self.get("days")) is not None:
+            parts.extend((str(v), "D"))
+        if any(key in self for key in ("hours", "minutes", "seconds")):
             parts.append("T")
-        if self.hours is not None:
-            parts.extend((str(self.hours), "H"))
-        if self.minutes is not None:
-            parts.extend((str(self.minutes), "M"))
-        if self.seconds is not None:
-            parts.extend((str(self.seconds), "S"))
+        if (v := self.get("hours")) is not None:
+            parts.extend((str(v), "H"))
+        if (v := self.get("minutes")) is not None:
+            parts.extend((str(v), "M"))
+        if (v := self.get("seconds")) is not None:
+            parts.extend((str(v), "S"))
         return "".join(parts)
 
     def kwargs(self) -> Kwargs:
-        result = Kwargs()
-        if self.years is not None:
-            result["years"] = self.years
-        if self.months is not None:
-            result["months"] = self.months
-        if self.weeks is not None:
-            result["weeks"] = self.weeks
-        if self.days is not None:
-            result["days"] = self.days
-        if self.hours is not None:
-            result["hours"] = self.hours
-        if self.minutes is not None:
-            result["minutes"] = self.minutes
-        if self.seconds is not None:
-            result["seconds"] = self.seconds
-        return result
+        return cast("Kwargs", self)

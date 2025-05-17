@@ -25,32 +25,22 @@ from btrfs2s3._internal.durations import Kwargs
 
 def test_malformed() -> None:
     with pytest.raises(ValueError, match="Not a valid ISO 8601 duration"):
-        Duration.parse("invalid")
+        Duration("invalid")
 
 
 def test_empty() -> None:
     with pytest.raises(ValueError, match="Not a valid ISO 8601 duration"):
-        Duration.parse("P")
+        Duration("P")
 
 
 def test_empty_after_time_separator() -> None:
     with pytest.raises(ValueError, match="Not a valid ISO 8601 duration"):
-        Duration.parse("P1DT")
+        Duration("P1DT")
 
 
 def test_mixed_weeks() -> None:
     with pytest.raises(ValueError, match="Not a valid ISO 8601 duration"):
-        Duration.parse("P1W2D")
-
-
-def test_zero() -> None:
-    assert not Duration.parse("P0D").is_nonzero()
-    assert not Duration.parse("P0Y0M0DT0H0M0S").is_nonzero()
-
-
-def test_nonzero() -> None:
-    assert Duration.parse("P1Y").is_nonzero()
-    assert Duration.parse("P0Y0M0DT0H0M1S").is_nonzero()
+        Duration("P1W2D")
 
 
 @pytest.mark.parametrize(
@@ -64,8 +54,8 @@ def test_nonzero() -> None:
     ],
 )
 def test_valid_parse_and_str(value: str, result: Duration) -> None:
-    assert Duration.parse(value) == result
-    assert str(Duration.parse(value)) == value
+    assert Duration(value) == result
+    assert str(Duration(value)) == value
 
 
 @pytest.mark.parametrize(
