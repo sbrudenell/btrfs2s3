@@ -165,3 +165,6 @@ tag_format = "v$version"
 version_scheme = "semver2"
 version_provider = "scm"
 update_changelog_on_bump = true
+
+[tool.mdformat]
+wrap = 88 # matches ruff
