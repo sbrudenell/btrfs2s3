@@ -55,7 +55,7 @@ optional-dependencies.test = [
   "coverage>=7,<8",
   "moto[s3]>=5,<6",
   "pytest>=8,<9",
-  "pytest-cov>=6,<7",
+  "pytest-cov>=6,<8",
 ]
 
 urls.homepage = "https://github.com/sbrudenell/btrfs2s3"
