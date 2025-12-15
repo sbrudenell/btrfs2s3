@@ -37,6 +37,7 @@ from btrfs2s3._internal.btrfsioctl import send
 from btrfs2s3._internal.btrfsioctl import subvol_info
 from btrfs2s3._internal.btrfsioctl import SubvolFlag
 from btrfs2s3._internal.btrfsioctl import SubvolInfo
+from btrfs2s3._internal.cvar import NOW
 from btrfs2s3._internal.cvar import TZINFO
 from btrfs2s3._internal.resolver import Flags
 from btrfs2s3._internal.resolver import KeepMeta
@@ -59,6 +60,7 @@ if TYPE_CHECKING:
 
     from btrfs2s3._internal.preservation import Policy
     from btrfs2s3._internal.s3 import Costs
+    from btrfs2s3._internal.s3 import StorageClassCosts
 
 _LOG = logging.getLogger(__name__)
 
@@ -434,6 +436,7 @@ class AssessedBackup(NamedTuple):
     key: str
     meta: KeepMeta
     create_pipe: CreatePipe
+    storage_class: str | None = None
 
 
 class Assessment(NamedTuple):
@@ -456,6 +459,37 @@ def destroy_new_snapshots(asmt: Assessment) -> None:
     for snap in asmt.snapshots.values():
         if snap.meta.flags & Flags.New:
             snap.snapshot_dir.destroy_snapshot(snap.info.id)
+
+
+def get_expected_deletion_time(backup: AssessedBackup, /) -> float | None:
+    if not backup.meta.time_spans:
+        return None
+    return max(end for _, end in backup.meta.time_spans)
+
+
+DEFAULT_EXPECTED_SIZE = 2**30
+
+
+def get_best_storage_class(backup: AssessedBackup) -> str | None:
+    # Only implemented for new backups. For existing backups, we'll need to account for
+    # the cost to change from the current storage class
+    if backup.stat is not None:
+        return None
+    costs = backup.remote.costs
+    if not costs:
+        return None
+    storage_classes: Collection[StorageClassCosts] = costs.storage_classes().values()
+    if not storage_classes:
+        return None
+    expected_deletion_time = get_expected_deletion_time(backup)
+    if expected_deletion_time is None:
+        return None
+    timespan = (NOW.get(), expected_deletion_time)
+    size = DEFAULT_EXPECTED_SIZE
+    storage_classes = sorted(
+        storage_classes, key=lambda c: c.storage_cost.get(size=size, timespan=timespan)
+    )
+    return storage_classes[0].name
 
 
 def assess(*cfg_tuples: ConfigTuple) -> Assessment:
@@ -523,6 +557,11 @@ def assess(*cfg_tuples: ConfigTuple) -> Assessment:
                     meta=result_backup.meta,
                     create_pipe=cfg_tuple.create_pipe,
                 )
+
+    for backup_key, backup in list(backups.items()):
+        backups[backup_key] = backup._replace(
+            storage_class=get_best_storage_class(backup)
+        )
 
     return Assessment(snapshots=snaps, backups=backups)
 

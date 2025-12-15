@@ -174,7 +174,11 @@ def _make_backups_tree(backups: Collection[AssessedBackup]) -> Tree:
         size = backup.stat and backup.stat.size
         if size is not None:
             stats.append(Text(decimal(size), style="cost"))
-        storage_class = backup.stat and backup.stat.storage_class
+        # storage class migration not implemented yet
+        if backup.stat:
+            storage_class = backup.stat.storage_class
+        else:
+            storage_class = backup.storage_class
         if storage_class:
             stats.append(Text(storage_class, style="cost"))
         if backup.remote.costs:
