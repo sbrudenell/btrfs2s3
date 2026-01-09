@@ -22,6 +22,7 @@ from uuid import uuid4
 import arrow
 
 from btrfs2s3._internal.btrfsioctl import SubvolInfo
+from btrfs2s3._internal.cvar import use_now
 from btrfs2s3._internal.preservation import Params
 from btrfs2s3._internal.preservation import Policy
 from btrfs2s3._internal.resolver import _Resolver
@@ -54,14 +55,15 @@ def _t(t: str) -> float:
 def test_one_snapshot_multiple_time_spans() -> None:
     # One snapshot on Jan 1st
     snapshot = SubvolInfo(uuid=_u(), parent_uuid=_u(), ctime=_t("2006-01-01"))
-    resolver = _Resolver(
-        snapshots=(snapshot,),
-        backups=(),
-        policy=Policy(now=_t("2006-01-01"), params=Params(years=1, months=1)),
-        mk_backup=backup_of_snapshot,
-    )
+    with use_now(_t("2006-01-01")):
+        resolver = _Resolver(
+            snapshots=(snapshot,),
+            backups=(),
+            policy=Policy(params=Params(years=1, months=1)),
+            mk_backup=backup_of_snapshot,
+        )
 
-    resolver.keep_snapshots_and_backups_for_preserved_time_spans()
+        resolver.keep_snapshots_and_backups_for_preserved_time_spans()
 
     expected_backup = backup_of_snapshot(snapshot, send_parent=None)
     assert resolver.get_result() == Result(
@@ -97,14 +99,15 @@ def test_one_snapshot_with_existing_backup() -> None:
     # One snapshot on Jan 1st
     snapshot = SubvolInfo(uuid=_u(), parent_uuid=_u(), ctime=_t("2006-01-01"))
     backup = backup_of_snapshot(snapshot, send_parent=None)
-    resolver = _Resolver(
-        snapshots=(snapshot,),
-        backups=(backup,),
-        policy=Policy(now=_t("2006-01-01"), params=Params(years=1)),
-        mk_backup=backup_of_snapshot,
-    )
+    with use_now(_t("2006-01-01")):
+        resolver = _Resolver(
+            snapshots=(snapshot,),
+            backups=(backup,),
+            policy=Policy(params=Params(years=1)),
+            mk_backup=backup_of_snapshot,
+        )
 
-    resolver.keep_snapshots_and_backups_for_preserved_time_spans()
+        resolver.keep_snapshots_and_backups_for_preserved_time_spans()
 
     assert resolver.get_result() == Result(
         keep_snapshots={
@@ -133,14 +136,15 @@ def test_one_existing_backup_and_no_snapshot() -> None:
     snapshot = SubvolInfo(uuid=_u(), parent_uuid=_u(), ctime=_t("2006-01-01"))
     backup = backup_of_snapshot(snapshot, send_parent=None)
     # Don't include the snapshot
-    resolver = _Resolver(
-        snapshots=(),
-        backups=(backup,),
-        policy=Policy(now=_t("2006-01-01"), params=Params(years=1)),
-        mk_backup=backup_of_snapshot,
-    )
+    with use_now(_t("2006-01-01")):
+        resolver = _Resolver(
+            snapshots=(),
+            backups=(backup,),
+            policy=Policy(params=Params(years=1)),
+            mk_backup=backup_of_snapshot,
+        )
 
-    resolver.keep_snapshots_and_backups_for_preserved_time_spans()
+        resolver.keep_snapshots_and_backups_for_preserved_time_spans()
 
     assert resolver.get_result() == Result(
         keep_snapshots={},
@@ -168,14 +172,15 @@ def test_one_existing_backup_and_newer_snapshot() -> None:
     # One backup of the earlier snapshot
     backup1 = backup_of_snapshot(snapshot1, send_parent=None)
     # Don't include the older snapshot
-    resolver = _Resolver(
-        snapshots=(snapshot2,),
-        backups=(backup1,),
-        policy=Policy(now=_t("2006-01-01"), params=Params(years=1)),
-        mk_backup=backup_of_snapshot,
-    )
+    with use_now(_t("2006-01-01")):
+        resolver = _Resolver(
+            snapshots=(snapshot2,),
+            backups=(backup1,),
+            policy=Policy(params=Params(years=1)),
+            mk_backup=backup_of_snapshot,
+        )
 
-    resolver.keep_snapshots_and_backups_for_preserved_time_spans()
+        resolver.keep_snapshots_and_backups_for_preserved_time_spans()
 
     # Note that keep_most_recent_snapshot() would add a backup of the newer
     # snapshot
@@ -212,14 +217,15 @@ def test_one_existing_backup_and_older_snapshot() -> None:
     )
     # One backup of the newer snapshot
     backup2 = backup_of_snapshot(snapshot2, send_parent=None)
-    resolver = _Resolver(
-        snapshots=(snapshot1, snapshot2),
-        backups=(backup2,),
-        policy=Policy(now=_t("2006-01-01"), params=Params(years=1)),
-        mk_backup=backup_of_snapshot,
-    )
+    with use_now(_t("2006-01-01")):
+        resolver = _Resolver(
+            snapshots=(snapshot1, snapshot2),
+            backups=(backup2,),
+            policy=Policy(params=Params(years=1)),
+            mk_backup=backup_of_snapshot,
+        )
 
-    resolver.keep_snapshots_and_backups_for_preserved_time_spans()
+        resolver.keep_snapshots_and_backups_for_preserved_time_spans()
 
     # Note that keep_most_recent_snapshot() would add a backup of the newer
     # snapshot

@@ -20,6 +20,7 @@ from __future__ import annotations
 from uuid import uuid4
 
 from btrfs2s3._internal.btrfsioctl import SubvolInfo
+from btrfs2s3._internal.cvar import use_now
 from btrfs2s3._internal.preservation import Policy
 from btrfs2s3._internal.resolver import _Resolver
 from btrfs2s3._internal.resolver import Flags
@@ -69,14 +70,16 @@ def test_multiple_snapshots_keep_most_recent() -> None:
     snapshot1 = SubvolInfo(uuid=_u(), parent_uuid=_u(), ctransid=1)
     snapshot2 = SubvolInfo(uuid=_u(), parent_uuid=_u(), ctransid=2)
     backup1 = backup_of_snapshot(snapshot1, send_parent=None)
-    resolver = _Resolver(
-        snapshots=(snapshot1, snapshot2),
-        backups=(backup1,),
-        policy=Policy.all(),
-        mk_backup=backup_of_snapshot,
-    )
+    # With correct implementation of Policy.all() we shouldn't need use_now()
+    with use_now(0.0):
+        resolver = _Resolver(
+            snapshots=(snapshot1, snapshot2),
+            backups=(backup1,),
+            policy=Policy.all(),
+            mk_backup=backup_of_snapshot,
+        )
 
-    resolver.keep_most_recent_snapshot()
+        resolver.keep_most_recent_snapshot()
 
     expected_backup = backup_of_snapshot(snapshot2, send_parent=snapshot1)
     assert resolver.get_result() == Result(

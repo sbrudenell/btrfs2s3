@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     from datetime import tzinfo
 
 TZINFO: ContextVar[tzinfo] = ContextVar("tzinfo")
+NOW: ContextVar[float] = ContextVar("now")
 
 
 @contextmanager
@@ -35,3 +36,12 @@ def use_tzinfo(tz: tzinfo) -> Iterator[None]:
         yield
     finally:
         TZINFO.reset(token)
+
+
+@contextmanager
+def use_now(now: float) -> Iterator[None]:
+    token = NOW.set(now)
+    try:
+        yield
+    finally:
+        NOW.reset(token)

@@ -23,6 +23,7 @@ import arrow
 import pytest
 
 from btrfs2s3._internal.btrfsioctl import SubvolInfo
+from btrfs2s3._internal.cvar import use_now
 from btrfs2s3._internal.preservation import Params
 from btrfs2s3._internal.preservation import Policy
 from btrfs2s3._internal.resolver import Flags
@@ -54,12 +55,13 @@ def test_one_snapshot_preserved() -> None:
     snapshot = SubvolInfo(
         uuid=_u(), parent_uuid=_u(), ctime=_t("2006-01-01"), ctransid=1
     )
-    result = resolve(
-        snapshots=(snapshot,),
-        backups=(),
-        policy=Policy(now=_t("2006-01-01"), params=Params(years=1)),
-        mk_backup=backup_of_snapshot,
-    )
+    with use_now(_t("2006-01-01")):
+        result = resolve(
+            snapshots=(snapshot,),
+            backups=(),
+            policy=Policy(params=Params(years=1)),
+            mk_backup=backup_of_snapshot,
+        )
 
     expected_backup = backup_of_snapshot(snapshot, send_parent=None)
     assert result == Result(
@@ -95,12 +97,13 @@ def test_multiple_snapshots_and_time_spans() -> None:
     snapshot3 = SubvolInfo(
         uuid=_u(), parent_uuid=_u(), ctime=_t("2006-01-02"), ctransid=3
     )
-    result = resolve(
-        snapshots=(snapshot1, snapshot2, snapshot3),
-        backups=(),
-        policy=Policy(now=_t("2006-01-02"), params=Params(years=1, months=1)),
-        mk_backup=backup_of_snapshot,
-    )
+    with use_now(_t("2006-01-02")):
+        result = resolve(
+            snapshots=(snapshot1, snapshot2, snapshot3),
+            backups=(),
+            policy=Policy(params=Params(years=1, months=1)),
+            mk_backup=backup_of_snapshot,
+        )
 
     expected_backup1 = backup_of_snapshot(snapshot1, send_parent=None)
     expected_backup3 = backup_of_snapshot(snapshot3, send_parent=snapshot1)
@@ -149,12 +152,13 @@ def test_keep_send_ancestor_on_year_change() -> None:
     )
     backup1 = backup_of_snapshot(snapshot1, send_parent=None)
     backup2 = backup_of_snapshot(snapshot2, send_parent=snapshot1)
-    result = resolve(
-        snapshots=(snapshot1, snapshot2, snapshot3),
-        backups=(backup1, backup2),
-        policy=Policy(now=_t("2007-01-01"), params=Params(years=1, months=2)),
-        mk_backup=backup_of_snapshot,
-    )
+    with use_now(_t("2007-01-01")):
+        result = resolve(
+            snapshots=(snapshot1, snapshot2, snapshot3),
+            backups=(backup1, backup2),
+            policy=Policy(params=Params(years=1, months=2)),
+            mk_backup=backup_of_snapshot,
+        )
 
     expected_backup3 = backup_of_snapshot(snapshot3, send_parent=None)
     assert result == Result(
@@ -214,12 +218,13 @@ def test_backup_chain_broken() -> None:
     backup2 = backup_of_snapshot(snapshot2, send_parent=snapshot1)
 
     with pytest.warns(UserWarning, match="Backup chain is broken"):
-        result = resolve(
-            snapshots=(),
-            backups=(backup2,),
-            policy=Policy(now=_t("2006-01-01"), params=Params(years=1)),
-            mk_backup=backup_of_snapshot,
-        )
+        with use_now(_t("2006-01-01")):
+            result = resolve(
+                snapshots=(),
+                backups=(backup2,),
+                policy=Policy(params=Params(years=1)),
+                mk_backup=backup_of_snapshot,
+            )
 
     assert result == Result(
         keep_snapshots={},

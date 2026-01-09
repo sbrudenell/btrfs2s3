@@ -24,6 +24,7 @@ from enum import auto
 from enum import Enum
 from functools import partial
 from pathlib import Path
+import time
 from typing import cast
 from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
@@ -34,6 +35,7 @@ from rich.prompt import Prompt
 
 from btrfs2s3._internal.commands.printing import print_plan
 from btrfs2s3._internal.config import load_from_path
+from btrfs2s3._internal.cvar import use_now
 from btrfs2s3._internal.cvar import use_tzinfo
 from btrfs2s3._internal.piper import filter_pipe
 from btrfs2s3._internal.planner import Actions
@@ -187,6 +189,7 @@ class _Updater:
     def update(self, console: Console) -> None:
         with self._stack:
             self._stack.enter_context(use_tzinfo(self._tzinfo))
+            self._stack.enter_context(use_now(time.time()))
 
             cfg_tuples = list(self._iter_config_tuples())
 

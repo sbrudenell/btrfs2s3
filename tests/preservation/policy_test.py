@@ -17,8 +17,6 @@
 
 from __future__ import annotations
 
-from random import uniform
-import time
 from typing import cast
 from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
@@ -28,6 +26,7 @@ import pytest
 
 from btrfs2s3._internal.arrowutil import convert_span
 from btrfs2s3._internal.cvar import TZINFO
+from btrfs2s3._internal.cvar import use_now
 from btrfs2s3._internal.cvar import use_tzinfo
 from btrfs2s3._internal.preservation import Params
 from btrfs2s3._internal.preservation import Policy
@@ -37,67 +36,55 @@ if TYPE_CHECKING:
     from btrfs2s3._internal.preservation import Timeframe
 
 
-def _random_timestamp() -> float:
-    return uniform(0.0, arrow.get("9999").timestamp())
-
-
 @pytest.fixture(params=TIMEFRAMES)
 def timeframe(request: pytest.FixtureRequest) -> Timeframe:
     return cast("Timeframe", request.param)
 
 
-def test_empty_iter_time_spans(timeframe: Timeframe) -> None:
-    policy = Policy(now=_random_timestamp())
-    assert list(policy.iter_time_spans(_random_timestamp())) == []
-    time_span = convert_span(
-        arrow.get(_random_timestamp()).span(timeframe, bounds="[]")
-    )
-    assert not policy.should_preserve_for_time_span(time_span)
+def test_empty_iter_time_spans() -> None:
+    policy = Policy()
+    assert list(policy.iter_time_spans(1234.0)) == []
 
 
 def test_empty_should_preserve_for_time_span(timeframe: Timeframe) -> None:
-    policy = Policy(now=_random_timestamp())
-    time_span = convert_span(
-        arrow.get(_random_timestamp()).span(timeframe, bounds="[]")
-    )
-    assert not policy.should_preserve_for_time_span(time_span)
+    with use_now(1234.0):
+        policy = Policy()
+        time_span = convert_span(
+            arrow.get(1234.0, tzinfo=TZINFO.get()).span(timeframe, bounds="[]")
+        )
+        assert not policy.should_preserve_for_time_span(time_span)
 
 
 def test_all(timeframe: Timeframe) -> None:
     # This should be changed when we implement infinite preservation policies
-    now = _random_timestamp()
-    time_span = convert_span(arrow.get(now).span(timeframe, bounds="[]"))
-    policy = Policy.all(now=now)
-    assert time_span in list(policy.iter_time_spans(now))
-    assert policy.should_preserve_for_time_span(time_span)
+    time_span = convert_span(
+        arrow.get(1234.0, tzinfo=TZINFO.get()).span(timeframe, bounds="[]")
+    )
+    with use_now(1234.0):
+        policy = Policy.all()
+        assert time_span in list(policy.iter_time_spans(1234.0))
+        assert policy.should_preserve_for_time_span(time_span)
 
 
 def test_some_time_frames() -> None:
-    policy = Policy(params=Params(years=1))
-    time_span = convert_span(arrow.get().span("year", bounds="[]"))
+    time_span = convert_span(
+        arrow.get(1234.0, tzinfo=TZINFO.get()).span("year", bounds="[]")
+    )
+    with use_now(1234.0):
+        policy = Policy(params=Params(years=1))
 
-    start, end = time_span
-    assert start < policy.now < end
-
-    assert time_span in policy.iter_time_spans(time.time())
-    assert policy.should_preserve_for_time_span(time_span)
-
-
-def test_alternate_now() -> None:
-    policy = Policy(now=0.0, params=Params(years=1))
-    assert policy.now == 0.0
-    time_span = convert_span(arrow.get(0).span("year", bounds="[]"))
-
-    assert time_span in policy.iter_time_spans(0)
-    assert policy.should_preserve_for_time_span(time_span)
+        assert time_span in policy.iter_time_spans(1234.0)
+        assert policy.should_preserve_for_time_span(time_span)
 
 
 def test_alternate_timezone() -> None:
-    with use_tzinfo(ZoneInfo("America/Los_Angeles")):
+    with use_now(1234.0), use_tzinfo(ZoneInfo("America/Los_Angeles")):
         policy = Policy(params=Params(years=1))
         time_span = convert_span(
-            arrow.get(tzinfo=TZINFO.get()).span("year", bounds="[]")
+            arrow.get(1234.0, tzinfo=ZoneInfo("America/Los_Angeles")).span(
+                "year", bounds="[]"
+            )
         )
 
-        assert time_span in policy.iter_time_spans(time.time())
+        assert time_span in policy.iter_time_spans(1234.0)
         assert policy.should_preserve_for_time_span(time_span)

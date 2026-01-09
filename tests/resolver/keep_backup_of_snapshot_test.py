@@ -22,6 +22,7 @@ from uuid import uuid4
 import arrow
 
 from btrfs2s3._internal.btrfsioctl import SubvolInfo
+from btrfs2s3._internal.cvar import use_now
 from btrfs2s3._internal.preservation import Policy
 from btrfs2s3._internal.resolver import _Resolver
 from btrfs2s3._internal.resolver import Flags
@@ -87,18 +88,20 @@ def test_choose_correct_parents() -> None:
     snapshot4 = SubvolInfo(
         uuid=_u(), parent_uuid=_u(), ctime=_t("2006-02-02"), ctransid=4
     )
-    resolver = _Resolver(
-        snapshots=(snapshot1, snapshot2, snapshot3, snapshot4),
-        backups=(),
-        policy=Policy.all(),
-        mk_backup=backup_of_snapshot,
-    )
+    # With correct implementation of Policy.all() we shouldn't need use_now()
+    with use_now(0.0):
+        resolver = _Resolver(
+            snapshots=(snapshot1, snapshot2, snapshot3, snapshot4),
+            backups=(),
+            policy=Policy.all(),
+            mk_backup=backup_of_snapshot,
+        )
 
-    with resolver._with_reasons(Reasons.Preserved):
-        backup1 = resolver._keep_backup_of_snapshot(snapshot1)
-        backup2 = resolver._keep_backup_of_snapshot(snapshot2)
-        backup3 = resolver._keep_backup_of_snapshot(snapshot3)
-        backup4 = resolver._keep_backup_of_snapshot(snapshot4)
+        with resolver._with_reasons(Reasons.Preserved):
+            backup1 = resolver._keep_backup_of_snapshot(snapshot1)
+            backup2 = resolver._keep_backup_of_snapshot(snapshot2)
+            backup3 = resolver._keep_backup_of_snapshot(snapshot3)
+            backup4 = resolver._keep_backup_of_snapshot(snapshot4)
 
     expected1 = backup_of_snapshot(snapshot1, send_parent=None)
     assert backup1 == expected1

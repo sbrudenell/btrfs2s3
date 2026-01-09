@@ -27,6 +27,7 @@ import pytest
 from btrfs2s3._internal.btrfsioctl import create_snap
 from btrfs2s3._internal.btrfsioctl import create_subvol
 from btrfs2s3._internal.btrfsioctl import subvol_info
+from btrfs2s3._internal.cvar import use_now
 from btrfs2s3._internal.piper import filter_pipe
 from btrfs2s3._internal.planner import assess
 from btrfs2s3._internal.planner import AssessedBackup
@@ -357,24 +358,25 @@ def test_backup_with_parent(
     snapshot2_path = snapshot_dir1_path / "snapshot2"
     create_snap(src=source1_path, dst=snapshot2_path, read_only=True)
 
+    source1 = stack.enter_context(Source.create(source1_path))
+    snapshot_dir1 = stack.enter_context(SnapshotDir.create(snapshot_dir1_path))
+
     # This isn't guaranteed to work at year boundaries. Can't think of a better
     # way to do it right now.
     now = time.time()
-    policy = Policy(now=now, params=Params(years=1))
-
-    source1 = stack.enter_context(Source.create(source1_path))
-    snapshot_dir1 = stack.enter_context(SnapshotDir.create(snapshot_dir1_path))
-    asmt = assess(
-        ConfigTuple(
-            source=source1,
-            snapshot_dir=snapshot_dir1,
-            remote=remote1,
-            policy=policy,
-            create_pipe=noop_pipe,
+    with use_now(now):
+        policy = Policy(params=Params(years=1))
+        asmt = assess(
+            ConfigTuple(
+                source=source1,
+                snapshot_dir=snapshot_dir1,
+                remote=remote1,
+                policy=policy,
+                create_pipe=noop_pipe,
+            )
         )
-    )
+        expected_time_span = next(policy.iter_time_spans(now))
 
-    expected_time_span = next(policy.iter_time_spans(now))
     info1 = subvol_info(snapshot1_path)
     info2 = subvol_info(snapshot2_path)
     assert asmt == Assessment(
@@ -559,32 +561,34 @@ def test_one_source_two_remotes(
     # Create an initial snapshot
     snapshot_path = snapshot_dir1_path / "snapshot"
     create_snap(src=source1_path, dst=snapshot_path, read_only=True)
-    now = time.time()
-    policy1 = Policy(now=now, params=Params(months=1))
-    policy2 = Policy(now=now, params=Params(years=1))
 
     source1 = stack.enter_context(Source.create(source1_path))
     snapshot_dir1 = stack.enter_context(SnapshotDir.create(snapshot_dir1_path))
-    asmt = assess(
-        ConfigTuple(
-            source=source1,
-            snapshot_dir=snapshot_dir1,
-            remote=remote1,
-            policy=policy1,
-            create_pipe=noop_pipe,
-        ),
-        ConfigTuple(
-            source=source1,
-            snapshot_dir=snapshot_dir1,
-            remote=remote2,
-            policy=policy2,
-            create_pipe=noop_pipe,
-        ),
-    )
-
     info = subvol_info(snapshot_path)
-    policy1_expected_time_span = next(policy1.iter_time_spans(now))
-    policy2_expected_time_span = next(policy2.iter_time_spans(now))
+
+    now = time.time()
+    with use_now(now):
+        policy1 = Policy(params=Params(months=1))
+        policy2 = Policy(params=Params(years=1))
+        policy1_expected_time_span = next(policy1.iter_time_spans(now))
+        policy2_expected_time_span = next(policy2.iter_time_spans(now))
+        asmt = assess(
+            ConfigTuple(
+                source=source1,
+                snapshot_dir=snapshot_dir1,
+                remote=remote1,
+                policy=policy1,
+                create_pipe=noop_pipe,
+            ),
+            ConfigTuple(
+                source=source1,
+                snapshot_dir=snapshot_dir1,
+                remote=remote2,
+                policy=policy2,
+                create_pipe=noop_pipe,
+            ),
+        )
+
     assert asmt == Assessment(
         snapshots={
             info.uuid: AssessedSnapshot(
@@ -659,10 +663,6 @@ def test_two_sources(
     snapshot2_path = snapshot_dir2_path / "snapshot2"
     create_snap(src=source1_path, dst=snapshot1_path, read_only=True)
     create_snap(src=source2_path, dst=snapshot2_path, read_only=True)
-    now = time.time()
-    policy1 = Policy(now=now, params=Params(months=1))
-    policy2 = Policy(now=now, params=Params(years=1))
-
     source1 = stack.enter_context(Source.create(source1_path))
     source2 = stack.enter_context(Source.create(source2_path))
     snapshot_dir1 = stack.enter_context(SnapshotDir.create(snapshot_dir1_path))
@@ -670,27 +670,33 @@ def test_two_sources(
         snapshot_dir2 = snapshot_dir1
     else:
         snapshot_dir2 = stack.enter_context(SnapshotDir.create(snapshot_dir2_path))
-    asmt = assess(
-        ConfigTuple(
-            source=source1,
-            snapshot_dir=snapshot_dir1,
-            remote=remote1,
-            policy=policy1,
-            create_pipe=noop_pipe,
-        ),
-        ConfigTuple(
-            source=source2,
-            snapshot_dir=snapshot_dir2,
-            remote=remote2,
-            policy=policy2,
-            create_pipe=noop_pipe,
-        ),
-    )
 
     info1 = subvol_info(snapshot1_path)
     info2 = subvol_info(snapshot2_path)
-    policy1_expected_time_span = next(policy1.iter_time_spans(now))
-    policy2_expected_time_span = next(policy2.iter_time_spans(now))
+
+    now = time.time()
+    with use_now(now):
+        policy1 = Policy(params=Params(months=1))
+        policy2 = Policy(params=Params(years=1))
+        policy1_expected_time_span = next(policy1.iter_time_spans(now))
+        policy2_expected_time_span = next(policy2.iter_time_spans(now))
+        asmt = assess(
+            ConfigTuple(
+                source=source1,
+                snapshot_dir=snapshot_dir1,
+                remote=remote1,
+                policy=policy1,
+                create_pipe=noop_pipe,
+            ),
+            ConfigTuple(
+                source=source2,
+                snapshot_dir=snapshot_dir2,
+                remote=remote2,
+                policy=policy2,
+                create_pipe=noop_pipe,
+            ),
+        )
+
     assert asmt == Assessment(
         snapshots={
             info1.uuid: AssessedSnapshot(

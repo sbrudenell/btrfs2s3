@@ -27,6 +27,7 @@ import pytest
 from btrfs2s3._internal.btrfsioctl import create_snap
 from btrfs2s3._internal.btrfsioctl import create_subvol
 from btrfs2s3._internal.btrfsioctl import subvol_info
+from btrfs2s3._internal.cvar import use_now
 from btrfs2s3._internal.piper import filter_pipe
 from btrfs2s3._internal.planner import Actions
 from btrfs2s3._internal.planner import assess
@@ -231,18 +232,16 @@ def test_upload_backup_with_parent(
 
     # This isn't guaranteed to work at year boundaries. Can't think of a better
     # way to do it right now.
-    now = time.time()
-    policy = Policy(now=now, params=Params(years=1))
-
-    asmt = assess(
-        ConfigTuple(
-            source=source1,
-            snapshot_dir=snapshot_dir1,
-            remote=remote1,
-            policy=policy,
-            create_pipe=noop_pipe,
+    with use_now(time.time()):
+        asmt = assess(
+            ConfigTuple(
+                source=source1,
+                snapshot_dir=snapshot_dir1,
+                remote=remote1,
+                policy=Policy(params=Params(years=1)),
+                create_pipe=noop_pipe,
+            )
         )
-    )
     actions = assessment_to_actions(asmt)
     assert actions == Actions(
         rename_snapshots=[],

@@ -17,16 +17,34 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from uuid import uuid4
+
+import pytest
 
 from btrfs2s3._internal.backups import BackupInfo
 from btrfs2s3._internal.btrfsioctl import SubvolInfo
+from btrfs2s3._internal.cvar import use_now
 from btrfs2s3._internal.preservation import Policy
 from btrfs2s3._internal.resolver import _Index
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 
 def _u() -> bytes:
     return uuid4().bytes
+
+
+@pytest.fixture(autouse=True)
+def _now() -> Iterator[None]:
+    # This is only needed because of our incorrect implementation of Policy.all(),
+    # which only preserves intervals around NOW.
+    #
+    # When we implement infinite retention, Policy.all() shouldn't depend on the
+    # current time and we should be able to remove this.
+    with use_now(0.0):
+        yield
 
 
 def test_get_nominal_none() -> None:

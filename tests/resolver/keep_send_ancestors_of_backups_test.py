@@ -22,6 +22,7 @@ from uuid import uuid4
 import pytest
 
 from btrfs2s3._internal.btrfsioctl import SubvolInfo
+from btrfs2s3._internal.cvar import use_now
 from btrfs2s3._internal.preservation import Policy
 from btrfs2s3._internal.resolver import _Resolver
 from btrfs2s3._internal.resolver import Flags
@@ -132,16 +133,18 @@ def test_send_ancestors_not_yet_created() -> None:
     snapshot2 = SubvolInfo(uuid=_u(), parent_uuid=_u())
     snapshot3 = SubvolInfo(uuid=_u(), parent_uuid=_u())
     backup3 = backup_of_snapshot(snapshot3, send_parent=snapshot2)
-    resolver = _Resolver(
-        snapshots=(snapshot1, snapshot2, snapshot3),
-        backups=(backup3,),
-        policy=Policy.all(),
-        mk_backup=backup_of_snapshot,
-    )
-    with resolver._keep_backups.with_reasons(Reasons.Preserved):
-        resolver._keep_backups.mark(backup3)
+    # With correct implementation of Policy.all() we shouldn't need use_now()
+    with use_now(0.0):
+        resolver = _Resolver(
+            snapshots=(snapshot1, snapshot2, snapshot3),
+            backups=(backup3,),
+            policy=Policy.all(),
+            mk_backup=backup_of_snapshot,
+        )
+        with resolver._keep_backups.with_reasons(Reasons.Preserved):
+            resolver._keep_backups.mark(backup3)
 
-    resolver.keep_send_ancestors_of_backups()
+        resolver.keep_send_ancestors_of_backups()
 
     expected_backup1 = backup_of_snapshot(snapshot1, send_parent=None)
     expected_backup2 = backup_of_snapshot(snapshot2, send_parent=snapshot1)

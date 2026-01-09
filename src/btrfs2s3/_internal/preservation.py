@@ -75,6 +75,7 @@ from typing_extensions import TypedDict
 
 from btrfs2s3._internal.arrowutil import convert_span
 from btrfs2s3._internal.arrowutil import iter_time_spans
+from btrfs2s3._internal.cvar import NOW
 from btrfs2s3._internal.cvar import TZINFO
 
 if TYPE_CHECKING:
@@ -225,17 +226,15 @@ class Policy:
     """
 
     @classmethod
-    def all(cls, *, now: float | None = None) -> Self:
+    def all(cls) -> Self:
         """Returns a Policy which preserves ALL snapshots or backups.
 
         This is mainly useful for testing (and not currently correct, until we
         implement infinite preservation).
         """
-        return cls(params=Params.all(), now=now)
+        return cls(params=Params.all())
 
-    def __init__(
-        self, *, params: Params | None = None, now: float | None = None
-    ) -> None:
+    def __init__(self, *, params: Params | None = None) -> None:
         """Creates a Policy.
 
         When no args are supplied, the resulting Policy will not
@@ -245,32 +244,25 @@ class Policy:
         Args:
             params: The parameters which define the schedule of time spans for
                 which backups should be preserved.
-            now: A timestamp to use as the current time. If None, defaults to
-                the actual current time. This is mainly useful for testing.
         """
         if params is None:
             params = Params()
-        if now is None:
-            now = arrow.get(tzinfo=TZINFO.get()).timestamp()
 
         self._params = params
-        self._now = now
 
         kwargs = {t: range(0, -getattr(params, t), -1) for t in TIMEFRAMES}
-        # https://github.com/python/mypy/issues/10023
-        self._preserve_for_time_spans = {
-            convert_span(span)
-            for span in iter_time_spans(
-                arrow.get(now, tzinfo=TZINFO.get()),
-                bounds="[]",
-                **kwargs,  # type: ignore[misc]
-            )
-        }
-
-    @property
-    def now(self) -> float:
-        """Returns the current time used by this Policy."""
-        return self._now
+        if any(v for v in kwargs.values()):
+            # https://github.com/python/mypy/issues/10023
+            self._preserve_for_time_spans = {
+                convert_span(span)
+                for span in iter_time_spans(
+                    arrow.get(NOW.get(), tzinfo=TZINFO.get()),
+                    bounds="[]",
+                    **kwargs,  # type: ignore[misc]
+                )
+            }
+        else:
+            self._preserve_for_time_spans = set()
 
     def iter_time_spans(self, timestamp: float) -> Iterator[TS]:
         """Yields time spans which overlap with a given timestamp.
@@ -319,8 +311,8 @@ class Policy:
     def should_preserve_for_time_span(self, time_span: TS) -> bool:
         """Returns whether we want to retain a snapshot for a time span.
 
-        The return value is meaningful relative to the Policy's creation time
-        (policy.now), not the current time when the function is called.
+        The return value is meaningful relative to the global current time (NOW), not
+        the current time when the function is called.
 
         Args:
             time_span: The (timestamp, timestamp) time span tuple in question.
